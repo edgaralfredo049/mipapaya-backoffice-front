@@ -6,13 +6,21 @@ import { Plus, Trash2, Copy, AlertTriangle, X, Check } from "lucide-react";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: "creditCard",  label: "Tarjeta de Crédito" },
-  { value: "debitCard",   label: "Tarjeta de Débito"  },
-  { value: "applePay",    label: "Apple Pay"           },
-  { value: "googlePay",   label: "Google Pay"          },
+  { value: "creditCard", label: "Tarjeta de Crédito" },
+  { value: "debitCard",  label: "Tarjeta de Débito"  },
+  { value: "applePay",   label: "Apple Pay"           },
+  { value: "googlePay",  label: "Google Pay"          },
 ];
 
-const pmLabel = (v: string) => PAYMENT_METHODS.find(m => m.value === v)?.label ?? v;
+const DISBURSEMENT_METHODS: { value: string; label: string }[] = [
+  { value: "bank_deposit", label: "Depósito Bancario"  },
+  { value: "cash_pickup",  label: "Retiro en Efectivo" },
+  { value: "mobile_money", label: "Dinero Móvil"       },
+  { value: "wallet",       label: "Billetera Digital"  },
+];
+
+const pmLabel  = (v: string) => PAYMENT_METHODS.find(m => m.value === v)?.label ?? v;
+const dmLabel  = (v: string) => DISBURSEMENT_METHODS.find(m => m.value === v)?.label ?? v;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -24,7 +32,7 @@ function detectOverlaps(tariffs: Tariff[]): Set<number> {
   const result = new Set<number>();
   const groups = new Map<string, Tariff[]>();
   for (const t of tariffs) {
-    const key = `${t.collector_id}|${t.payer_id}|${t.origin_country_id}|${t.destination_country_id}|${t.payment_method}`;
+    const key = `${t.collector_id}|${t.payer_id}|${t.origin_country_id}|${t.destination_country_id}|${t.payment_method}|${t.disbursement_method}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(t);
   }
@@ -57,7 +65,8 @@ function checkOverlap(
       t.payer_id === form.payer_id &&
       t.origin_country_id === form.origin_country_id &&
       t.destination_country_id === form.destination_country_id &&
-      t.payment_method === form.payment_method,
+      t.payment_method === form.payment_method &&
+      t.disbursement_method === form.disbursement_method,
     )
     .some(t => rMin <= t.range_max && rMax >= t.range_min);
 }
@@ -75,6 +84,7 @@ const emptyNew = (): Partial<TariffIn> => ({
   range_min: 20, range_max: 500,
   fee_flat: 0, fee_percentage: 0,
   payment_method: "creditCard",
+  disbursement_method: "bank_deposit",
 });
 
 // ── Shared cell input styles ──────────────────────────────────────────────────
@@ -92,18 +102,19 @@ export const TariffsView = () => {
   const activePagadores = pagadores.filter(p => p.status === "active");
 
   // Filters
-  const [fCollector,      setFCollector]      = useState("");
-  const [fPayer,          setFPayer]          = useState("");
-  const [fOrigin,         setFOrigin]         = useState("");
-  const [fDest,           setFDest]           = useState("");
-  const [fPaymentMethod,  setFPaymentMethod]  = useState("");
+  const [fCollector,          setFCollector]          = useState("");
+  const [fPayer,              setFPayer]              = useState("");
+  const [fOrigin,             setFOrigin]             = useState("");
+  const [fDest,               setFDest]               = useState("");
+  const [fPaymentMethod,      setFPaymentMethod]      = useState("");
+  const [fDisbursementMethod, setFDisbursementMethod] = useState("");
 
   // Pagination
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
   // Sort
-  type SortKey = keyof Pick<Tariff, "collector_id"|"payer_id"|"origin_country_id"|"destination_country_id"|"payment_method"|"range_min"|"range_max"|"fee_flat"|"fee_percentage"|"created_at"|"updated_at">;
+  type SortKey = keyof Pick<Tariff, "collector_id"|"payer_id"|"origin_country_id"|"destination_country_id"|"payment_method"|"disbursement_method"|"range_min"|"range_max"|"fee_flat"|"fee_percentage"|"created_at"|"updated_at">;
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
 
@@ -137,14 +148,15 @@ export const TariffsView = () => {
   const filtered = useMemo(() => {
     setPage(1);
     return tariffs.filter(t =>
-      (!fCollector     || t.collector_id === fCollector) &&
-      (!fPayer         || t.payer_id     === fPayer)     &&
-      (!fOrigin        || t.origin_country_id === fOrigin) &&
-      (!fDest          || t.destination_country_id === fDest) &&
-      (!fPaymentMethod || t.payment_method === fPaymentMethod)
+      (!fCollector          || t.collector_id === fCollector) &&
+      (!fPayer              || t.payer_id     === fPayer)     &&
+      (!fOrigin             || t.origin_country_id === fOrigin) &&
+      (!fDest               || t.destination_country_id === fDest) &&
+      (!fPaymentMethod      || t.payment_method === fPaymentMethod) &&
+      (!fDisbursementMethod || t.disbursement_method === fDisbursementMethod)
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tariffs, fCollector, fPayer, fOrigin, fDest, fPaymentMethod]);
+  }, [tariffs, fCollector, fPayer, fOrigin, fDest, fPaymentMethod, fDisbursementMethod]);
 
   const sortedFiltered = useMemo(() => {
     if (!sortKey) return filtered;
@@ -244,6 +256,7 @@ export const TariffsView = () => {
       fee_flat: t.fee_flat,
       fee_percentage: t.fee_percentage,
       payment_method: t.payment_method,
+      disbursement_method: t.disbursement_method,
     });
     setEditError(null);
   };
@@ -300,6 +313,7 @@ export const TariffsView = () => {
       fee_flat: t.fee_flat,
       fee_percentage: t.fee_percentage,
       payment_method: t.payment_method,
+      disbursement_method: t.disbursement_method,
     });
     setNewError(null);
     setPage(1);
@@ -357,9 +371,17 @@ export const TariffsView = () => {
             {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
-        {(fCollector || fPayer || fOrigin || fDest || fPaymentMethod) && (
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Método de Entrega</label>
+          <select value={fDisbursementMethod} onChange={e => setFDisbursementMethod(e.target.value)}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none">
+            <option value="">Todos</option>
+            {DISBURSEMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+        </div>
+        {(fCollector || fPayer || fOrigin || fDest || fPaymentMethod || fDisbursementMethod) && (
           <div className="flex items-end">
-            <button onClick={() => { setFCollector(""); setFPayer(""); setFOrigin(""); setFDest(""); setFPaymentMethod(""); }}
+            <button onClick={() => { setFCollector(""); setFPayer(""); setFOrigin(""); setFDest(""); setFPaymentMethod(""); setFDisbursementMethod(""); }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
               <X size={12} /> Limpiar
             </button>
@@ -378,8 +400,9 @@ export const TariffsView = () => {
                   { label: "Pagador",        key: "payer_id"               },
                   { label: "País Origen",    key: "origin_country_id"      },
                   { label: "País Destino",   key: "destination_country_id" },
-                  { label: "Método de Pago", key: "payment_method"         },
-                  { label: "Rango Ini.",     key: "range_min"              },
+                  { label: "Método de Pago",    key: "payment_method"      },
+                  { label: "Método Entrega",    key: "disbursement_method" },
+                  { label: "Rango Ini.",        key: "range_min"           },
                   { label: "Rango Fin",      key: "range_max"              },
                   { label: "Flat $",         key: "fee_flat"               },
                   { label: "Pct %",          key: "fee_percentage"         },
@@ -451,6 +474,13 @@ export const TariffsView = () => {
                         {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                       </select>
                     </td>
+                    {/* Disbursement method */}
+                    <td className="px-3 py-2">
+                      <select value={newRow.disbursement_method ?? "bank_deposit"} onChange={e => setN("disbursement_method", e.target.value)}
+                        className={cellSelect}>
+                        {DISBURSEMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      </select>
+                    </td>
                     {/* Range min */}
                     <td className="px-3 py-2">
                       <input type="number" min="20" max="500" step="1"
@@ -509,7 +539,7 @@ export const TariffsView = () => {
                   </tr>
                   {newError && (
                     <tr className="bg-red-50">
-                      <td colSpan={12} className="px-4 py-2 text-xs text-red-700 flex items-center gap-1">
+                      <td colSpan={13} className="px-4 py-2 text-xs text-red-700 flex items-center gap-1">
                         <AlertTriangle size={12} className="inline mr-1 text-red-500" />{newError}
                       </td>
                     </tr>
@@ -520,7 +550,7 @@ export const TariffsView = () => {
               {/* ── Data rows ── */}
               {filtered.length === 0 && !newRow ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={13} className="px-4 py-10 text-center text-sm text-gray-400">
                     No hay tarifas configuradas.
                   </td>
                 </tr>
@@ -535,7 +565,7 @@ export const TariffsView = () => {
                 if (isDeleting) {
                   return (
                     <tr key={t.id} className="bg-red-50/60">
-                      <td colSpan={10} className="px-4 py-2.5 text-sm text-gray-700">
+                      <td colSpan={11} className="px-4 py-2.5 text-sm text-gray-700">
                         {deleteError
                           ? <span className="text-amber-700"><AlertTriangle size={12} className="inline mr-1" />{deleteError}</span>
                           : <span>¿Eliminar tarifa <strong>{getName(t.collector_id, activeGateways)} → {getCountryName(t.destination_country_id)}</strong>? Esta acción no se puede deshacer.</span>
@@ -573,6 +603,13 @@ export const TariffsView = () => {
                           <select value={editForm.payment_method ?? "creditCard"} onChange={e => setE("payment_method", e.target.value)}
                             className={cellSelect}>
                             {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                          </select>
+                        </td>
+                        {/* Disbursement method */}
+                        <td className="px-3 py-2">
+                          <select value={editForm.disbursement_method ?? "bank_deposit"} onChange={e => setE("disbursement_method", e.target.value)}
+                            className={cellSelect}>
+                            {DISBURSEMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                           </select>
                         </td>
                         {/* Range min */}
@@ -632,7 +669,7 @@ export const TariffsView = () => {
                       </tr>
                       {editError && (
                         <tr className="bg-red-50">
-                          <td colSpan={12} className="px-4 py-2 text-xs text-red-700">
+                          <td colSpan={13} className="px-4 py-2 text-xs text-red-700">
                             <AlertTriangle size={12} className="inline mr-1 text-red-500" />{editError}
                           </td>
                         </tr>
@@ -648,6 +685,7 @@ export const TariffsView = () => {
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{getCountryName(t.origin_country_id)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{getCountryName(t.destination_country_id)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{pmLabel(t.payment_method)}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{dmLabel(t.disbursement_method)}</td>
                     <td className="px-3 py-2.5">
                       <span className={rangeClass}>{t.range_min}</span>
                       {hasOverlap && <AlertTriangle size={11} className="inline ml-1 text-red-500" />}

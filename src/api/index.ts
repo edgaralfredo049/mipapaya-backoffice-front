@@ -137,6 +137,7 @@ export interface Tariff {
   fee_flat: number | null;
   fee_percentage: number | null;
   payment_method: string;
+  disbursement_method: string;
   created_at: string;
   updated_at: string;
 }
@@ -151,6 +152,7 @@ export interface TariffIn {
   fee_flat: number | null;
   fee_percentage: number | null;
   payment_method: string;
+  disbursement_method: string;
 }
 
 export interface CalculateAmountResult {
