@@ -170,10 +170,16 @@ export interface CalculateAmountResult {
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 
+const API_KEY = import.meta.env.VITE_API_KEY ?? "";
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`/api${url}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": API_KEY,
+      ...(options?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
