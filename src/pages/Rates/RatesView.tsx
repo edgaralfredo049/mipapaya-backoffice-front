@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { api, ExchangeRateIn, CalculateAmountResult } from "../../api";
-import { AlertTriangle, TrendingUp, RotateCcw, Save, Calculator, ArrowRight, Loader2 } from "lucide-react";
+import { AlertTriangle, TrendingUp, RotateCcw, Save, Calculator, ArrowRight, Loader2, Zap } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
 
 type Tab = "pagador" | "gateway";
@@ -27,11 +27,12 @@ export const RatesView = () => {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Calculator state
-  const [calcFromId,   setCalcFromId]   = useState<string>("");
-  const [calcStateId,  setCalcStateId]  = useState<string>("");
-  const [calcToId,     setCalcToId]     = useState<string>("");
-  const [calcMethod,   setCalcMethod]   = useState<string>("");
-  const [calcAmount,   setCalcAmount]   = useState<string>("");
+  const [calcFromId,      setCalcFromId]      = useState<string>("");
+  const [calcStateId,     setCalcStateId]     = useState<string>("");
+  const [calcToId,        setCalcToId]        = useState<string>("");
+  const [calcMethod,      setCalcMethod]      = useState<string>("");
+  const [calcSenderMethod,setCalcSenderMethod]= useState<string>("");
+  const [calcAmount,      setCalcAmount]      = useState<string>("");
   const [calcLoading,  setCalcLoading]  = useState(false);
   const [calcError,    setCalcError]    = useState<string | null>(null);
   const [calcResult,   setCalcResult]   = useState<CalculateAmountResult | null>(null);
@@ -109,21 +110,22 @@ export const RatesView = () => {
   useEffect(() => {
     setCalcResult(null);
     setCalcError(null);
-  }, [calcFromId, calcStateId, calcToId, calcMethod, calcAmount]);
+  }, [calcFromId, calcStateId, calcToId, calcMethod, calcSenderMethod, calcAmount]);
 
   const handleCalculate = async () => {
-    if (!calcFromId || !calcToId || !calcMethod || !calcAmount) return;
+    if (!calcFromId || !calcToId || !calcMethod || !calcSenderMethod || !calcAmount) return;
     setCalcLoading(true);
     setCalcError(null);
     setCalcResult(null);
     try {
       const result = await api.calculateAmount({
-        originCountry:      calcFromId,
-        originCity:         calcStateId || null,
-        destinationCountry: calcToId,
-        sentAmount:         parseFloat(calcAmount),
-        paymentMethod:      calcMethod,
-        completeResponse:   true,
+        originCountry:        calcFromId,
+        originCity:           calcStateId || null,
+        destinationCountry:   calcToId,
+        sentAmount:           parseFloat(calcAmount),
+        paymentMethod:        calcMethod,
+        senderPaymentMethod:  calcSenderMethod,
+        completeResponse:     true,
       });
       setCalcResult(result);
     } catch (e: any) {
@@ -175,7 +177,14 @@ export const RatesView = () => {
             Tasa de conversión a USD por país para cada entidad.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {}}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-papaya-orange text-papaya-orange text-sm font-medium hover:bg-orange-50 transition-colors"
+          >
+            <Zap size={15} />
+            Ejecutar Integraciones
+          </button>
           <div className="text-right">
             <p className="text-xs text-gray-400 uppercase tracking-wide">Configurados</p>
             <p className="text-2xl font-bold text-papaya-orange leading-none mt-0.5">
@@ -487,7 +496,7 @@ export const RatesView = () => {
           )}
 
 
-          {/* Payment method */}
+          {/* Receiver payment method */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
               ¿Cómo recibe el beneficiario?
@@ -547,10 +556,28 @@ export const RatesView = () => {
             </div>
           </div>
 
+          {/* Sender payment method */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+              ¿Cómo paga el remitente?
+            </label>
+            <select
+              value={calcSenderMethod}
+              onChange={(e) => setCalcSenderMethod(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-papaya-orange focus:ring-1 focus:ring-orange-100 focus:outline-none bg-white"
+            >
+              <option value="">Método de pago...</option>
+              <option value="creditCard">Tarjeta de Crédito</option>
+              <option value="debitCard">Tarjeta de Débito</option>
+              <option value="applePay">Apple Pay</option>
+              <option value="googlePay">Google Pay</option>
+            </select>
+          </div>
+
           {/* Calculate button */}
           <button
             onClick={handleCalculate}
-            disabled={calcLoading || !calcFromId || !calcToId || !calcMethod || !calcAmount}
+            disabled={calcLoading || !calcFromId || !calcToId || !calcMethod || !calcSenderMethod || !calcAmount}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {calcLoading
@@ -608,8 +635,17 @@ export const RatesView = () => {
 
                     {/* Result */}
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Resultado</p>
-                    <Row label={`Recibe (${calcToCountry?.currency_code})`} value={`${fmt(calcResult.amountToDeliver)} ${calcToCountry?.currency_code}`} highlight />
-                    <Row label="Comisión Papaya" value={`${fmt(calcResult.papayaFeeLocal)} ${calcFromCountry?.currency_code}`} />
+                    {(() => {
+                      const isVECash = calcToId === "VE" && calcMethod === "cash_pickup";
+                      const receiveCurrency = isVECash ? "USD" : calcToCountry?.currency_code;
+                      return (
+                        <Row label={`Recibe (${receiveCurrency})`} value={`${fmt(calcResult.amountToDeliver)} ${receiveCurrency}`} highlight />
+                      );
+                    })()}
+                    <Row
+                      label={calcResult.feeType === "percentage" ? `Comisión (${calcResult.papayaFee.toFixed(2)}%)` : "Comisión (fija)"}
+                      value={`${fmt(calcResult.papayaFeeLocal)} ${calcFromCountry?.currency_code}`}
+                    />
                     <div className="flex items-center justify-between gap-2 pt-1 border-t border-orange-200">
                       <span className="text-xs font-semibold text-gray-700">Total a pagar</span>
                       <span className="text-sm font-bold font-mono text-gray-800">

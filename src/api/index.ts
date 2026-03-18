@@ -126,6 +126,33 @@ export interface ExchangeRateIn {
   rate: number;
 }
 
+export interface Tariff {
+  id: number;
+  collector_id: string;
+  payer_id: string;
+  origin_country_id: string;
+  destination_country_id: string;
+  range_min: number;
+  range_max: number;
+  fee_flat: number | null;
+  fee_percentage: number | null;
+  payment_method: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TariffIn {
+  collector_id: string;
+  payer_id: string;
+  origin_country_id: string;
+  destination_country_id: string;
+  range_min: number;
+  range_max: number;
+  fee_flat: number | null;
+  fee_percentage: number | null;
+  payment_method: string;
+}
+
 export interface CalculateAmountResult {
   payerId: string;
   payerRate: number;
@@ -137,6 +164,7 @@ export interface CalculateAmountResult {
   amountToDeliver: number;
   papayaFee: number;
   papayaFeeLocal: number;
+  feeType: "flat" | "percentage";
   amountToPay: number;
 }
 
@@ -203,6 +231,7 @@ export const api = {
     destinationCountry: string;
     sentAmount: number;
     paymentMethod: string;
+    senderPaymentMethod: string;
     completeResponse?: boolean;
   }) =>
     request<CalculateAmountResult>("/calculate-amount", {
@@ -222,4 +251,15 @@ export const api = {
   getAlternancia: () => request<AlternanciaSlot[]>("/alternancia"),
   replaceAlternancia: (slots: AlternanciaSlotIn[]) =>
     request<AlternanciaSlot[]>("/alternancia", { method: "PUT", body: JSON.stringify(slots) }),
+
+  // Tariffs
+  getTariffs: () => request<Tariff[]>("/tariffs"),
+  createTariff: (data: TariffIn) =>
+    request<Tariff>("/tariffs", { method: "POST", body: JSON.stringify(data) }),
+  updateTariff: (id: number, data: TariffIn) =>
+    request<Tariff>(`/tariffs/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTariff: (id: number) =>
+    request<void>(`/tariffs/${id}`, { method: "DELETE" }),
+  duplicateTariff: (id: number) =>
+    request<Tariff>(`/tariffs/${id}/duplicate`, { method: "POST" }),
 };

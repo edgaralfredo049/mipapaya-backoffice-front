@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
-import { api, GatewayIn, PagadorIn, RateIn, CommissionRow, CountryUpdateIn } from "../../api";
+import { api, GatewayIn, PagadorIn, CountryUpdateIn } from "../../api";
 import { Table } from "../../components/ui/Table";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
@@ -9,45 +9,13 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { AlternanciaView } from "./AlternanciaView";
+import { TariffsView } from "../Tariffs/TariffsView";
 
-type Tab = "paises" | "gateways" | "pagadores" | "tarifas" | "alternancia";
+type Tab = "paises" | "gateways" | "pagadores" | "alternancia" | "tarifas";
 
-const PAYMENT_METHODS = ["bank_deposit", "cash_pickup", "mobile_money", "wallet"] as const;
-const METHOD_LABELS: Record<string, string> = {
-  bank_deposit: "Depósito Bancario",
-  cash_pickup: "Retiro en Efectivo",
-  mobile_money: "Dinero Móvil",
-  wallet: "Billetera Digital",
-};
-
-function generateEmptyCommissions(): CommissionRow[] {
-  const rows: CommissionRow[] = [];
-  for (let i = 20; i < 500; i += 10) {
-    rows.push({ range_min: i, range_max: i + 10, fee: null });
-  }
-  return rows;
-}
-
-function mergeCommissions(
-  empty: CommissionRow[],
-  stored: CommissionRow[]
-): CommissionRow[] {
-  return empty.map((row) => {
-    const match = stored.find(
-      (s) => s.range_min === row.range_min && s.range_max === row.range_max
-    );
-    return match ? { ...row, fee: match.fee } : row;
-  });
-}
-
-function buildEmptyPaymentMethods() {
-  return Object.fromEntries(
-    PAYMENT_METHODS.map((m) => [m, { commissions: generateEmptyCommissions() }])
-  );
-}
 
 export const Config = () => {
-  const { countries, currencies, states, gateways, pagadores, rates, refreshCountries, refreshGateways, refreshPagadores, refreshRates } =
+  const { countries, currencies, states, gateways, pagadores, refreshCountries, refreshGateways, refreshPagadores } =
     useAppStore();
 
   const usStates = states.filter((s) => s.country_id === "US");
@@ -60,20 +28,6 @@ export const Config = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === "tarifas" && rates.length > 0) {
-      const tarifa = rates[0];
-      const methods = buildEmptyPaymentMethods();
-      for (const m of PAYMENT_METHODS) {
-        const stored = tarifa.payment_methods?.[m]?.commissions || [];
-        methods[m].commissions = mergeCommissions(generateEmptyCommissions(), stored);
-      }
-      setFormData({ ...tarifa, payment_methods: methods });
-      setEditingItem(tarifa);
-      setErrorMsg(null);
-    }
-  }, [activeTab, rates]);
 
   const handleOpenModal = (item?: any) => {
     setErrorMsg(null);
@@ -146,22 +100,6 @@ export const Config = () => {
           await api.createPagador(payload);
         }
         await refreshPagadores();
-      } else if (activeTab === "tarifas") {
-        const paymentMethodsPayload: Record<string, { commissions: CommissionRow[] }> = {};
-        for (const m of PAYMENT_METHODS) {
-          const commissions = (formData.payment_methods?.[m]?.commissions || [])
-            .filter((c: CommissionRow) => c.fee !== null && c.fee !== undefined && !isNaN(c.fee as number));
-          paymentMethodsPayload[m] = { commissions };
-        }
-
-        const payload: RateIn = {
-          name: formData.name,
-          status: formData.status,
-          payment_methods: paymentMethodsPayload,
-        };
-        await api.updateRate(formData.id, payload);
-        await refreshRates();
-        return;
       }
       setIsModalOpen(false);
     } catch (e: any) {
@@ -335,113 +273,11 @@ export const Config = () => {
           />
         );
 
-      case "tarifas": {
-        if (!editingItem || !formData.payment_methods) {
-          return <div className="text-center py-12 text-gray-400">Cargando tarifario...</div>;
-        }
-        const activeMethodTab: string = formData._activeMethodTab || "bank_deposit";
-        return (
-          <div className="space-y-6">
-            {errorMsg && (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4">
-                <p className="text-sm text-red-700">{errorMsg}</p>
-              </div>
-            )}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 border-b pb-2">Comisiones por Método de Pago</h3>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="flex border-b border-gray-200 bg-gray-50">
-                  {PAYMENT_METHODS.map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, _activeMethodTab: method })}
-                      className={`flex-1 py-2 px-4 text-sm font-medium text-center ${
-                        activeMethodTab === method
-                          ? "bg-white border-b-2 border-papaya-orange text-papaya-orange"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      {METHOD_LABELS[method]}
-                    </button>
-                  ))}
-                </div>
-                <div className="p-4 bg-white">
-                  {PAYMENT_METHODS.filter((m) => m === activeMethodTab).map((method) => {
-                    const methodData = formData.payment_methods?.[method] || { commissions: generateEmptyCommissions() };
-                    const commissions: CommissionRow[] = methodData.commissions;
-                    return (
-                      <div key={method} className="space-y-4">
-                        <div className="flex items-end space-x-2">
-                          <Input
-                            label="Aplicar a todos"
-                            type="number"
-                            placeholder="Ej. 2.50"
-                            value={formData[`_applyAll_${method}`] || ""}
-                            onChange={(e) => setFormData({ ...formData, [`_applyAll_${method}`]: e.target.value })}
-                          />
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              const val = parseFloat(formData[`_applyAll_${method}`]);
-                              if (!isNaN(val) && val >= 0) {
-                                setFormData({
-                                  ...formData,
-                                  payment_methods: {
-                                    ...formData.payment_methods,
-                                    [method]: { commissions: commissions.map((c) => ({ ...c, fee: val })) },
-                                  },
-                                });
-                              }
-                            }}
-                          >
-                            Aplicar
-                          </Button>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            {commissions.map((c, idx) => (
-                              <div key={idx} className="flex items-center justify-between bg-white p-2 rounded border border-gray-200 shadow-sm">
-                                <span className="text-xs font-medium text-gray-600 w-16">${c.range_min}-${c.range_max}</span>
-                                <div className="relative w-20">
-                                  <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-gray-500 text-xs">$</span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={c.fee === null || c.fee === undefined ? "" : c.fee}
-                                    onChange={(e) => {
-                                      const newCommissions = [...commissions];
-                                      newCommissions[idx] = { ...c, fee: e.target.value === "" ? null : parseFloat(e.target.value) };
-                                      setFormData({
-                                        ...formData,
-                                        payment_methods: { ...formData.payment_methods, [method]: { commissions: newCommissions } },
-                                      });
-                                    }}
-                                    className="block w-full pl-5 pr-1 py-1 text-xs rounded border-gray-300 focus:border-papaya-orange focus:ring-papaya-orange"
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
-              </Button>
-            </div>
-          </div>
-        );
-      }
-
       case "alternancia":
         return <AlternanciaView />;
+
+      case "tarifas":
+        return <TariffsView />;
 
     }
   };
@@ -717,11 +553,11 @@ export const Config = () => {
   };
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "paises", label: "Países" },
-    { key: "gateways", label: "Recolectores" },
-    { key: "pagadores", label: "Pagadores" },
-    { key: "tarifas", label: "Tarifas" },
+    { key: "paises",     label: "Países"       },
+    { key: "gateways",   label: "Recolectores" },
+    { key: "pagadores",  label: "Pagadores"    },
     { key: "alternancia", label: "Alternancia" },
+    { key: "tarifas",    label: "Tarifas"      },
   ];
 
   return (

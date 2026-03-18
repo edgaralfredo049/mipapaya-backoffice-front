@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { to: "/configuracion", label: "Configuración", Icon: Settings },
+  { to: "/configuracion", label: "Configuración",  Icon: Settings   },
   { to: "/tasas",         label: "Tasas de Cambio", Icon: TrendingUp },
 ];
 

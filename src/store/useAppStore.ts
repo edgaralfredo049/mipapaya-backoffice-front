@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, Country, Currency, State, Gateway, Pagador, Rate, AlternanciaSlot, ExchangeRate } from "../api";
+import { api, Country, Currency, State, Gateway, Pagador, Rate, AlternanciaSlot, ExchangeRate, Tariff } from "../api";
 
 interface AppState {
   isLoaded: boolean;
@@ -11,6 +11,7 @@ interface AppState {
   rates: Rate[];
   alternancia: AlternanciaSlot[];
   exchangeRates: ExchangeRate[];
+  tariffs: Tariff[];
 
   init: () => Promise<void>;
   refreshCountries: () => Promise<void>;
@@ -19,6 +20,7 @@ interface AppState {
   refreshRates: () => Promise<void>;
   refreshAlternancia: () => Promise<void>;
   refreshExchangeRates: () => Promise<void>;
+  refreshTariffs: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()((set) => ({
@@ -31,12 +33,13 @@ export const useAppStore = create<AppState>()((set) => ({
   rates: [],
   alternancia: [],
   exchangeRates: [],
+  tariffs: [],
 
   init: async () => {
     const safe = <T>(p: Promise<T>, fallback: T): Promise<T> =>
       p.catch((e) => { console.error(e); return fallback; });
 
-    const [countries, currencies, states, gateways, pagadores, rates, alternancia, exchangeRates] = await Promise.all([
+    const [countries, currencies, states, gateways, pagadores, rates, alternancia, exchangeRates, tariffs] = await Promise.all([
       safe(api.getCountries(), []),
       safe(api.getCurrencies(), []),
       safe(api.getStates(), []),
@@ -45,8 +48,9 @@ export const useAppStore = create<AppState>()((set) => ({
       safe(api.getRates(), []),
       safe(api.getAlternancia(), []),
       safe(api.getExchangeRates(), []),
+      safe(api.getTariffs(), []),
     ]);
-    set({ countries, currencies, states, gateways, pagadores, rates, alternancia, exchangeRates, isLoaded: true });
+    set({ countries, currencies, states, gateways, pagadores, rates, alternancia, exchangeRates, tariffs, isLoaded: true });
   },
 
   refreshCountries: async () => {
@@ -77,5 +81,10 @@ export const useAppStore = create<AppState>()((set) => ({
   refreshExchangeRates: async () => {
     const exchangeRates = await api.getExchangeRates();
     set({ exchangeRates });
+  },
+
+  refreshTariffs: async () => {
+    const tariffs = await api.getTariffs();
+    set({ tariffs });
   },
 }));
