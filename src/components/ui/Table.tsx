@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
-import { Button } from "./Button";
+import { Inbox } from "lucide-react";
+import { Pagination } from "./Pagination";
 
 interface Column<T> {
   header: string;
@@ -65,34 +65,13 @@ export function Table<T>({
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
-          <span className="text-sm text-gray-700">
-            Mostrando{" "}
-            <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> a{" "}
-            <span className="font-semibold">{Math.min(currentPage * itemsPerPage, data.length)}</span>{" "}
-            de <span className="font-semibold">{data.length}</span>
-          </span>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={data.length}
+        pageSize={itemsPerPage}
+      />
     </div>
   );
 }

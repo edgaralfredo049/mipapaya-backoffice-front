@@ -23,6 +23,7 @@ export interface Gateway {
   origin_countries: string[];
   coverage_states: string[];
   created_at: string;
+  rate_status: "complete" | "partial" | "empty";
 }
 
 export interface GatewayIn {
@@ -51,6 +52,7 @@ export interface Pagador {
   countries: string[];
   country_fx: Record<string, number>;
   created_at: string;
+  rate_status: "complete" | "partial" | "empty";
 }
 
 export interface PagadorIn {
@@ -85,6 +87,9 @@ export interface AlternanciaSlot {
   pagador_id: string;
   hour_start: number;
   hour_end: number;
+  amount_min: number;
+  amount_max: number;
+  payment_methods: string[];
   active: boolean;
 }
 
@@ -93,6 +98,9 @@ export interface AlternanciaSlotIn {
   pagador_id: string;
   hour_start: number;
   hour_end: number;
+  amount_min: number;
+  amount_max: number;
+  payment_methods: string[];
   active: boolean;
 }
 
@@ -140,6 +148,7 @@ export interface Tariff {
   disbursement_method: string;
   created_at: string;
   updated_at: string;
+  has_overlap: boolean;
 }
 
 export interface TariffIn {

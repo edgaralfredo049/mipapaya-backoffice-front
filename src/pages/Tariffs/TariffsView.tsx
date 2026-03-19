@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { api, Tariff, TariffIn } from "../../api";
 import { Plus, Trash2, Copy, AlertTriangle, X, Check } from "lucide-react";
+import { Pagination } from "../../components/ui/Pagination";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -28,55 +29,6 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
 }
 
-function detectOverlaps(tariffs: Tariff[]): Set<number> {
-  const result = new Set<number>();
-  const groups = new Map<string, Tariff[]>();
-  for (const t of tariffs) {
-    const key = `${t.collector_id}|${t.payer_id}|${t.origin_country_id}|${t.destination_country_id}|${t.payment_method}|${t.disbursement_method}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(t);
-  }
-  for (const group of groups.values()) {
-    for (let i = 0; i < group.length; i++) {
-      for (let j = i + 1; j < group.length; j++) {
-        const a = group[i], b = group[j];
-        if (a.range_min <= b.range_max && a.range_max >= b.range_min) {
-          result.add(a.id);
-          result.add(b.id);
-        }
-      }
-    }
-  }
-  return result;
-}
-
-function checkOverlap(
-  form: Partial<TariffIn> & { id?: number },
-  all: Tariff[],
-): boolean {
-  if (!form.collector_id || !form.payer_id || !form.origin_country_id || !form.destination_country_id || !form.payment_method) return false;
-  const rMin = form.range_min ?? 0;
-  const rMax = form.range_max ?? 0;
-  if (rMax <= rMin) return false;
-  return all
-    .filter(t =>
-      t.id !== (form.id ?? -1) &&
-      t.collector_id === form.collector_id &&
-      t.payer_id === form.payer_id &&
-      t.origin_country_id === form.origin_country_id &&
-      t.destination_country_id === form.destination_country_id &&
-      t.payment_method === form.payment_method &&
-      t.disbursement_method === form.disbursement_method,
-    )
-    .some(t => rMin <= t.range_max && rMax >= t.range_min);
-}
-
-function validateRange(min: number, max: number): string | null {
-  if (min < 20)   return "Rango inicial mínimo: 20 USD.";
-  if (max > 500)  return "Rango final máximo: 500 USD.";
-  if (max <= min) return "El rango final debe ser mayor al inicial.";
-  return null;
-}
 
 const emptyNew = (): Partial<TariffIn> => ({
   collector_id: "", payer_id: "",
@@ -143,8 +95,6 @@ export const TariffsView = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSaving,setDeleteSaving]= useState(false);
 
-  const overlapSet = useMemo(() => detectOverlaps(tariffs), [tariffs]);
-
   const filtered = useMemo(() => {
     setPage(1);
     return tariffs.filter(t =>
@@ -196,15 +146,6 @@ export const TariffsView = () => {
     return countries.filter(c => (p?.countries ?? []).includes(c.id) && c.receive);
   }, [newRow?.payer_id, pagadores, countries]);
 
-  const newHasOverlap = useMemo(
-    () => checkOverlap(newRow ?? {}, tariffs),
-    [newRow, tariffs],
-  );
-
-  const editHasOverlap = useMemo(
-    () => checkOverlap({ ...editForm, id: editingId ?? undefined }, tariffs),
-    [editForm, tariffs, editingId],
-  );
 
   // ── New row handlers ─────────────────────────────────────────────────────────
 
@@ -224,9 +165,6 @@ export const TariffsView = () => {
     if (!newRow.collector_id || !newRow.payer_id || !newRow.origin_country_id || !newRow.destination_country_id) {
       setNewError("Completa recolector, pagador y ambos países."); return;
     }
-    const rangeErr = validateRange(newRow.range_min ?? 0, newRow.range_max ?? 0);
-    if (rangeErr) { setNewError(rangeErr); return; }
-    if (newHasOverlap) { setNewError("El rango se solapa con otra tarifa."); return; }
     setNewSaving(true);
     setNewError(null);
     try {
@@ -267,9 +205,6 @@ export const TariffsView = () => {
     setEditForm(p => ({ ...p, [k]: v }));
 
   const saveEdit = async () => {
-    const rangeErr = validateRange(editForm.range_min ?? 0, editForm.range_max ?? 0);
-    if (rangeErr) { setEditError(rangeErr); return; }
-    if (editHasOverlap) { setEditError("El rango se solapa con otra tarifa."); return; }
     setEditSaving(true);
     setEditError(null);
     try {
@@ -486,7 +421,7 @@ export const TariffsView = () => {
                       <input type="number" min="20" max="500" step="1"
                         value={newRow.range_min ?? ""}
                         onChange={e => setN("range_min", parseFloat(e.target.value) || 0)}
-                        className={newHasOverlap ? cellInputErr : cellInput}
+                        className={cellInput}
                       />
                     </td>
                     {/* Range max */}
@@ -494,7 +429,7 @@ export const TariffsView = () => {
                       <input type="number" min="20" max="500" step="1"
                         value={newRow.range_max ?? ""}
                         onChange={e => setN("range_max", parseFloat(e.target.value) || 0)}
-                        className={newHasOverlap ? cellInputErr : cellInput}
+                        className={cellInput}
                       />
                     </td>
                     {/* Fee flat */}
@@ -526,7 +461,7 @@ export const TariffsView = () => {
                     {/* Actions */}
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
-                        <button onClick={saveNew} disabled={newSaving || newHasOverlap}
+                        <button onClick={saveNew} disabled={newSaving}
                           className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
                           <Check size={14} />
                         </button>
@@ -557,7 +492,7 @@ export const TariffsView = () => {
               ) : paginated.map(t => {
                 const isEditing = editingId === t.id;
                 const isDeleting = deleteId === t.id;
-                const hasOverlap = overlapSet.has(t.id);
+                const hasOverlap = t.has_overlap;
                 const rangeClass = hasOverlap
                   ? "inline-block bg-red-100 border border-red-300 text-red-700 rounded px-1.5 py-0.5 font-mono text-xs"
                   : "font-mono text-xs text-gray-700";
@@ -590,7 +525,6 @@ export const TariffsView = () => {
                 }
 
                 if (isEditing) {
-                  const rangeOk = !editHasOverlap;
                   return (
                     <>
                       <tr key={t.id} className="bg-yellow-50/50">
@@ -617,7 +551,7 @@ export const TariffsView = () => {
                           <input type="number" min="20" max="500" step="1"
                             value={editForm.range_min ?? ""}
                             onChange={e => setE("range_min", parseFloat(e.target.value) || 0)}
-                            className={rangeOk ? cellInput : cellInputErr}
+                            className={cellInput}
                           />
                         </td>
                         {/* Range max */}
@@ -625,7 +559,7 @@ export const TariffsView = () => {
                           <input type="number" min="20" max="500" step="1"
                             value={editForm.range_max ?? ""}
                             onChange={e => setE("range_max", parseFloat(e.target.value) || 0)}
-                            className={rangeOk ? cellInput : cellInputErr}
+                            className={cellInput}
                           />
                         </td>
                         {/* Fee flat */}
@@ -656,7 +590,7 @@ export const TariffsView = () => {
                         <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">{fmtDate(t.updated_at)}</td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1">
-                            <button onClick={saveEdit} disabled={editSaving || editHasOverlap}
+                            <button onClick={saveEdit} disabled={editSaving}
                               className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
                               <Check size={14} />
                             </button>
@@ -717,58 +651,23 @@ export const TariffsView = () => {
             </tbody>
           </table>
         </div>
-        {overlapSet.size > 0 && (
+        {tariffs.some(t => t.has_overlap) && (
           <div className="px-4 py-2.5 bg-red-50 border-t border-red-200 flex items-center gap-2">
             <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />
             <p className="text-xs text-red-700">
-              Existen <strong>{overlapSet.size}</strong> tarifa{overlapSet.size !== 1 ? "s" : ""} con rangos solapados. Corrígelas antes de usar la calculadora.
+              {(() => { const n = tariffs.filter(t => t.has_overlap).length; return <>Existen <strong>{n}</strong> tarifa{n !== 1 ? "s" : ""} con rangos solapados. Corrígelas antes de usar la calculadora.</>; })()}
             </p>
           </div>
         )}
 
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-xs text-gray-400">
-            {sortedFiltered.length === 0 ? "0 registros" : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, sortedFiltered.length)} de ${sortedFiltered.length}`}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(1)}
-              disabled={page === 1}
-              className="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-            >«</button>
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-            >‹</button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-              .reduce<(number | "…")[]>((acc, p, i, arr) => {
-                if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push("…");
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, i) =>
-                p === "…"
-                  ? <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">…</span>
-                  : <button key={p} onClick={() => setPage(p as number)}
-                      className={`px-2.5 py-1 text-xs border rounded ${page === p ? "bg-papaya-orange text-white border-papaya-orange" : "border-gray-200 hover:bg-gray-50"}`}>
-                      {p}
-                    </button>
-              )}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-            >›</button>
-            <button
-              onClick={() => setPage(totalPages)}
-              disabled={page === totalPages}
-              className="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-            >»</button>
-          </div>
-        </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          totalItems={sortedFiltered.length}
+          pageSize={PAGE_SIZE}
+        />
       </div>
 
     </div>

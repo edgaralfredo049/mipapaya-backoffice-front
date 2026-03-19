@@ -3,15 +3,25 @@ import { useAppStore } from "../../store/useAppStore";
 import { api, AlternanciaSlot, AlternanciaSlotIn } from "../../api";
 import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
-import { Plus, Trash2, AlertTriangle, Clock } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Clock, AlertCircle } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
+
+const ALL_PAYMENT_METHODS = ["bank_deposit", "cash_pickup", "mobile_money", "wallet"] as const;
+
+const PM_LABEL: Record<string, string> = {
+  bank_deposit: "Depósito Bancario",
+  cash_pickup: "Retiro en Efectivo",
+  mobile_money: "Dinero Móvil",
+  wallet: "Billetera Digital",
+};
 
 const getColorForPagador = (pagadorId: string, pagadores: any[]) => {
   const idx = pagadores.findIndex((p) => p.id === pagadorId);
   return PAGADOR_COLORS[idx % PAGADOR_COLORS.length] || PAGADOR_COLORS[0];
 };
 
-const formatHour = (h: number) => `${String(h).padStart(2, "0")}:00`;
+const formatHour = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
+const formatUSD = (n: number) => `$${Math.round(n)}`;
 
 const hasOverlap = (
   slots: AlternanciaSlot[],
@@ -21,15 +31,31 @@ const hasOverlap = (
   const sameCountry = slots.filter(
     (s) => s.country_id === candidate.country_id && s.id !== excludeId
   );
-  const cStart = candidate.hour_start;
-  const cEnd = candidate.hour_end > candidate.hour_start ? candidate.hour_end : candidate.hour_end + 24;
+  const cTs = candidate.hour_start;
+  const cTe = candidate.hour_end > candidate.hour_start ? candidate.hour_end : candidate.hour_end + 24;
   for (const s of sameCountry) {
-    const sStart = s.hour_start;
-    const sEnd = s.hour_end > s.hour_start ? s.hour_end : s.hour_end + 24;
-    if (cStart < sEnd && cEnd > sStart) return true;
+    const sTs = s.hour_start;
+    const sTe = s.hour_end > s.hour_start ? s.hour_end : s.hour_end + 24;
+    // Time overlap?
+    if (cTs >= sTe || sTs >= cTe) continue;
+    // USD range overlap?
+    if (candidate.amount_min > s.amount_max || s.amount_min > candidate.amount_max) continue;
+    // Payment method overlap?
+    const common = candidate.payment_methods.filter((pm) => s.payment_methods.includes(pm));
+    if (common.length > 0) return true;
   }
   return false;
 };
+
+const defaultForm = () => ({
+  country_id: "",
+  pagador_id: "",
+  hour_start: -1,
+  hour_end: -1,
+  amount_min: 20,
+  amount_max: 500,
+  payment_methods: [] as string[],
+});
 
 export const AlternanciaView = () => {
   const { alternancia, pagadores, countries, refreshAlternancia } = useAppStore();
@@ -38,7 +64,7 @@ export const AlternanciaView = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<AlternanciaSlot | null>(null);
-  const [form, setForm] = useState({ country_id: "", pagador_id: "", hour_start: -1, hour_end: -1 });
+  const [form, setForm] = useState(defaultForm());
   const [saving, setSaving] = useState(false);
 
   const activePagadores = pagadores.filter((p) => p.status === "active");
@@ -49,9 +75,7 @@ export const AlternanciaView = () => {
 
   const getCountryName = (id: string) => countries.find((c) => c.id === id)?.name || id;
 
-  useEffect(() => {
-    setSlots(alternancia);
-  }, [alternancia]);
+  useEffect(() => { setSlots(alternancia); }, [alternancia]);
 
   useEffect(() => {
     if (availableCountryIds.length > 0 && !selectedCountryId) {
@@ -61,11 +85,11 @@ export const AlternanciaView = () => {
 
   const filteredSlots = slots
     .filter((s) => s.country_id === selectedCountryId)
-    .sort((a, b) => a.hour_start - b.hour_start);
+    .sort((a, b) => a.hour_start - b.hour_start || a.amount_min - b.amount_min);
 
   const openAddModal = () => {
     setEditingSlot(null);
-    setForm({ country_id: selectedCountryId, pagador_id: "", hour_start: -1, hour_end: -1 });
+    setForm({ ...defaultForm(), country_id: selectedCountryId });
     setErrorMsg(null);
     setIsModalOpen(true);
   };
@@ -77,6 +101,9 @@ export const AlternanciaView = () => {
       pagador_id: slot.pagador_id,
       hour_start: slot.hour_start,
       hour_end: slot.hour_end,
+      amount_min: slot.amount_min,
+      amount_max: slot.amount_max,
+      payment_methods: [...slot.payment_methods],
     });
     setErrorMsg(null);
     setIsModalOpen(true);
@@ -86,8 +113,8 @@ export const AlternanciaView = () => {
     setSaving(true);
     try {
       const payload: AlternanciaSlotIn[] = updated.map(
-        ({ country_id, pagador_id, hour_start, hour_end, active }) => ({
-          country_id, pagador_id, hour_start, hour_end, active,
+        ({ country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, active }) => ({
+          country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, active,
         })
       );
       await api.replaceAlternancia(payload);
@@ -102,11 +129,19 @@ export const AlternanciaView = () => {
 
   const handleSaveSlot = async () => {
     if (!form.country_id || !form.pagador_id || form.hour_start === -1 || form.hour_end === -1) {
-      setErrorMsg("Todos los campos son obligatorios.");
+      setErrorMsg("País, pagador y horario son obligatorios.");
       return;
     }
     if (form.hour_start === form.hour_end) {
       setErrorMsg("La hora de inicio y fin no pueden ser iguales.");
+      return;
+    }
+    if (form.amount_min >= form.amount_max) {
+      setErrorMsg("El monto mínimo debe ser menor al máximo.");
+      return;
+    }
+    if (form.payment_methods.length === 0) {
+      setErrorMsg("Selecciona al menos un método de pago.");
       return;
     }
     const candidate: AlternanciaSlot = {
@@ -115,10 +150,15 @@ export const AlternanciaView = () => {
       pagador_id: form.pagador_id,
       hour_start: form.hour_start,
       hour_end: form.hour_end,
+      amount_min: form.amount_min,
+      amount_max: form.amount_max,
+      payment_methods: form.payment_methods,
       active: true,
     };
     if (hasOverlap(slots, candidate, editingSlot?.id)) {
-      setErrorMsg("Este horario se superpone con otro segmento del mismo país.");
+      setErrorMsg(
+        "Este segmento se superpone con otro (mismo horario, rango USD y método de pago)."
+      );
       return;
     }
     const updated = editingSlot
@@ -134,44 +174,87 @@ export const AlternanciaView = () => {
     await persist(updated);
   };
 
+  const togglePaymentMethod = (pm: string) => {
+    setForm((f) => ({
+      ...f,
+      payment_methods: f.payment_methods.includes(pm)
+        ? f.payment_methods.filter((m) => m !== pm)
+        : [...f.payment_methods, pm],
+    }));
+  };
+
+  const uncoveredHours = Array.from({ length: 24 }, (_, h) => h).filter(
+    (h) =>
+      !filteredSlots.some((s) => {
+        if (s.hour_end > s.hour_start) return h >= s.hour_start && h < s.hour_end;
+        return h >= s.hour_start || h < s.hour_end;
+      })
+  );
+
   const renderTimeline = () => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
+    if (filteredSlots.length === 0) return null;
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="flex items-center mb-3 space-x-2">
+        <div className="flex items-center mb-4 space-x-2">
           <Clock size={16} className="text-gray-400" />
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Timeline 24h — {getCountryName(selectedCountryId)}
           </p>
         </div>
-        <div className="relative h-10 rounded-lg overflow-hidden bg-gray-100 flex">
-          {hours.map((h) => {
-            const slot = filteredSlots.find((s) => {
-              if (s.hour_end > s.hour_start) return h >= s.hour_start && h < s.hour_end;
-              return h >= s.hour_start || h < s.hour_end;
-            });
-            const color = slot ? getColorForPagador(slot.pagador_id, activePagadores) : null;
+
+        <div className="space-y-2">
+          {filteredSlots.map((slot) => {
+            const pagador = activePagadores.find((p) => p.id === slot.pagador_id);
+            const color = getColorForPagador(slot.pagador_id, activePagadores);
+            const hStart = slot.hour_start;
+            const hEnd = slot.hour_end > slot.hour_start ? slot.hour_end : slot.hour_end + 24;
+            const leftPct = (hStart / 24) * 100;
+            const widthPct = Math.min(((hEnd - hStart) / 24) * 100, 100 - leftPct);
+            const pmLabel = slot.payment_methods.map((pm) => PM_LABEL[pm] ?? pm).join(" · ");
+
             return (
-              <div
-                key={h}
-                className={`flex-1 border-r border-white/20 ${color ? color.bg : "bg-gray-100"}`}
-                title={
-                  slot
-                    ? `${formatHour(h)}: ${activePagadores.find((p) => p.id === slot.pagador_id)?.name}`
-                    : formatHour(h)
-                }
-              />
+              <div key={slot.id} className="flex items-center gap-3">
+                <span className="w-32 text-xs text-gray-600 text-right truncate shrink-0">
+                  {pagador?.name || slot.pagador_id}
+                </span>
+                <div className="relative flex-1 h-10 bg-gray-100 rounded-lg overflow-hidden">
+                  <div
+                    className={`absolute inset-y-0 ${color.bg} flex flex-col items-center justify-center overflow-hidden rounded`}
+                    style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                    title={`${formatHour(slot.hour_start)}–${formatHour(slot.hour_end)} | ${formatUSD(slot.amount_min)}–${formatUSD(slot.amount_max)} | ${pmLabel}`}
+                  >
+                    <span className={`text-[10px] font-bold ${color.text} leading-none px-1`}>
+                      {formatUSD(slot.amount_min)}–{formatUSD(slot.amount_max)}
+                    </span>
+                    <span className={`text-[9px] ${color.text} opacity-80 leading-none mt-0.5 px-1 truncate max-w-full`}>
+                      {pmLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
-        <div className="flex justify-between mt-1">
-          {[0, 6, 12, 18, 23].map((h) => (
-            <span key={h} className="text-[10px] text-gray-400">{formatHour(h)}</span>
-          ))}
+
+        {/* Hour labels */}
+        <div className="flex mt-1.5 ml-[152px]">
+          <div className="relative flex-1 h-4">
+            {[0, 6, 12, 18, 24].map((h) => (
+              <span
+                key={h}
+                className="absolute text-[10px] text-gray-400 -translate-x-1/2"
+                style={{ left: `${(h / 24) * 100}%` }}
+              >
+                {formatHour(h % 24)}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3 mt-3">
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-100">
           {activePagadores.map((p) => {
-            if (!slots.some((s) => s.country_id === selectedCountryId && s.pagador_id === p.id)) return null;
+            if (!filteredSlots.some((s) => s.pagador_id === p.id)) return null;
             const color = getColorForPagador(p.id, activePagadores);
             return (
               <div key={p.id} className="flex items-center space-x-1.5">
@@ -191,7 +274,7 @@ export const AlternanciaView = () => {
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Alternancia por País</h2>
           <p className="text-sm text-gray-500">
-            Define qué pagador atiende cada franja horaria por país destino.
+            Define qué pagador atiende cada franja horaria, rango de monto y método de pago por país destino.
           </p>
         </div>
         {saving && <span className="text-sm text-gray-500">Guardando...</span>}
@@ -232,6 +315,22 @@ export const AlternanciaView = () => {
 
       {selectedCountryId && (
         <>
+          {uncoveredHours.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-3">
+              <AlertCircle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  {uncoveredHours.length} hora{uncoveredHours.length > 1 ? "s" : ""} sin cobertura en{" "}
+                  {getCountryName(selectedCountryId)}
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  Las transacciones en esos horarios fallarán.{" "}
+                  {uncoveredHours.length <= 6 &&
+                    uncoveredHours.map((h) => `${String(h).padStart(2, "0")}:00`).join(", ")}
+                </p>
+              </div>
+            </div>
+          )}
           {renderTimeline()}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
@@ -261,7 +360,7 @@ export const AlternanciaView = () => {
                       className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`w-2 h-8 rounded-full ${color.bg}`} />
+                        <div className={`w-2 h-10 rounded-full ${color.bg}`} />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
                             {pagador?.name || slot.pagador_id}
@@ -270,6 +369,14 @@ export const AlternanciaView = () => {
                             {formatHour(slot.hour_start)} – {formatHour(slot.hour_end)}
                             {slot.hour_end < slot.hour_start && " (+1 día)"}
                           </p>
+                        </div>
+                        <div className="flex flex-col gap-0.5 ml-2">
+                          <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                            {formatUSD(slot.amount_min)} – {formatUSD(slot.amount_max)}
+                          </span>
+                          <span className="text-[10px] text-gray-500 px-2">
+                            {slot.payment_methods.map((pm) => PM_LABEL[pm] ?? pm).join(" · ")}
+                          </span>
                         </div>
                       </div>
                       <div className="flex space-x-1">
@@ -302,6 +409,7 @@ export const AlternanciaView = () => {
             </div>
           )}
 
+          {/* País */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">País Destino</label>
             <select
@@ -316,6 +424,7 @@ export const AlternanciaView = () => {
             </select>
           </div>
 
+          {/* Pagador */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Pagador</label>
             <select
@@ -338,6 +447,7 @@ export const AlternanciaView = () => {
               )}
           </div>
 
+          {/* Horario */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
@@ -368,6 +478,79 @@ export const AlternanciaView = () => {
               {form.hour_end !== -1 && form.hour_start !== -1 && form.hour_end < form.hour_start && (
                 <p className="text-xs text-amber-600 mt-1">⚠ Franja cruza medianoche</p>
               )}
+            </div>
+          </div>
+
+          {/* Rango USD */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rango de monto (USD)</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Desde</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.amount_min}
+                    onChange={(e) => setForm({ ...form, amount_min: parseFloat(e.target.value) || 0 })}
+                    className="block w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-sm focus:border-papaya-orange focus:ring-papaya-orange"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.amount_max}
+                    onChange={(e) => setForm({ ...form, amount_max: parseFloat(e.target.value) || 0 })}
+                    className="block w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-sm focus:border-papaya-orange focus:ring-papaya-orange"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Métodos de pago */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Métodos de pago</label>
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_PAYMENT_METHODS.map((pm) => (
+                <label
+                  key={pm}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                    form.payment_methods.includes(pm)
+                      ? "border-papaya-orange bg-orange-50 text-papaya-orange"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.payment_methods.includes(pm)}
+                    onChange={() => togglePaymentMethod(pm)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                      form.payment_methods.includes(pm)
+                        ? "bg-papaya-orange border-papaya-orange"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {form.payment_methods.includes(pm) && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 8">
+                        <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="text-sm">{PM_LABEL[pm]}</span>
+                </label>
+              ))}
             </div>
           </div>
 

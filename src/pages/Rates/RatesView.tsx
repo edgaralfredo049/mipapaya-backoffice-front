@@ -1,8 +1,48 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { api, ExchangeRateIn, CalculateAmountResult } from "../../api";
-import { AlertTriangle, TrendingUp, RotateCcw, Save, Calculator, ArrowRight, Loader2, Zap } from "lucide-react";
+import { AlertTriangle, TrendingUp, RotateCcw, Save, Calculator, ArrowRight, Loader2, Zap, Clock, DollarSign, Receipt, RefreshCw, Wifi } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
+
+// ── Calculator error card ──────────────────────────────────────────────────────
+
+type CalcErrorType = "ALTERNANCIA" | "TASA_PAGADOR" | "TASA_RECOLECTOR" | "RECOLECTOR" | "MONTO_RANGO" | "TARIFA" | "FX" | "UNKNOWN";
+
+const ERROR_META: Record<CalcErrorType, { title: string; hint: string; Icon: React.ElementType; color: string }> = {
+  ALTERNANCIA:      { title: "Sin pagador para ese horario y monto",  hint: "Ve a Configuración → Alternancia y asigna un pagador para este país, rango de monto y método.",  Icon: Clock,       color: "text-orange-500" },
+  TASA_PAGADOR:     { title: "Tasa de cambio del pagador faltante",   hint: "El pagador asignado no tiene tasa de cambio. Ve a Tasas de Cambio → Pagadores.",                  Icon: RefreshCw,   color: "text-amber-500"  },
+  TASA_RECOLECTOR:  { title: "Tasa de cambio del recolector faltante",hint: "El recolector no tiene tasa de cambio. Ve a Tasas de Cambio → Recolectores.",                     Icon: RefreshCw,   color: "text-amber-500"  },
+  RECOLECTOR:       { title: "Sin recolector activo",                 hint: "No hay un recolector activo para el país de origen. Ve a Configuración → Recolectores.",           Icon: Wifi,        color: "text-red-500"    },
+  MONTO_RANGO:      { title: "Monto fuera del rango permitido",       hint: "Los envíos deben estar entre $20 y $500 USD. Ajusta el monto.",                                    Icon: DollarSign,  color: "text-red-500"    },
+  TARIFA:           { title: "Sin tarifa configurada",                hint: "No hay tarifa para este corredor y método de pago. Ve a Configuración → Tarifas.",                 Icon: Receipt,     color: "text-red-500"    },
+  FX:               { title: "Margen FX sin configurar",              hint: "El pagador no tiene FX% para este país. Edítalo en Configuración → Pagadores.",                   Icon: TrendingUp,  color: "text-red-500"    },
+  UNKNOWN:          { title: "Error en el cálculo",                   hint: "Revisa la configuración del corredor.",                                                             Icon: AlertTriangle, color: "text-red-500"  },
+};
+
+function parseCalcError(raw: string): { type: CalcErrorType; detail: string } {
+  const sep = raw.indexOf("|");
+  if (sep === -1) return { type: "UNKNOWN", detail: raw };
+  const code = raw.slice(0, sep) as CalcErrorType;
+  const detail = raw.slice(sep + 1).trim();
+  return { type: code in ERROR_META ? code : "UNKNOWN", detail };
+}
+
+const CalcErrorCard = ({ message }: { message: string }) => {
+  const { type, detail } = parseCalcError(message);
+  const { title, hint, Icon, color } = ERROR_META[type];
+  return (
+    <div className="rounded-xl border border-red-100 bg-red-50/60 p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <Icon size={15} className={`${color} shrink-0`} />
+        <p className="text-sm font-semibold text-gray-800">{title}</p>
+      </div>
+      <p className="text-xs text-gray-600 leading-relaxed">{detail}</p>
+      <p className="text-xs text-gray-400 italic leading-relaxed">{hint}</p>
+    </div>
+  );
+};
+
+// ── Rates view ────────────────────────────────────────────────────────────────
 
 type Tab = "pagador" | "gateway";
 
@@ -15,7 +55,7 @@ const getInitialColor = (index: number) =>
   PAGADOR_COLORS[index % PAGADOR_COLORS.length];
 
 export const RatesView = () => {
-  const { gateways, pagadores, countries, states, exchangeRates, refreshExchangeRates } = useAppStore();
+  const { gateways, pagadores, countries, states, exchangeRates, refreshExchangeRates, refreshPagadores, refreshGateways } = useAppStore();
 
   const [activeTab, setActiveTab]   = useState<Tab>("pagador");
   const [selectedId, setSelectedId] = useState<string>("");
@@ -62,21 +102,6 @@ export const RatesView = () => {
   const isDirty = Object.keys(rateInputs).some(
     (k) => rateInputs[k] !== (savedInputs[k] ?? "")
   );
-
-  const configuredCount = (entityId: string) =>
-    exchangeRates.filter(
-      (r) => r.entity_type === activeTab && r.entity_id === entityId && r.rate > 0
-    ).length;
-
-  const totalCountries = (entityId: string) => {
-    const e =
-      activeTab === "pagador"
-        ? activePagadores.find((p) => p.id === entityId)
-        : activeGateways.find((g) => g.id === entityId);
-    return activeTab === "pagador"
-      ? (e as any)?.countries?.length ?? 0
-      : (e as any)?.origin_countries?.length ?? 0;
-  };
 
   // Load saved rates when selection changes
   useEffect(() => {
@@ -152,7 +177,10 @@ export const RatesView = () => {
     setSuccessMsg(null);
     try {
       await api.replaceExchangeRates(activeTab, selectedId, rates);
-      await refreshExchangeRates();
+      await Promise.all([
+        refreshExchangeRates(),
+        activeTab === "pagador" ? refreshPagadores() : refreshGateways(),
+      ]);
       setSuccessMsg("Tasas guardadas.");
       if (successTimer.current) clearTimeout(successTimer.current);
       successTimer.current = setTimeout(() => setSuccessMsg(null), 3000);
@@ -164,7 +192,7 @@ export const RatesView = () => {
   };
 
   // ── Stat pills in header ───────────────────────────────────────────────────
-  const totalConfigured = entities.filter((e) => configuredCount(e.id) > 0).length;
+  const totalConfigured = entities.filter((e) => (e as any).rate_status !== "empty").length;
 
   return (
     <div className="space-y-5">
@@ -244,8 +272,10 @@ export const RatesView = () => {
               <ul className="py-2">
                 {entities.map((entity, idx) => {
                   const color      = getInitialColor(idx);
-                  const configured = configuredCount(entity.id);
-                  const total      = totalCountries(entity.id);
+                  const rateStatus = (entity as any).rate_status as "complete" | "partial" | "empty";
+                  const total      = activeTab === "pagador"
+                    ? (entity as any).countries?.length ?? 0
+                    : (entity as any).origin_countries?.length ?? 0;
                   const isSelected = selectedId === entity.id;
                   return (
                     <li key={entity.id}>
@@ -269,16 +299,18 @@ export const RatesView = () => {
                             {entity.name}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {configured > 0
-                              ? `${configured}/${total} países`
+                            {rateStatus === "complete"
+                              ? `${total} país${total !== 1 ? "es" : ""}`
+                              : rateStatus === "partial"
+                              ? "Parcial"
                               : `${total} país${total !== 1 ? "es" : ""}`}
                           </p>
                         </div>
 
                         {/* Status dot */}
-                        {configured > 0 && configured === total && total > 0 ? (
+                        {rateStatus === "complete" && total > 0 ? (
                           <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                        ) : configured > 0 ? (
+                        ) : rateStatus === "partial" ? (
                           <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
                         ) : null}
                       </button>
@@ -588,14 +620,11 @@ export const RatesView = () => {
           {/* Result */}
           <div className={`mt-auto rounded-xl border p-4 transition-all ${
             calcResult ? "border-orange-100 bg-orange-50/60"
-            : calcError  ? "border-red-100 bg-red-50/40"
+            : calcError  ? "border-transparent bg-transparent p-0"
             : "border-gray-100 bg-gray-50/60"
           }`}>
             {calcError ? (
-              <div className="flex items-start gap-2">
-                <AlertTriangle size={14} className="text-red-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-red-600">{calcError}</p>
-              </div>
+              <CalcErrorCard message={calcError} />
             ) : calcResult ? (
               (() => {
                 const payerName    = pagadores.find((p) => p.id === calcResult.payerId)?.name    ?? calcResult.payerId;
