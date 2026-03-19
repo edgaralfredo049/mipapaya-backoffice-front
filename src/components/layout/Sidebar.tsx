@@ -2,6 +2,8 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import { Settings, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
+import logo from "../../../assets/Full logo Orange con espacio.avif";
+import logoIcon from "../../../assets/favicon.jpeg";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -20,20 +22,22 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       style={{ width: collapsed ? 64 : 256 }}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center border-b border-gray-800 overflow-hidden flex-shrink-0 px-4">
+      <div className={`h-16 flex items-center border-b border-gray-800 overflow-hidden flex-shrink-0 ${collapsed ? "justify-center" : "px-4"}`}>
         {collapsed ? (
-          <div className="w-8 h-8 rounded-lg bg-papaya-orange flex items-center justify-center mx-auto flex-shrink-0">
-            <span className="text-white text-xs font-bold tracking-tight">MP</span>
+          <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src={logoIcon} alt="MiPapaya" className="w-full h-full object-contain" />
           </div>
         ) : (
-          <span className="text-xl font-bold text-white tracking-tight whitespace-nowrap">
-            mi<span className="text-papaya-orange">papaya</span>
-          </span>
+          <img
+            src={logo}
+            alt="MiPapaya"
+            className="h-9 w-auto object-contain"
+          />
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4">
+      <nav className="flex-1 py-4">
         <ul className="space-y-1 px-2">
           {navItems.map(({ to, label, Icon }) => (
             <li key={to}>

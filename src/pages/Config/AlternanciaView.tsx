@@ -213,7 +213,7 @@ export const AlternanciaView = () => {
             const pmLabel = slot.payment_methods.map((pm) => PM_LABEL[pm] ?? pm).join(" · ");
 
             return (
-              <div key={slot.id} className="flex items-center gap-3">
+              <div key={slot.id} className="flex items-center gap-3 pr-2">
                 <span className="w-32 text-xs text-gray-600 text-right truncate shrink-0">
                   {pagador?.name || slot.pagador_id}
                 </span>
@@ -237,7 +237,7 @@ export const AlternanciaView = () => {
         </div>
 
         {/* Hour labels */}
-        <div className="flex mt-1.5 ml-[152px]">
+        <div className="flex mt-1.5 ml-[152px] pr-2">
           <div className="relative flex-1 h-4">
             {[0, 6, 12, 18, 24].map((h) => (
               <span
