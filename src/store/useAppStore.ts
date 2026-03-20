@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, Country, Currency, State, Gateway, Pagador, Rate, AlternanciaSlot, ExchangeRate, Tariff } from "../api";
+import { api, Country, Currency, State, Gateway, Pagador, Rate, AlternanciaSlot, GatewayAlternanciaSlot, ExchangeRate, Tariff } from "../api";
 
 interface AppState {
   isLoaded: boolean;
@@ -10,6 +10,7 @@ interface AppState {
   pagadores: Pagador[];
   rates: Rate[];
   alternancia: AlternanciaSlot[];
+  gatewayAlternancia: GatewayAlternanciaSlot[];
   exchangeRates: ExchangeRate[];
   tariffs: Tariff[];
 
@@ -19,6 +20,7 @@ interface AppState {
   refreshPagadores: () => Promise<void>;
   refreshRates: () => Promise<void>;
   refreshAlternancia: () => Promise<void>;
+  refreshGatewayAlternancia: () => Promise<void>;
   refreshExchangeRates: () => Promise<void>;
   refreshTariffs: () => Promise<void>;
 }
@@ -32,6 +34,7 @@ export const useAppStore = create<AppState>()((set) => ({
   pagadores: [],
   rates: [],
   alternancia: [],
+  gatewayAlternancia: [],
   exchangeRates: [],
   tariffs: [],
 
@@ -39,7 +42,7 @@ export const useAppStore = create<AppState>()((set) => ({
     const safe = <T>(p: Promise<T>, fallback: T): Promise<T> =>
       p.catch((e) => { console.error(e); return fallback; });
 
-    const [countries, currencies, states, gateways, pagadores, rates, alternancia, exchangeRates, tariffs] = await Promise.all([
+    const [countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs] = await Promise.all([
       safe(api.getCountries(), []),
       safe(api.getCurrencies(), []),
       safe(api.getStates(), []),
@@ -47,10 +50,11 @@ export const useAppStore = create<AppState>()((set) => ({
       safe(api.getPagadores(), []),
       safe(api.getRates(), []),
       safe(api.getAlternancia(), []),
+      safe(api.getGatewayAlternancia(), []),
       safe(api.getExchangeRates(), []),
       safe(api.getTariffs(), []),
     ]);
-    set({ countries, currencies, states, gateways, pagadores, rates, alternancia, exchangeRates, tariffs, isLoaded: true });
+    set({ countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs, isLoaded: true });
   },
 
   refreshCountries: async () => {
@@ -76,6 +80,11 @@ export const useAppStore = create<AppState>()((set) => ({
   refreshAlternancia: async () => {
     const alternancia = await api.getAlternancia();
     set({ alternancia });
+  },
+
+  refreshGatewayAlternancia: async () => {
+    const gatewayAlternancia = await api.getGatewayAlternancia();
+    set({ gatewayAlternancia });
   },
 
   refreshExchangeRates: async () => {

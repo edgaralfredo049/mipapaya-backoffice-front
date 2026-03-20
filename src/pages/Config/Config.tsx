@@ -4,16 +4,18 @@ import { PaisesTab } from "./PaisesTab";
 import { GatewaysTab } from "./GatewaysTab";
 import { PagadoresTab } from "./PagadoresTab";
 import { AlternanciaView } from "./AlternanciaView";
+import { GatewayAlternanciaView } from "./GatewayAlternanciaView";
 import { TariffsView } from "../Tariffs/TariffsView";
 
-type Tab = "paises" | "gateways" | "pagadores" | "alternancia" | "tarifas";
+type Tab = "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "tarifas";
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "paises",      label: "Países"       },
-  { key: "gateways",    label: "Recolectores" },
-  { key: "pagadores",   label: "Pagadores"    },
-  { key: "alternancia", label: "Alternancia"  },
-  { key: "tarifas",     label: "Tarifas"      },
+  { key: "paises",           label: "Países"            },
+  { key: "gateways",         label: "Recolectores"      },
+  { key: "alt-recolectores", label: "Alt. Recolectores" },
+  { key: "pagadores",        label: "Pagadores"         },
+  { key: "alternancia",      label: "Alternancia"       },
+  { key: "tarifas",          label: "Tarifas"           },
 ];
 
 const VALID_TABS = TABS.map((t) => t.key);
@@ -55,8 +57,9 @@ export const Config = () => {
       case "paises":      return <PaisesTab />;
       case "gateways":    return <GatewaysTab />;
       case "pagadores":   return <PagadoresTab />;
-      case "alternancia": return <AlternanciaView />;
-      case "tarifas":     return <TariffsView />;
+      case "alternancia":      return <AlternanciaView />;
+      case "alt-recolectores": return <GatewayAlternanciaView />;
+      case "tarifas":          return <TariffsView />;
     }
   };
 

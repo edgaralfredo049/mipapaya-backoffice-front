@@ -390,8 +390,16 @@ export const RatesView = () => {
                 <div className="flex-1 overflow-y-auto p-5">
                   <div className="grid grid-cols-3 gap-3">
                     {entityCountries.map((country) => {
-                      const val     = rateInputs[country.id] ?? "";
-                      const hasRate = parseFloat(val) > 0;
+                      const val      = rateInputs[country.id] ?? "";
+                      const hasRate  = parseFloat(val) > 0;
+                      const fxPct    = activeTab === "pagador"
+                        ? ((selectedEntity as any)?.country_fx?.[country.id] ?? null)
+                        : null;
+                      const payerRate   = parseFloat(val);
+                      const papayaRate  = fxPct !== null && payerRate > 0
+                        ? payerRate * (1 - fxPct / 100)
+                        : null;
+
                       return (
                         <div
                           key={country.id}
@@ -417,8 +425,8 @@ export const RatesView = () => {
                           </div>
 
                           {/* Rate input */}
-                          <div className="px-3 pb-3">
-                            <label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wide">
+                          <div className="px-3 pb-3 space-y-1.5">
+                            <label className="block text-[10px] text-gray-400 uppercase tracking-wide">
                               1 USD =
                             </label>
                             <div className="flex items-center gap-1.5">
@@ -444,6 +452,25 @@ export const RatesView = () => {
                                 {country.currency_code}
                               </span>
                             </div>
+
+                            {/* Papaya rate — only for pagadores with FX configured */}
+                            {papayaRate !== null && (
+                              <div className="flex items-center justify-between pt-0.5">
+                                <span className="text-[10px] text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                                  <TrendingUp size={10} className="text-papaya-orange" />
+                                  Tasa Papaya
+                                </span>
+                                <span className="text-[11px] font-semibold text-papaya-orange font-mono">
+                                  {papayaRate.toFixed(4)}
+                                </span>
+                              </div>
+                            )}
+                            {activeTab === "pagador" && fxPct === null && hasRate && (
+                              <p className="text-[10px] text-amber-500 flex items-center gap-1">
+                                <AlertTriangle size={10} />
+                                Sin FX% — configura el pagador
+                              </p>
+                            )}
                           </div>
                         </div>
                       );

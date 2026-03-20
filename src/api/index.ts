@@ -81,6 +81,21 @@ export interface RateIn {
   payment_methods: Record<string, { commissions: CommissionRow[] }>;
 }
 
+export interface GatewayAlternanciaSlot {
+  id: string;
+  gateway_id: string;
+  amount_min: number;
+  amount_max: number;
+  active: boolean;
+}
+
+export interface GatewayAlternanciaSlotIn {
+  gateway_id: string;
+  amount_min: number;
+  amount_max: number;
+  active: boolean;
+}
+
 export interface AlternanciaSlot {
   id: string;
   country_id: string;
@@ -326,6 +341,11 @@ export const api = {
   getAlternancia: () => request<AlternanciaSlot[]>("/alternancia"),
   replaceAlternancia: (slots: AlternanciaSlotIn[]) =>
     request<AlternanciaSlot[]>("/alternancia", { method: "PUT", body: JSON.stringify(slots) }),
+
+  // Gateway Alternancia
+  getGatewayAlternancia: () => request<GatewayAlternanciaSlot[]>("/gateway-alternancia"),
+  replaceGatewayAlternancia: (slots: GatewayAlternanciaSlotIn[]) =>
+    request<GatewayAlternanciaSlot[]>("/gateway-alternancia", { method: "PUT", body: JSON.stringify(slots) }),
 
   // Tariffs
   getTariffs: () => request<Tariff[]>("/tariffs"),
