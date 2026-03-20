@@ -15,6 +15,12 @@ const PM_LABEL: Record<string, string> = {
   wallet: "Billetera Digital",
 };
 
+// 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb  (matches strftime('%w') and getDay())
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+const DAY_LABEL: Record<number, string> = {
+  0: "Dom", 1: "Lun", 2: "Mar", 3: "Mié", 4: "Jue", 5: "Vie", 6: "Sáb",
+};
+
 const getColorForPagador = (pagadorId: string, pagadores: any[]) => {
   const idx = pagadores.findIndex((p) => p.id === pagadorId);
   return PAGADOR_COLORS[idx % PAGADOR_COLORS.length] || PAGADOR_COLORS[0];
@@ -41,8 +47,11 @@ const hasOverlap = (
     // USD range overlap?
     if (candidate.amount_min > s.amount_max || s.amount_min > candidate.amount_max) continue;
     // Payment method overlap?
-    const common = candidate.payment_methods.filter((pm) => s.payment_methods.includes(pm));
-    if (common.length > 0) return true;
+    const commonPm = candidate.payment_methods.filter((pm) => s.payment_methods.includes(pm));
+    if (commonPm.length === 0) continue;
+    // Day of week overlap?
+    const commonDow = candidate.days_of_week.filter((d) => s.days_of_week.includes(d));
+    if (commonDow.length > 0) return true;
   }
   return false;
 };
@@ -55,12 +64,14 @@ const defaultForm = () => ({
   amount_min: 20,
   amount_max: 500,
   payment_methods: [] as string[],
+  days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[],
 });
 
 export const AlternanciaView = () => {
   const { alternancia, pagadores, countries, refreshAlternancia } = useAppStore();
   const [slots, setSlots] = useState<AlternanciaSlot[]>([]);
   const [selectedCountryId, setSelectedCountryId] = useState<string>("");
+  const [timelineDay, setTimelineDay] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<AlternanciaSlot | null>(null);
@@ -104,6 +115,7 @@ export const AlternanciaView = () => {
       amount_min: slot.amount_min,
       amount_max: slot.amount_max,
       payment_methods: [...slot.payment_methods],
+      days_of_week: [...(slot.days_of_week ?? [0,1,2,3,4,5,6])],
     });
     setErrorMsg(null);
     setIsModalOpen(true);
@@ -113,8 +125,8 @@ export const AlternanciaView = () => {
     setSaving(true);
     try {
       const payload: AlternanciaSlotIn[] = updated.map(
-        ({ country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, active }) => ({
-          country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, active,
+        ({ country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, days_of_week, active }) => ({
+          country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, days_of_week, active,
         })
       );
       await api.replaceAlternancia(payload);
@@ -130,6 +142,10 @@ export const AlternanciaView = () => {
   const handleSaveSlot = async () => {
     if (!form.country_id || !form.pagador_id || form.hour_start === -1 || form.hour_end === -1) {
       setErrorMsg("País, pagador y horario son obligatorios.");
+      return;
+    }
+    if (form.days_of_week.length === 0) {
+      setErrorMsg("Selecciona al menos un día de la semana.");
       return;
     }
     if (form.hour_start === form.hour_end) {
@@ -153,6 +169,7 @@ export const AlternanciaView = () => {
       amount_min: form.amount_min,
       amount_max: form.amount_max,
       payment_methods: form.payment_methods,
+      days_of_week: form.days_of_week,
       active: true,
     };
     if (hasOverlap(slots, candidate, editingSlot?.id)) {
@@ -183,6 +200,15 @@ export const AlternanciaView = () => {
     }));
   };
 
+  const toggleDay = (day: number) => {
+    setForm((f) => ({
+      ...f,
+      days_of_week: f.days_of_week.includes(day)
+        ? f.days_of_week.filter((d) => d !== day)
+        : [...f.days_of_week, day].sort((a, b) => a - b),
+    }));
+  };
+
   const uncoveredHours = Array.from({ length: 24 }, (_, h) => h).filter(
     (h) =>
       !filteredSlots.some((s) => {
@@ -193,17 +219,53 @@ export const AlternanciaView = () => {
 
   const renderTimeline = () => {
     if (filteredSlots.length === 0) return null;
+    const timelineSlots = timelineDay === null
+      ? filteredSlots
+      : filteredSlots.filter((s) => s.days_of_week.includes(timelineDay));
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="flex items-center mb-4 space-x-2">
-          <Clock size={16} className="text-gray-400" />
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Timeline 24h — {getCountryName(selectedCountryId)}
-          </p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Clock size={16} className="text-gray-400" />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Timeline 24h — {getCountryName(selectedCountryId)}
+            </p>
+          </div>
+          {/* Day filter */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setTimelineDay(null)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                timelineDay === null
+                  ? "bg-gray-800 text-white border-gray-800"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+              }`}
+            >
+              Todos
+            </button>
+            {ALL_DAYS.map((day) => (
+              <button
+                key={day}
+                onClick={() => setTimelineDay(timelineDay === day ? null : day)}
+                className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all ${
+                  timelineDay === day
+                    ? "bg-papaya-orange text-white border-papaya-orange"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-papaya-orange hover:text-papaya-orange"
+                }`}
+              >
+                {DAY_LABEL[day]}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {timelineSlots.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">
+            Sin franjas operativas el {DAY_LABEL[timelineDay!]}
+          </p>
+        ) : (
         <div className="space-y-2">
-          {filteredSlots.map((slot) => {
+          {timelineSlots.map((slot) => {
             const pagador = activePagadores.find((p) => p.id === slot.pagador_id);
             const color = getColorForPagador(slot.pagador_id, activePagadores);
             const hStart = slot.hour_start;
@@ -211,17 +273,20 @@ export const AlternanciaView = () => {
             const leftPct = (hStart / 24) * 100;
             const widthPct = Math.min(((hEnd - hStart) / 24) * 100, 100 - leftPct);
             const pmLabel = slot.payment_methods.map((pm) => PM_LABEL[pm] ?? pm).join(" · ");
+            const dowLabel = slot.days_of_week.length === 7
+              ? "Todos los días"
+              : slot.days_of_week.map((d) => DAY_LABEL[d]).join(" · ");
 
             return (
               <div key={slot.id} className="flex items-center gap-3 pr-2">
                 <span className="w-32 text-xs text-gray-600 text-right truncate shrink-0">
                   {pagador?.name || slot.pagador_id}
                 </span>
-                <div className="relative flex-1 h-10 bg-gray-100 rounded-lg overflow-hidden">
+                <div className="relative flex-1 h-12 bg-gray-100 rounded-lg overflow-hidden">
                   <div
                     className={`absolute inset-y-0 ${color.bg} flex flex-col items-center justify-center overflow-hidden rounded`}
                     style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                    title={`${formatHour(slot.hour_start)}–${formatHour(slot.hour_end)} | ${formatUSD(slot.amount_min)}–${formatUSD(slot.amount_max)} | ${pmLabel}`}
+                    title={`${formatHour(slot.hour_start)}–${formatHour(slot.hour_end)} | ${formatUSD(slot.amount_min)}–${formatUSD(slot.amount_max)} | ${pmLabel} | ${dowLabel}`}
                   >
                     <span className={`text-[10px] font-bold ${color.text} leading-none px-1`}>
                       {formatUSD(slot.amount_min)}–{formatUSD(slot.amount_max)}
@@ -229,12 +294,16 @@ export const AlternanciaView = () => {
                     <span className={`text-[9px] ${color.text} opacity-80 leading-none mt-0.5 px-1 truncate max-w-full`}>
                       {pmLabel}
                     </span>
+                    <span className={`text-[9px] ${color.text} opacity-60 leading-none mt-0.5 px-1 truncate max-w-full`}>
+                      {dowLabel}
+                    </span>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+        )}
 
         {/* Hour labels */}
         <div className="flex mt-1.5 ml-[152px] pr-2">
@@ -368,6 +437,11 @@ export const AlternanciaView = () => {
                           <p className="text-xs text-gray-500">
                             {formatHour(slot.hour_start)} – {formatHour(slot.hour_end)}
                             {slot.hour_end < slot.hour_start && " (+1 día)"}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {slot.days_of_week.length === 7
+                              ? "Todos los días"
+                              : slot.days_of_week.map((d) => DAY_LABEL[d]).join(" · ")}
                           </p>
                         </div>
                         <div className="flex flex-col gap-0.5 ml-2">
@@ -550,6 +624,41 @@ export const AlternanciaView = () => {
                   </span>
                   <span className="text-sm">{PM_LABEL[pm]}</span>
                 </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Días de la semana */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">Días operativos</label>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    days_of_week: f.days_of_week.length === 7 ? [] : [0,1,2,3,4,5,6],
+                  }))
+                }
+                className="text-xs text-papaya-orange hover:underline"
+              >
+                {form.days_of_week.length === 7 ? "Desmarcar todos" : "Seleccionar todos"}
+              </button>
+            </div>
+            <div className="flex gap-1.5">
+              {ALL_DAYS.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleDay(day)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    form.days_of_week.includes(day)
+                      ? "border-papaya-orange bg-orange-50 text-papaya-orange"
+                      : "border-gray-200 text-gray-400 hover:border-gray-300"
+                  }`}
+                >
+                  {DAY_LABEL[day]}
+                </button>
               ))}
             </div>
           </div>

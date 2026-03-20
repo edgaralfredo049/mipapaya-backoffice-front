@@ -90,6 +90,7 @@ export interface AlternanciaSlot {
   amount_min: number;
   amount_max: number;
   payment_methods: string[];
+  days_of_week: number[];
   active: boolean;
 }
 
@@ -101,6 +102,7 @@ export interface AlternanciaSlotIn {
   amount_min: number;
   amount_max: number;
   payment_methods: string[];
+  days_of_week: number[];
   active: boolean;
 }
 
@@ -304,6 +306,7 @@ export const api = {
     sentAmount: number;
     paymentMethod: string;
     senderPaymentMethod: string;
+    timezone: string;
     completeResponse?: boolean;
   }) =>
     request<CalculateAmountResult>("/calculate-amount", {

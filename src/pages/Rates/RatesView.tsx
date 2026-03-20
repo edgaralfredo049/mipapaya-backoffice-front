@@ -150,6 +150,7 @@ export const RatesView = () => {
         sentAmount:           parseFloat(calcAmount),
         paymentMethod:        calcMethod,
         senderPaymentMethod:  calcSenderMethod,
+        timezone:             Intl.DateTimeFormat().resolvedOptions().timeZone,
         completeResponse:     true,
       });
       setCalcResult(result);
