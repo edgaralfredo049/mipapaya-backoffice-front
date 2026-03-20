@@ -164,6 +164,60 @@ export interface TariffIn {
   disbursement_method: string;
 }
 
+export interface Client {
+  id: number;
+  phone: string;
+  name: string | null;
+  kyc_valid: boolean;
+  doc_id: string | null;
+  id_type: string | null;
+  id_type_label: string;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientsPage {
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  items: Client[];
+}
+
+export interface ClientDetail {
+  id: number;
+  phone: string;
+  kyc_valid: boolean;
+  created_at: string;
+  personal: {
+    doc_id: string | null;
+    id_type: string | null;
+    id_type_label: string;
+    name: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    email: string | null;
+  };
+  kyc: {
+    verification_result: string | null;
+    kyc_created_at: string | null;
+    document_front: string | null;
+    document_back: string | null;
+    selfie: string | null;
+  };
+}
+
+export interface ClientsFilters {
+  name?: string;
+  email?: string;
+  phone?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
 export interface CalculateAmountResult {
   payerId: string;
   payerRate: number;
@@ -280,4 +334,16 @@ export const api = {
     request<void>(`/tariffs/${id}`, { method: "DELETE" }),
   duplicateTariff: (id: number) =>
     request<Tariff>(`/tariffs/${id}/duplicate`, { method: "POST" }),
+
+  // Clients
+  getClients: (page: number, filters: ClientsFilters) => {
+    const params = new URLSearchParams({ page: String(page), page_size: "10" });
+    if (filters.name)      params.set("name",      filters.name);
+    if (filters.email)     params.set("email",     filters.email);
+    if (filters.phone)     params.set("phone",     filters.phone);
+    if (filters.date_from) params.set("date_from", filters.date_from);
+    if (filters.date_to)   params.set("date_to",   filters.date_to);
+    return request<ClientsPage>(`/clients?${params.toString()}`);
+  },
+  getClientDetail: (id: number) => request<ClientDetail>(`/clients/${id}`),
 };
