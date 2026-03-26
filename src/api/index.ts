@@ -1,5 +1,10 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface Partnership {
+  id: number;
+  name: string;
+}
+
 export interface Country {
   id: string;
   name: string;
@@ -100,6 +105,7 @@ export interface AlternanciaSlot {
   id: string;
   country_id: string;
   pagador_id: string;
+  partnership_id: number;
   hour_start: number;
   hour_end: number;
   amount_min: number;
@@ -112,6 +118,7 @@ export interface AlternanciaSlot {
 export interface AlternanciaSlotIn {
   country_id: string;
   pagador_id: string;
+  partnership_id: number;
   hour_start: number;
   hour_end: number;
   amount_min: number;
@@ -166,6 +173,7 @@ export interface Tariff {
   created_at: string;
   updated_at: string;
   has_overlap: boolean;
+  partnership_id: number;
 }
 
 export interface TariffIn {
@@ -179,6 +187,7 @@ export interface TariffIn {
   fee_percentage: number | null;
   payment_method: string;
   disbursement_method: string;
+  partnership_id: number;
 }
 
 export interface Client {
@@ -202,6 +211,16 @@ export interface ClientsPage {
   items: Client[];
 }
 
+export interface ClientPersonalUpdate {
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  country?: string | null;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+}
+
 export interface ClientDetail {
   id: number;
   phone: string;
@@ -212,11 +231,12 @@ export interface ClientDetail {
     id_type: string | null;
     id_type_label: string;
     name: string | null;
+    email: string | null;
+    phone: string | null;
     address: string | null;
     city: string | null;
     state: string | null;
     country: string | null;
-    email: string | null;
   };
   kyc: {
     verification_result: string | null;
@@ -225,6 +245,36 @@ export interface ClientDetail {
     document_back: string | null;
     selfie: string | null;
   };
+}
+
+export interface Beneficiary {
+  id: string;
+  client_phone: string;
+  full_name: string;
+  cedula: string;
+  city: string;
+  address: string;
+  phone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BeneficiaryUpdateIn {
+  full_name: string;
+  city: string;
+  address: string;
+  phone: string;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  client_id: number;
+  user: string;
+  entity_type: "client" | "beneficiary";
+  entity_id: string;
+  entity_label: string | null;
+  changes: Record<string, { from: string | null; to: string | null }>;
+  created_at: string;
 }
 
 export interface ClientsFilters {
@@ -275,6 +325,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const api = {
+  // Partnerships
+  getPartnerships: () => request<Partnership[]>("/partnerships"),
+  createPartnership: (name: string) =>
+    request<Partnership>("/partnerships", { method: "POST", body: JSON.stringify({ name }) }),
+  updatePartnership: (id: number, name: string) =>
+    request<Partnership>(`/partnerships/${id}`, { method: "PUT", body: JSON.stringify({ name }) }),
+  deletePartnership: (id: number) =>
+    request<void>(`/partnerships/${id}`, { method: "DELETE" }),
+
   // Countries
   getCountries: () => request<Country[]>("/countries"),
   updateCountry: (id: string, data: CountryUpdateIn) =>
@@ -323,6 +382,7 @@ export const api = {
     senderPaymentMethod: string;
     timezone: string;
     completeResponse?: boolean;
+    partnershipId?: number;
   }) =>
     request<CalculateAmountResult>("/calculate-amount", {
       method: "POST",
@@ -369,4 +429,14 @@ export const api = {
     return request<ClientsPage>(`/clients?${params.toString()}`);
   },
   getClientDetail: (id: number) => request<ClientDetail>(`/clients/${id}`),
+  updateClientPersonal: (id: number, data: ClientPersonalUpdate) =>
+    request<{ ok: boolean }>(`/clients/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  getClientBeneficiaries: (phone: string) =>
+    request<{ client_phone: string; items: Beneficiary[]; total: number }>(
+      `/beneficiaries/client/${encodeURIComponent(phone)}`
+    ),
+  updateBeneficiary: (id: string, data: BeneficiaryUpdateIn) =>
+    request<Beneficiary>(`/beneficiaries/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  getClientAuditLog: (id: number) =>
+    request<AuditLogEntry[]>(`/clients/${id}/audit-log`),
 };

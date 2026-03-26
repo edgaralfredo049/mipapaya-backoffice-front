@@ -30,7 +30,8 @@ function fmtDate(s: string) {
 }
 
 
-const emptyNew = (): Partial<TariffIn> => ({
+const emptyNew = (partnershipId = 1): Partial<TariffIn> => ({
+  partnership_id: partnershipId,
   collector_id: "", payer_id: "",
   origin_country_id: "", destination_country_id: "",
   range_min: 20, range_max: 500,
@@ -48,12 +49,13 @@ const cellInputErr = "w-full rounded border border-red-400 px-2 py-1 text-xs fon
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const TariffsView = () => {
-  const { gateways, pagadores, countries, tariffs, refreshTariffs } = useAppStore();
+  const { gateways, pagadores, countries, tariffs, refreshTariffs, partnerships } = useAppStore();
 
   const activeGateways  = gateways.filter(g => g.status === "active");
   const activePagadores = pagadores.filter(p => p.status === "active");
 
   // Filters
+  const [fPartnership,        setFPartnership]        = useState("");
   const [fCollector,          setFCollector]          = useState("");
   const [fPayer,              setFPayer]              = useState("");
   const [fOrigin,             setFOrigin]             = useState("");
@@ -98,6 +100,7 @@ export const TariffsView = () => {
   const filtered = useMemo(() => {
     setPage(1);
     return tariffs.filter(t =>
+      (!fPartnership        || t.partnership_id === Number(fPartnership)) &&
       (!fCollector          || t.collector_id === fCollector) &&
       (!fPayer              || t.payer_id     === fPayer)     &&
       (!fOrigin             || t.origin_country_id === fOrigin) &&
@@ -106,7 +109,7 @@ export const TariffsView = () => {
       (!fDisbursementMethod || t.disbursement_method === fDisbursementMethod)
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tariffs, fCollector, fPayer, fOrigin, fDest, fPaymentMethod, fDisbursementMethod]);
+  }, [tariffs, fPartnership, fCollector, fPayer, fOrigin, fDest, fPaymentMethod, fDisbursementMethod]);
 
   const sortedFiltered = useMemo(() => {
     if (!sortKey) return filtered;
@@ -151,7 +154,7 @@ export const TariffsView = () => {
 
   const startNew = () => {
     setEditingId(null);
-    setNewRow(emptyNew());
+    setNewRow(emptyNew(fPartnership ? Number(fPartnership) : 1));
     setNewError(null);
   };
 
@@ -162,8 +165,8 @@ export const TariffsView = () => {
 
   const saveNew = async () => {
     if (!newRow) return;
-    if (!newRow.collector_id || !newRow.payer_id || !newRow.origin_country_id || !newRow.destination_country_id) {
-      setNewError("Completa recolector, pagador y ambos países."); return;
+    if (!newRow.partnership_id || !newRow.collector_id || !newRow.payer_id || !newRow.origin_country_id || !newRow.destination_country_id) {
+      setNewError("Completa alianza, recolector, pagador y ambos países."); return;
     }
     setNewSaving(true);
     setNewError(null);
@@ -185,6 +188,7 @@ export const TariffsView = () => {
     setDeleteId(null);
     setEditingId(t.id);
     setEditForm({
+      partnership_id: t.partnership_id,
       collector_id: t.collector_id,
       payer_id: t.payer_id,
       origin_country_id: t.origin_country_id,
@@ -239,6 +243,7 @@ export const TariffsView = () => {
     setEditingId(null);
     setDeleteId(null);
     setNewRow({
+      partnership_id: t.partnership_id,
       collector_id: t.collector_id,
       payer_id: t.payer_id,
       origin_country_id: t.origin_country_id,
@@ -272,6 +277,14 @@ export const TariffsView = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap gap-3">
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Alianza</label>
+          <select value={fPartnership} onChange={e => setFPartnership(e.target.value)}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none">
+            <option value="">Todas</option>
+            {[...partnerships].sort((a, b) => a.id - b.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
         {[
           { label: "Recolector", val: fCollector, set: setFCollector, opts: activeGateways },
           { label: "Pagador",    val: fPayer,     set: setFPayer,     opts: activePagadores },
@@ -314,9 +327,9 @@ export const TariffsView = () => {
             {DISBURSEMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
-        {(fCollector || fPayer || fOrigin || fDest || fPaymentMethod || fDisbursementMethod) && (
+        {(fPartnership || fCollector || fPayer || fOrigin || fDest || fPaymentMethod || fDisbursementMethod) && (
           <div className="flex items-end">
-            <button onClick={() => { setFCollector(""); setFPayer(""); setFOrigin(""); setFDest(""); setFPaymentMethod(""); setFDisbursementMethod(""); }}
+            <button onClick={() => { setFPartnership(""); setFCollector(""); setFPayer(""); setFOrigin(""); setFDest(""); setFPaymentMethod(""); setFDisbursementMethod(""); }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
               <X size={12} /> Limpiar
             </button>
@@ -331,6 +344,7 @@ export const TariffsView = () => {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 {([
+                  { label: "Alianza",        key: null                     },
                   { label: "Recolector",     key: "collector_id"           },
                   { label: "Pagador",        key: "payer_id"               },
                   { label: "País Origen",    key: "origin_country_id"      },
@@ -368,6 +382,13 @@ export const TariffsView = () => {
               {newRow && page === 1 && (
                 <>
                   <tr className="bg-blue-50/50">
+                    {/* Partnership */}
+                    <td className="px-3 py-2">
+                      <select value={newRow.partnership_id ?? 1} onChange={e => setN("partnership_id", Number(e.target.value))}
+                        className={cellSelect}>
+                        {[...partnerships].sort((a, b) => a.id - b.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </td>
                     {/* Collector */}
                     <td className="px-3 py-2">
                       <select value={newRow.collector_id ?? ""} onChange={e => setN("collector_id", e.target.value)}
@@ -474,7 +495,7 @@ export const TariffsView = () => {
                   </tr>
                   {newError && (
                     <tr className="bg-red-50">
-                      <td colSpan={13} className="px-4 py-2 text-xs text-red-700 flex items-center gap-1">
+                      <td colSpan={14} className="px-4 py-2 text-xs text-red-700 flex items-center gap-1">
                         <AlertTriangle size={12} className="inline mr-1 text-red-500" />{newError}
                       </td>
                     </tr>
@@ -485,7 +506,7 @@ export const TariffsView = () => {
               {/* ── Data rows ── */}
               {filtered.length === 0 && !newRow ? (
                 <tr>
-                  <td colSpan={13} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={14} className="px-4 py-10 text-center text-sm text-gray-400">
                     No hay tarifas configuradas.
                   </td>
                 </tr>
@@ -500,7 +521,7 @@ export const TariffsView = () => {
                 if (isDeleting) {
                   return (
                     <tr key={t.id} className="bg-red-50/60">
-                      <td colSpan={11} className="px-4 py-2.5 text-sm text-gray-700">
+                      <td colSpan={12} className="px-4 py-2.5 text-sm text-gray-700">
                         {deleteError
                           ? <span className="text-amber-700"><AlertTriangle size={12} className="inline mr-1" />{deleteError}</span>
                           : <span>¿Eliminar tarifa <strong>{getName(t.collector_id, activeGateways)} → {getCountryName(t.destination_country_id)}</strong>? Esta acción no se puede deshacer.</span>
@@ -528,6 +549,12 @@ export const TariffsView = () => {
                   return (
                     <>
                       <tr key={t.id} className="bg-yellow-50/50">
+                        <td className="px-3 py-2">
+                          <select value={editForm.partnership_id ?? 1} onChange={e => setE("partnership_id", Number(e.target.value))}
+                            className={cellSelect}>
+                            {[...partnerships].sort((a, b) => a.id - b.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </td>
                         <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">{getName(t.collector_id, activeGateways)}</td>
                         <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">{getName(t.payer_id, activePagadores)}</td>
                         <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{getCountryName(t.origin_country_id)}</td>
@@ -603,7 +630,7 @@ export const TariffsView = () => {
                       </tr>
                       {editError && (
                         <tr className="bg-red-50">
-                          <td colSpan={13} className="px-4 py-2 text-xs text-red-700">
+                          <td colSpan={14} className="px-4 py-2 text-xs text-red-700">
                             <AlertTriangle size={12} className="inline mr-1 text-red-500" />{editError}
                           </td>
                         </tr>
@@ -614,6 +641,7 @@ export const TariffsView = () => {
 
                 return (
                   <tr key={t.id} className={`hover:bg-gray-50 transition-colors ${hasOverlap ? "bg-red-50/30" : ""}`}>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{partnerships.find(p => p.id === t.partnership_id)?.name ?? t.partnership_id}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-800">{getName(t.collector_id, activeGateways)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-800">{getName(t.payer_id, activePagadores)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{getCountryName(t.origin_country_id)}</td>

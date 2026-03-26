@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { AlianzasTab } from "./AlianzasTab";
 import { PaisesTab } from "./PaisesTab";
 import { GatewaysTab } from "./GatewaysTab";
 import { PagadoresTab } from "./PagadoresTab";
@@ -7,9 +8,10 @@ import { AlternanciaView } from "./AlternanciaView";
 import { GatewayAlternanciaView } from "./GatewayAlternanciaView";
 import { TariffsView } from "../Tariffs/TariffsView";
 
-type Tab = "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "tarifas";
+type Tab = "alianzas" | "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "tarifas";
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: "alianzas",         label: "Alianzas"          },
   { key: "paises",           label: "Países"            },
   { key: "gateways",         label: "Recolectores"      },
   { key: "alt-recolectores", label: "Alt. Recolectores" },
@@ -22,7 +24,7 @@ const VALID_TABS = TABS.map((t) => t.key);
 
 function getTabFromHash(): Tab {
   const hash = window.location.hash.replace("#tab=", "");
-  return VALID_TABS.includes(hash as Tab) ? (hash as Tab) : "paises";
+  return VALID_TABS.includes(hash as Tab) ? (hash as Tab) : "alianzas";
 }
 
 export const Config = () => {
@@ -54,9 +56,10 @@ export const Config = () => {
       );
     }
     switch (activeTab) {
-      case "paises":      return <PaisesTab />;
-      case "gateways":    return <GatewaysTab />;
-      case "pagadores":   return <PagadoresTab />;
+      case "alianzas":         return <AlianzasTab />;
+      case "paises":           return <PaisesTab />;
+      case "gateways":         return <GatewaysTab />;
+      case "pagadores":        return <PagadoresTab />;
       case "alternancia":      return <AlternanciaView />;
       case "alt-recolectores": return <GatewayAlternanciaView />;
       case "tarifas":          return <TariffsView />;

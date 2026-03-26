@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import { Plus, Trash2, AlertTriangle, Clock, AlertCircle } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
+import { Handshake } from "lucide-react";
 
 const ALL_PAYMENT_METHODS = ["bank_deposit", "cash_pickup", "mobile_money", "wallet"] as const;
 
@@ -35,7 +36,10 @@ const hasOverlap = (
   excludeId?: string
 ): boolean => {
   const sameCountry = slots.filter(
-    (s) => s.country_id === candidate.country_id && s.id !== excludeId
+    (s) =>
+      s.country_id === candidate.country_id &&
+      s.id !== excludeId &&
+      s.partnership_id === candidate.partnership_id
   );
   const cTs = candidate.hour_start;
   const cTe = candidate.hour_end > candidate.hour_start ? candidate.hour_end : candidate.hour_end + 24;
@@ -59,6 +63,7 @@ const hasOverlap = (
 const defaultForm = () => ({
   country_id: "",
   pagador_id: "",
+  partnership_id: 1 as number,
   hour_start: -1,
   hour_end: -1,
   amount_min: 20,
@@ -68,8 +73,9 @@ const defaultForm = () => ({
 });
 
 export const AlternanciaView = () => {
-  const { alternancia, pagadores, countries, refreshAlternancia } = useAppStore();
+  const { alternancia, pagadores, countries, partnerships, refreshAlternancia } = useAppStore();
   const [slots, setSlots] = useState<AlternanciaSlot[]>([]);
+  const [selectedPartnershipId, setSelectedPartnershipId] = useState<number | null>(null);
   const [selectedCountryId, setSelectedCountryId] = useState<string>("");
   const [timelineDay, setTimelineDay] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -94,13 +100,24 @@ export const AlternanciaView = () => {
     }
   }, [availableCountryIds, selectedCountryId]);
 
-  const filteredSlots = slots
+  const partnershipSlots = slots.filter(
+    (s) => s.partnership_id === selectedPartnershipId
+  );
+
+  // Auto-select first partnership on load
+  useEffect(() => {
+    if (partnerships.length > 0 && selectedPartnershipId === null) {
+      setSelectedPartnershipId(partnerships[0].id);
+    }
+  }, [partnerships]);
+
+  const filteredSlots = partnershipSlots
     .filter((s) => s.country_id === selectedCountryId)
     .sort((a, b) => a.hour_start - b.hour_start || a.amount_min - b.amount_min);
 
   const openAddModal = () => {
     setEditingSlot(null);
-    setForm({ ...defaultForm(), country_id: selectedCountryId });
+    setForm({ ...defaultForm(), country_id: selectedCountryId, partnership_id: selectedPartnershipId ?? 1 });
     setErrorMsg(null);
     setIsModalOpen(true);
   };
@@ -108,14 +125,15 @@ export const AlternanciaView = () => {
   const openEditModal = (slot: AlternanciaSlot) => {
     setEditingSlot(slot);
     setForm({
-      country_id: slot.country_id,
-      pagador_id: slot.pagador_id,
-      hour_start: slot.hour_start,
-      hour_end: slot.hour_end,
-      amount_min: slot.amount_min,
-      amount_max: slot.amount_max,
+      country_id:     slot.country_id,
+      pagador_id:     slot.pagador_id,
+      partnership_id: slot.partnership_id,
+      hour_start:     slot.hour_start,
+      hour_end:       slot.hour_end,
+      amount_min:     slot.amount_min,
+      amount_max:     slot.amount_max,
       payment_methods: [...slot.payment_methods],
-      days_of_week: [...(slot.days_of_week ?? [0,1,2,3,4,5,6])],
+      days_of_week:    [...(slot.days_of_week ?? [0,1,2,3,4,5,6])],
     });
     setErrorMsg(null);
     setIsModalOpen(true);
@@ -125,8 +143,8 @@ export const AlternanciaView = () => {
     setSaving(true);
     try {
       const payload: AlternanciaSlotIn[] = updated.map(
-        ({ country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, days_of_week, active }) => ({
-          country_id, pagador_id, hour_start, hour_end, amount_min, amount_max, payment_methods, days_of_week, active,
+        ({ country_id, pagador_id, partnership_id, hour_start, hour_end, amount_min, amount_max, payment_methods, days_of_week, active }) => ({
+          country_id, pagador_id, partnership_id, hour_start, hour_end, amount_min, amount_max, payment_methods, days_of_week, active,
         })
       );
       await api.replaceAlternancia(payload);
@@ -140,6 +158,10 @@ export const AlternanciaView = () => {
   };
 
   const handleSaveSlot = async () => {
+    if (!form.partnership_id) {
+      setErrorMsg("La alianza es obligatoria.");
+      return;
+    }
     if (!form.country_id || !form.pagador_id || form.hour_start === -1 || form.hour_end === -1) {
       setErrorMsg("País, pagador y horario son obligatorios.");
       return;
@@ -161,15 +183,16 @@ export const AlternanciaView = () => {
       return;
     }
     const candidate: AlternanciaSlot = {
-      id: editingSlot?.id || `tmp-${Date.now()}`,
-      country_id: form.country_id,
-      pagador_id: form.pagador_id,
-      hour_start: form.hour_start,
-      hour_end: form.hour_end,
-      amount_min: form.amount_min,
-      amount_max: form.amount_max,
+      id:             editingSlot?.id || `tmp-${Date.now()}`,
+      country_id:     form.country_id,
+      pagador_id:     form.pagador_id,
+      partnership_id: form.partnership_id,
+      hour_start:     form.hour_start,
+      hour_end:       form.hour_end,
+      amount_min:     form.amount_min,
+      amount_max:     form.amount_max,
       payment_methods: form.payment_methods,
-      days_of_week: form.days_of_week,
+      days_of_week:    form.days_of_week,
       active: true,
     };
     if (hasOverlap(slots, candidate, editingSlot?.id)) {
@@ -356,6 +379,33 @@ export const AlternanciaView = () => {
         </div>
       )}
 
+      {/* Partnership filter */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <Handshake size={14} className="text-gray-400" />
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alianza</span>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {[...partnerships].sort((a, b) => a.id - b.id).map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedPartnershipId(p.id)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                selectedPartnershipId === p.id
+                  ? "bg-papaya-orange text-white border-papaya-orange shadow-sm"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-papaya-orange hover:text-papaya-orange"
+              }`}
+            >
+              {p.name}
+              <span className="ml-1.5 text-xs opacity-70">
+                ({slots.filter((s) => s.partnership_id === p.id).length})
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Country filter */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {availableCountryIds.map((cid) => (
@@ -370,7 +420,7 @@ export const AlternanciaView = () => {
             >
               {getCountryName(cid)}
               <span className="ml-1.5 text-xs opacity-70">
-                ({slots.filter((s) => s.country_id === cid).length})
+                ({partnershipSlots.filter((s) => s.country_id === cid).length})
               </span>
             </button>
           ))}
@@ -431,9 +481,17 @@ export const AlternanciaView = () => {
                       <div className="flex items-center space-x-3">
                         <div className={`w-2 h-10 rounded-full ${color.bg}`} />
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {pagador?.name || slot.pagador_id}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900">
+                              {pagador?.name || slot.pagador_id}
+                            </p>
+                            {slot.partnership_id && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-50 text-papaya-orange border border-orange-100">
+                                <Handshake size={9} />
+                                {partnerships.find((p) => p.id === slot.partnership_id)?.name ?? slot.partnership_id}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500">
                             {formatHour(slot.hour_start)} – {formatHour(slot.hour_end)}
                             {slot.hour_end < slot.hour_start && " (+1 día)"}
@@ -482,6 +540,20 @@ export const AlternanciaView = () => {
               <p className="text-sm text-yellow-700">{errorMsg}</p>
             </div>
           )}
+
+          {/* Alianza */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Alianza</label>
+            <select
+              value={form.partnership_id}
+              onChange={(e) => setForm({ ...form, partnership_id: Number(e.target.value) })}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-papaya-orange focus:ring-papaya-orange"
+            >
+              {partnerships.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
 
           {/* País */}
           <div>

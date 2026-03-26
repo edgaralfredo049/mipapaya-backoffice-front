@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import { api, Country, Currency, State, Gateway, Pagador, Rate, AlternanciaSlot, GatewayAlternanciaSlot, ExchangeRate, Tariff } from "../api";
+import { api, Country, Currency, State, Gateway, Pagador, Rate, AlternanciaSlot, GatewayAlternanciaSlot, ExchangeRate, Tariff, Partnership } from "../api";
 
 interface AppState {
   isLoaded: boolean;
+  partnerships: Partnership[];
   countries: Country[];
   currencies: Currency[];
   states: State[];
@@ -15,6 +16,7 @@ interface AppState {
   tariffs: Tariff[];
 
   init: () => Promise<void>;
+  refreshPartnerships: () => Promise<void>;
   refreshCountries: () => Promise<void>;
   refreshGateways: () => Promise<void>;
   refreshPagadores: () => Promise<void>;
@@ -27,6 +29,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()((set) => ({
   isLoaded: false,
+  partnerships: [],
   countries: [],
   currencies: [],
   states: [],
@@ -42,7 +45,8 @@ export const useAppStore = create<AppState>()((set) => ({
     const safe = <T>(p: Promise<T>, fallback: T): Promise<T> =>
       p.catch((e) => { console.error(e); return fallback; });
 
-    const [countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs] = await Promise.all([
+    const [partnerships, countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs] = await Promise.all([
+      safe(api.getPartnerships(), []),
       safe(api.getCountries(), []),
       safe(api.getCurrencies(), []),
       safe(api.getStates(), []),
@@ -54,7 +58,12 @@ export const useAppStore = create<AppState>()((set) => ({
       safe(api.getExchangeRates(), []),
       safe(api.getTariffs(), []),
     ]);
-    set({ countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs, isLoaded: true });
+    set({ partnerships, countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs, isLoaded: true });
+  },
+
+  refreshPartnerships: async () => {
+    const partnerships = await api.getPartnerships();
+    set({ partnerships });
   },
 
   refreshCountries: async () => {

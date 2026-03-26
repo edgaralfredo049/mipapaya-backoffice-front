@@ -55,7 +55,7 @@ const getInitialColor = (index: number) =>
   PAGADOR_COLORS[index % PAGADOR_COLORS.length];
 
 export const RatesView = () => {
-  const { gateways, pagadores, countries, states, exchangeRates, refreshExchangeRates, refreshPagadores, refreshGateways } = useAppStore();
+  const { gateways, pagadores, countries, states, exchangeRates, partnerships, refreshExchangeRates, refreshPagadores, refreshGateways } = useAppStore();
 
   const [activeTab, setActiveTab]   = useState<Tab>("pagador");
   const [selectedId, setSelectedId] = useState<string>("");
@@ -67,6 +67,7 @@ export const RatesView = () => {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Calculator state
+  const [calcPartnership, setCalcPartnership] = useState<string>("");
   const [calcFromId,      setCalcFromId]      = useState<string>("");
   const [calcStateId,     setCalcStateId]     = useState<string>("");
   const [calcToId,        setCalcToId]        = useState<string>("");
@@ -126,6 +127,14 @@ export const RatesView = () => {
     setSuccessMsg(null);
   }, [activeTab]);
 
+  // Auto-select first partnership when partnerships load
+  useEffect(() => {
+    if (partnerships.length > 0 && !calcPartnership) {
+      const sorted = [...partnerships].sort((a, b) => a.id - b.id);
+      setCalcPartnership(String(sorted[0].id));
+    }
+  }, [partnerships]);
+
   // Reset state when origin country changes
   useEffect(() => {
     setCalcStateId("");
@@ -135,10 +144,10 @@ export const RatesView = () => {
   useEffect(() => {
     setCalcResult(null);
     setCalcError(null);
-  }, [calcFromId, calcStateId, calcToId, calcMethod, calcSenderMethod, calcAmount]);
+  }, [calcPartnership, calcFromId, calcStateId, calcToId, calcMethod, calcSenderMethod, calcAmount]);
 
   const handleCalculate = async () => {
-    if (!calcFromId || !calcToId || !calcMethod || !calcSenderMethod || !calcAmount) return;
+    if (!calcPartnership || !calcFromId || !calcToId || !calcMethod || !calcSenderMethod || !calcAmount) return;
     setCalcLoading(true);
     setCalcError(null);
     setCalcResult(null);
@@ -152,6 +161,7 @@ export const RatesView = () => {
         senderPaymentMethod:  calcSenderMethod,
         timezone:             Intl.DateTimeFormat().resolvedOptions().timeZone,
         completeResponse:     true,
+        partnershipId:        Number(calcPartnership),
       });
       setCalcResult(result);
     } catch (e: any) {
@@ -519,6 +529,23 @@ export const RatesView = () => {
         </div>
 
         <div className="p-4 flex flex-col gap-4 flex-1">
+          {/* Partnership */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+              Alianza
+            </label>
+            <select
+              value={calcPartnership}
+              onChange={(e) => setCalcPartnership(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-papaya-orange focus:ring-1 focus:ring-orange-100 focus:outline-none bg-white"
+            >
+              <option value="">Seleccionar alianza...</option>
+              {[...partnerships].sort((a, b) => a.id - b.id).map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Origin — country */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
@@ -637,7 +664,7 @@ export const RatesView = () => {
           {/* Calculate button */}
           <button
             onClick={handleCalculate}
-            disabled={calcLoading || !calcFromId || !calcToId || !calcMethod || !calcSenderMethod || !calcAmount}
+            disabled={calcLoading || !calcPartnership || !calcFromId || !calcToId || !calcMethod || !calcSenderMethod || !calcAmount}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {calcLoading
