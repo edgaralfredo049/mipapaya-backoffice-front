@@ -14,10 +14,9 @@ const PAYMENT_METHODS: { value: string; label: string }[] = [
 ];
 
 const DISBURSEMENT_METHODS: { value: string; label: string }[] = [
-  { value: "bank_deposit", label: "Depósito Bancario"  },
-  { value: "cash_pickup",  label: "Retiro en Efectivo" },
-  { value: "mobile_money", label: "Dinero Móvil"       },
-  { value: "wallet",       label: "Billetera Digital"  },
+  { value: "cash_pickup",    label: "Efectivo"              },
+  { value: "mobile_wallet",  label: "Billetera Movil"       },
+  { value: "bank_deposit",   label: "Transferencia Bancaria" },
 ];
 
 const pmLabel  = (v: string) => PAYMENT_METHODS.find(m => m.value === v)?.label ?? v;

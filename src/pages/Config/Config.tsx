@@ -6,15 +6,17 @@ import { GatewaysTab } from "./GatewaysTab";
 import { PagadoresTab } from "./PagadoresTab";
 import { AlternanciaView } from "./AlternanciaView";
 import { GatewayAlternanciaView } from "./GatewayAlternanciaView";
+import { DeliveryFlowsView } from "./DeliveryFlowsView";
 import { TariffsView } from "../Tariffs/TariffsView";
 
-type Tab = "alianzas" | "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "tarifas";
+type Tab = "alianzas" | "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "delivery-flows" | "tarifas";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "alianzas",         label: "Alianzas"          },
   { key: "paises",           label: "Países"            },
   { key: "gateways",         label: "Recolectores"      },
   { key: "alt-recolectores", label: "Alt. Recolectores" },
+  { key: "delivery-flows",   label: "Flujos de Entrega" },
   { key: "pagadores",        label: "Pagadores"         },
   { key: "alternancia",      label: "Alternancia"       },
   { key: "tarifas",          label: "Tarifas"           },
@@ -62,6 +64,7 @@ export const Config = () => {
       case "pagadores":        return <PagadoresTab />;
       case "alternancia":      return <AlternanciaView />;
       case "alt-recolectores": return <GatewayAlternanciaView />;
+      case "delivery-flows":   return <DeliveryFlowsView />;
       case "tarifas":          return <TariffsView />;
     }
   };

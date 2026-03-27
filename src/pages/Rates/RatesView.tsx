@@ -594,10 +594,9 @@ export const RatesView = () => {
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-papaya-orange focus:ring-1 focus:ring-orange-100 focus:outline-none bg-white"
             >
               <option value="">Método de pago...</option>
-              <option value="bank_deposit">Depósito Bancario</option>
-              <option value="cash_pickup">Retiro en Efectivo</option>
-              <option value="mobile_money">Dinero Móvil</option>
-              <option value="wallet">Billetera Digital</option>
+              <option value="cash_pickup">Efectivo</option>
+              <option value="mobile_wallet">Billetera Movil</option>
+              <option value="bank_deposit">Transferencia Bancaria</option>
             </select>
           </div>
 

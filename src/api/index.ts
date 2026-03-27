@@ -72,10 +72,9 @@ export interface Rate {
   name: string;
   status: "active" | "inactive";
   payment_methods: {
-    bank_deposit: PaymentMethodData;
     cash_pickup: PaymentMethodData;
-    mobile_money: PaymentMethodData;
-    wallet: PaymentMethodData;
+    mobile_wallet: PaymentMethodData;
+    bank_deposit: PaymentMethodData;
   };
   created_at: string;
 }
@@ -156,6 +155,66 @@ export interface ExchangeRate {
 export interface ExchangeRateIn {
   country_id: string;
   rate: number;
+}
+
+// ── Delivery Flows ─────────────────────────────────────────────────────────────
+
+export type DeliveryNodeType = "phone" | "account_number" | "bank_list";
+export type DeliveryMethodType = "cash_pickup" | "mobile_wallet" | "bank_deposit";
+
+export interface DeliveryFlowNodeConfig {
+  prefixes?:   string;  // phone: "+57,+58"
+  min_digits?: number;  // account_number
+  max_digits?: number;  // account_number
+  banks?:      string;  // bank_list: comma-separated
+  label?:      string;
+}
+
+export interface DeliveryFlowNode {
+  id:         string;
+  node_type:  DeliveryNodeType;
+  sort_order: number;
+  config:     DeliveryFlowNodeConfig;
+}
+
+export interface DeliveryWallet {
+  id?:        number;
+  name:       string;
+  sort_order: number;
+  kind:       "wallet" | "agency";
+}
+
+export interface DeliveryFlow {
+  id?:        string;
+  country_id: string;
+  method:     DeliveryMethodType;
+  active:     boolean;
+  pos_x:      number;
+  pos_y:      number;
+  sort_order: number;
+  nodes:      DeliveryFlowNode[];
+  wallets:    DeliveryWallet[];
+}
+
+export type DeliveryFlowIn = Omit<DeliveryFlow, "id"> & {
+  nodes: Omit<DeliveryFlowNode, "id">[];
+  wallets: Omit<DeliveryWallet, "id">[];
+};
+
+export interface CountryWallet {
+  id:             number;
+  country_id:     string;
+  partnership_id: number;
+  name:           string;
+  sort_order:     number;
+}
+
+export interface CountryAgency {
+  id:             number;
+  country_id:     string;
+  partnership_id: number;
+  name:           string;
+  sort_order:     number;
 }
 
 export interface Tariff {
@@ -417,6 +476,47 @@ export const api = {
     request<void>(`/tariffs/${id}`, { method: "DELETE" }),
   duplicateTariff: (id: number) =>
     request<Tariff>(`/tariffs/${id}/duplicate`, { method: "POST" }),
+
+  // Delivery Flows
+  getDeliveryFlows: (partnershipId: number, countryId: string) =>
+    request<DeliveryFlow[]>(`/delivery-flows/${partnershipId}/${countryId}`),
+  replaceDeliveryFlows: (partnershipId: number, countryId: string, flows: DeliveryFlowIn[]) =>
+    request<DeliveryFlow[]>(`/delivery-flows/${partnershipId}/${countryId}`, {
+      method: "PUT",
+      body: JSON.stringify(flows),
+    }),
+
+  // Country Wallet Palette
+  getCountryWallets: (partnershipId: number, countryId: string) =>
+    request<CountryWallet[]>(`/delivery-wallets/${partnershipId}/${countryId}`),
+  addCountryWallet: (partnershipId: number, countryId: string, name: string) =>
+    request<CountryWallet>(`/delivery-wallets/${partnershipId}/${countryId}`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  deleteCountryWallet: (partnershipId: number, countryId: string, walletId: number) =>
+    request<void>(`/delivery-wallets/${partnershipId}/${countryId}/${walletId}`, { method: "DELETE" }),
+  reorderCountryWallets: (partnershipId: number, countryId: string, orderedIds: number[]) =>
+    request<CountryWallet[]>(`/delivery-wallets/${partnershipId}/${countryId}/reorder`, {
+      method: "PUT",
+      body: JSON.stringify({ ordered_ids: orderedIds }),
+    }),
+
+  // Country Agency Palette
+  getCountryAgencies: (partnershipId: number, countryId: string) =>
+    request<CountryAgency[]>(`/delivery-agencies/${partnershipId}/${countryId}`),
+  addCountryAgency: (partnershipId: number, countryId: string, name: string) =>
+    request<CountryAgency>(`/delivery-agencies/${partnershipId}/${countryId}`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  deleteCountryAgency: (partnershipId: number, countryId: string, agencyId: number) =>
+    request<void>(`/delivery-agencies/${partnershipId}/${countryId}/${agencyId}`, { method: "DELETE" }),
+  reorderCountryAgencies: (partnershipId: number, countryId: string, orderedIds: number[]) =>
+    request<CountryAgency[]>(`/delivery-agencies/${partnershipId}/${countryId}/reorder`, {
+      method: "PUT",
+      body: JSON.stringify({ ordered_ids: orderedIds }),
+    }),
 
   // Clients
   getClients: (page: number, filters: ClientsFilters) => {

@@ -7,13 +7,12 @@ import { Plus, Trash2, AlertTriangle, Clock, AlertCircle } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
 import { Handshake } from "lucide-react";
 
-const ALL_PAYMENT_METHODS = ["bank_deposit", "cash_pickup", "mobile_money", "wallet"] as const;
+const ALL_PAYMENT_METHODS = ["cash_pickup", "mobile_wallet", "bank_deposit"] as const;
 
 const PM_LABEL: Record<string, string> = {
-  bank_deposit: "Depósito Bancario",
-  cash_pickup: "Retiro en Efectivo",
-  mobile_money: "Dinero Móvil",
-  wallet: "Billetera Digital",
+  cash_pickup: "Efectivo",
+  mobile_wallet: "Billetera Movil",
+  bank_deposit: "Transferencia Bancaria",
 };
 
 // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb  (matches strftime('%w') and getDay())
