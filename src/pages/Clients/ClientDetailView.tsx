@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -142,6 +142,7 @@ function toForm(p: ClientDetail["personal"], fallbackPhone: string): PersonalFor
 
 export const ClientDetailView = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,12 +252,12 @@ export const ClientDetailView = () => {
   if (error || !client) {
     return (
       <div className="p-8 max-w-5xl mx-auto space-y-4">
-        <Link
-          to="/clientes"
+        <button
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-3.5 py-2 rounded-lg shadow-sm transition-all"
         >
-          <ArrowLeft size={14} /> Clientes
-        </Link>
+          <ArrowLeft size={14} /> Volver
+        </button>
         <div className="text-sm text-red-500">{error || "Cliente no encontrado."}</div>
       </div>
     );
@@ -272,12 +273,12 @@ export const ClientDetailView = () => {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       {/* Back */}
-      <Link
-        to="/clientes"
+      <button
+        onClick={() => navigate(-1)}
         className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-3.5 py-2 rounded-lg shadow-sm transition-all"
       >
-        <ArrowLeft size={14} /> Clientes
-      </Link>
+        <ArrowLeft size={14} /> Volver
+      </button>
 
       {/* Header */}
       <div className="flex items-start justify-between">

@@ -185,15 +185,16 @@ export interface DeliveryWallet {
 }
 
 export interface DeliveryFlow {
-  id?:        string;
-  country_id: string;
-  method:     DeliveryMethodType;
-  active:     boolean;
-  pos_x:      number;
-  pos_y:      number;
-  sort_order: number;
-  nodes:      DeliveryFlowNode[];
-  wallets:    DeliveryWallet[];
+  id?:            string;
+  country_id:     string;
+  method:         DeliveryMethodType;
+  active:         boolean;
+  pos_x:          number;
+  pos_y:          number;
+  sort_order:     number;
+  question_label?: string | null;
+  nodes:          DeliveryFlowNode[];
+  wallets:        DeliveryWallet[];
 }
 
 export type DeliveryFlowIn = Omit<DeliveryFlow, "id"> & {
@@ -247,6 +248,45 @@ export interface TariffIn {
   payment_method: string;
   disbursement_method: string;
   partnership_id: number;
+}
+
+export interface RemittanceRecord {
+  id: string;
+  created_at: string;
+  client_id: string | null;
+  origin_country_id: string | null;
+  destination_country_id: string | null;
+  sent_amount: number;
+  sent_currency: string;
+  amount_to_pay: number;
+  pay_currency: string;
+  fee_amount: number;
+  collector_id: string | null;
+  collector_rate: number;
+  payer_rate: number;
+  fx_percentage: number;
+  papaya_rate: number;
+  rate_spread: number;
+  payer_id: string | null;
+  partnership_id: number;
+  disbursement_method: string | null;
+  sender_payment_method: string | null;
+  status: string;
+  beneficiary: string | null;
+  beneficiary_doc_id: string | null;
+  payment_details: string | null;
+  origin_country_name: string | null;
+  destination_country_name: string | null;
+  collector_name: string | null;
+  payer_name: string | null;
+  partnership_name: string | null;
+  client_name: string | null;
+  client_db_id: number | null;
+  client_phone: string | null;
+  client_email: string | null;
+  client_address: string | null;
+  client_city: string | null;
+  client_state: string | null;
 }
 
 export interface Client {
@@ -323,6 +363,15 @@ export interface BeneficiaryUpdateIn {
   city: string;
   address: string;
   phone: string;
+}
+
+export interface RemittanceAuditEntry {
+  id: number;
+  remittance_id: string;
+  user: string;
+  action: string;
+  changes: Record<string, { from: string | null; to: string | null }>;
+  created_at: string;
 }
 
 export interface AuditLogEntry {
@@ -539,4 +588,37 @@ export const api = {
     request<Beneficiary>(`/beneficiaries/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   getClientAuditLog: (id: number) =>
     request<AuditLogEntry[]>(`/clients/${id}/audit-log`),
+
+  // Remittances
+  getRemittances: (params: {
+    page?: number; limit?: number;
+    client_id?: string; payer_id?: string;
+    date_from?: string; date_to?: string;
+    status?: string; partnership_id?: number;
+  }) => {
+    const p = new URLSearchParams();
+    const limit = 10;
+    const offset = ((params.page ?? 1) - 1) * limit;
+    p.set("limit",  String(limit));
+    p.set("offset", String(offset));
+    if (params.client_id)    p.set("client_id",    params.client_id);
+    if (params.payer_id)     p.set("payer_id",     params.payer_id);
+    if (params.date_from)    p.set("date_from",    params.date_from);
+    if (params.date_to)      p.set("date_to",      params.date_to);
+    if (params.status)       p.set("status",       params.status);
+    if (params.partnership_id) p.set("partnership_id", String(params.partnership_id));
+    return request<{ total: number; items: RemittanceRecord[] }>(`/remittances?${p.toString()}`);
+  },
+  getRemittance: (id: string) =>
+    request<RemittanceRecord>(`/remittances/${id}`),
+  updateRemittanceStatus: (id: string, status: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
+    }),
+  updateRemittancePayer: (id: string, payer_id: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/payer`, {
+      method: "PATCH", body: JSON.stringify({ payer_id }),
+    }),
+  getRemittanceAuditLog: (id: string) =>
+    request<RemittanceAuditEntry[]>(`/remittances/${id}/audit-log`),
 };

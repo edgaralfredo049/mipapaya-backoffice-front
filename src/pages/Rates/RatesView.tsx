@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../../store/useAppStore";
-import { api, ExchangeRateIn, CalculateAmountResult } from "../../api";
+import { api, ExchangeRateIn, CalculateAmountResult, DeliveryFlow, DeliveryMethodType } from "../../api";
 import { AlertTriangle, TrendingUp, RotateCcw, Save, Calculator, ArrowRight, Loader2, Zap, Clock, DollarSign, Receipt, RefreshCw, Wifi } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
 
@@ -54,6 +54,12 @@ const ENTITY_LABEL: Record<Tab, { singular: string; plural: string }> = {
 const getInitialColor = (index: number) =>
   PAGADOR_COLORS[index % PAGADOR_COLORS.length];
 
+const DELIVERY_METHOD_LABEL: Record<DeliveryMethodType, string> = {
+  cash_pickup:   "Efectivo",
+  mobile_wallet: "Billetera Movil",
+  bank_deposit:  "Transferencia Bancaria",
+};
+
 export const RatesView = () => {
   const { gateways, pagadores, countries, states, exchangeRates, partnerships, refreshExchangeRates, refreshPagadores, refreshGateways } = useAppStore();
 
@@ -74,6 +80,7 @@ export const RatesView = () => {
   const [calcMethod,      setCalcMethod]      = useState<string>("");
   const [calcSenderMethod,setCalcSenderMethod]= useState<string>("");
   const [calcAmount,      setCalcAmount]      = useState<string>("");
+  const [calcDeliveryFlows, setCalcDeliveryFlows] = useState<DeliveryFlow[]>([]);
   const [calcLoading,  setCalcLoading]  = useState(false);
   const [calcError,    setCalcError]    = useState<string | null>(null);
   const [calcResult,   setCalcResult]   = useState<CalculateAmountResult | null>(null);
@@ -135,10 +142,49 @@ export const RatesView = () => {
     }
   }, [partnerships]);
 
+  // Reset all calc fields when partnership changes (skip on initial auto-select)
+  const prevPartnership = useRef<string>("");
+  useEffect(() => {
+    if (!calcPartnership || prevPartnership.current === "") {
+      prevPartnership.current = calcPartnership;
+      return;
+    }
+    if (prevPartnership.current !== calcPartnership) {
+      prevPartnership.current = calcPartnership;
+      setCalcFromId("");
+      setCalcStateId("");
+      setCalcToId("");
+      setCalcMethod("");
+      setCalcSenderMethod("");
+      setCalcAmount("");
+      setCalcDeliveryFlows([]);
+      setCalcResult(null);
+      setCalcError(null);
+    }
+  }, [calcPartnership]);
+
   // Reset state when origin country changes
   useEffect(() => {
     setCalcStateId("");
   }, [calcFromId]);
+
+  // Load delivery flows when destination country or partnership changes
+  useEffect(() => {
+    if (!calcToId || !calcPartnership) {
+      setCalcDeliveryFlows([]);
+      setCalcMethod("");
+      return;
+    }
+    api.getDeliveryFlows(Number(calcPartnership), calcToId)
+      .then((flows) => {
+        setCalcDeliveryFlows(flows.filter((f) => f.active));
+        setCalcMethod("");
+      })
+      .catch(() => {
+        setCalcDeliveryFlows([]);
+        setCalcMethod("");
+      });
+  }, [calcToId, calcPartnership]);
 
   // Clear result when any calc field changes
   useEffect(() => {
@@ -583,23 +629,6 @@ export const RatesView = () => {
           )}
 
 
-          {/* Receiver payment method */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
-              ¿Cómo recibe el beneficiario?
-            </label>
-            <select
-              value={calcMethod}
-              onChange={(e) => setCalcMethod(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-papaya-orange focus:ring-1 focus:ring-orange-100 focus:outline-none bg-white"
-            >
-              <option value="">Método de pago...</option>
-              <option value="cash_pickup">Efectivo</option>
-              <option value="mobile_wallet">Billetera Movil</option>
-              <option value="bank_deposit">Transferencia Bancaria</option>
-            </select>
-          </div>
-
           {/* Destination */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
@@ -613,6 +642,32 @@ export const RatesView = () => {
               <option value="">País destino...</option>
               {receiveCountries.map((c) => (
                 <option key={c.id} value={c.id}>{c.name} ({c.currency_code})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Receiver payment method */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+              ¿Cómo recibe el beneficiario?
+            </label>
+            <select
+              value={calcMethod}
+              onChange={(e) => setCalcMethod(e.target.value)}
+              disabled={!calcToId || !calcPartnership}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-papaya-orange focus:ring-1 focus:ring-orange-100 focus:outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {!calcToId || !calcPartnership
+                  ? "Selecciona alianza y país destino..."
+                  : calcDeliveryFlows.length === 0
+                  ? "Sin métodos configurados"
+                  : "Método de entrega..."}
+              </option>
+              {calcDeliveryFlows.map((f) => (
+                <option key={f.method} value={f.method}>
+                  {DELIVERY_METHOD_LABEL[f.method]}
+                </option>
               ))}
             </select>
           </div>

@@ -14,17 +14,17 @@ import { Plus, X, Save, Loader2, AlertCircle, GripVertical, Trash2 } from "lucid
 
 // ── Layout constants ───────────────────────────────────────────────────────────
 
-const CARD_W      = 264;   // px – card width
+const CARD_W      = 230;   // px – card width
 const METHOD_H    = 68;    // px – method header card height
-const CONN_H      = 32;    // px – connector space between cards
-const WALLET_H    = 48;    // px – wallet card height
-const DROP_ZONE_H = 44;    // px – drop target height
+const CONN_H      = 16;    // px – connector space between cards
+const WALLET_H    = 40;    // px – wallet card height
+const DROP_ZONE_H = 36;    // px – drop target height
 
 /** Approximate height per node type for layout calculations */
 const NODE_H: Record<DeliveryNodeType, number> = {
-  phone:          140,
-  account_number: 152,
-  bank_list:      240,
+  phone:          120,
+  account_number: 132,
+  bank_list:      220,
 };
 
 // ── Domain constants ───────────────────────────────────────────────────────────
@@ -72,9 +72,9 @@ const ALLOWED_ITEM_KIND: Record<DeliveryMethodType, "wallet" | "agency" | null> 
 const ALL_METHODS: DeliveryMethodType[] = ["cash_pickup", "mobile_wallet", "bank_deposit"];
 
 const DEFAULT_POS: Record<DeliveryMethodType, { pos_x: number; pos_y: number }> = {
-  cash_pickup:   { pos_x: 40,  pos_y: 20 },
-  mobile_wallet: { pos_x: 380, pos_y: 20 },
-  bank_deposit:  { pos_x: 720, pos_y: 20 },
+  cash_pickup:   { pos_x: 16,  pos_y: 16 },
+  mobile_wallet: { pos_x: 254, pos_y: 16 },
+  bank_deposit:  { pos_x: 492, pos_y: 16 },
 };
 
 // ── Local types ────────────────────────────────────────────────────────────────
@@ -136,7 +136,8 @@ function fromApi(remote: DeliveryFlow[], countryId: string): CanvasFlow[] {
     const items: CanvasItem[] = [...nodeItems, ...walletItems]
       .sort((a, b) => a._slot - b._slot)
       .map(({ _slot: _s, ...rest }) => rest as CanvasItem);
-    return { ...r, items };
+    // Always use DEFAULT_POS so stored positions don't override the current layout
+    return { ...r, pos_x: def.pos_x, pos_y: def.pos_y, items };
   });
 }
 
@@ -153,6 +154,7 @@ export const DeliveryFlowsView: React.FC = () => {
   const [newWallet, setNewWallet]       = useState("");
   const [agencyPalette, setAgencyPalette] = useState<PaletteAgency[]>([]);
   const [newAgency, setNewAgency]       = useState("");
+  const [questionLabel, setQuestionLabel] = useState("");
   const [loading, setLoading]       = useState(false);
   const [saving, setSaving]         = useState(false);
   const [dirty, setDirty]           = useState(false);
@@ -179,6 +181,22 @@ export const DeliveryFlowsView: React.FC = () => {
   const [paDrag, setPaDrag] = useState<number | null>(null);
   const [paOver, setPaOver] = useState<number | null>(null);
 
+  // ── Auto-select defaults once store data is available ────────────────────────
+
+  useEffect(() => {
+    if (partnership !== "" || partnerships.length === 0) return;
+    const preferred = partnerships.find(p => p.id === 1) ?? partnerships[0];
+    setPartnership(preferred.id);
+  }, [partnerships]);
+
+  useEffect(() => {
+    if (country !== "" || partnership === "") return;
+    const receiveCountries = countries.filter(c => c.receive);
+    if (receiveCountries.length === 0) return;
+    const preferred = receiveCountries.find(c => c.id === "VE") ?? receiveCountries[0];
+    setCountry(preferred.id);
+  }, [partnership, countries]);
+
   // ── Data loading ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -190,6 +208,7 @@ export const DeliveryFlowsView: React.FC = () => {
       api.getCountryAgencies(partnership, country).catch(() => [] as CountryAgency[]),
     ]).then(([remote, wallets, agencies]) => {
       setFlows(fromApi(remote, country));
+      setQuestionLabel(remote.find(f => f.question_label)?.question_label ?? "");
       setPalette(wallets.map(w => ({ lid: crypto.randomUUID(), ...w })));
       setAgencyPalette(agencies.map(a => ({ lid: crypto.randomUUID(), ...a })));
     }).finally(() => setLoading(false));
@@ -419,6 +438,7 @@ export const DeliveryFlowsView: React.FC = () => {
       const payload: DeliveryFlowIn[] = flows.map((f, i) => ({
         country_id: f.country_id, method: f.method,
         active: f.active, pos_x: f.pos_x, pos_y: f.pos_y, sort_order: i,
+        question_label: questionLabel.trim() || null,
         // sort_order = global slot index so interleaved order survives reload
         nodes: f.items
           .filter((it): it is Extract<CanvasItem, {kind:"node"}> => it.kind === "node")
@@ -941,6 +961,22 @@ export const DeliveryFlowsView: React.FC = () => {
         </select>
         {loading && <Loader2 size={16} className="animate-spin text-gray-400" />}
       </div>
+
+      {/* Question label — shared across all methods for this country+partnership */}
+      {country && partnership && !loading && (
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            Pregunta al beneficiario:
+          </label>
+          <input
+            type="text"
+            value={questionLabel}
+            onChange={e => { setQuestionLabel(e.target.value); mark(); }}
+            placeholder="ej. ¿Cómo deseas recibir el dinero?"
+            className="flex-1 max-w-sm rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-papaya-orange"
+          />
+        </div>
+      )}
 
       {saveErr && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
