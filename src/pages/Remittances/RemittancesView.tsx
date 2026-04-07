@@ -63,6 +63,7 @@ export const RemittancesView = () => {
   const [error, setError]           = useState<string | null>(null);
   const [sendingId, setSendingId]   = useState<string | null>(null);
   const [confirmId, setConfirmId]   = useState<string | null>(null);
+  const [payingId,  setPayingId]    = useState<string | null>(null);
 
   const today = todayNY();
   const [fClient,   setFClient]   = useState("");
@@ -111,14 +112,30 @@ export const RemittancesView = () => {
 
   const handleConfirmSend = async () => {
     if (!confirmId) return;
-    setSendingId(confirmId);
+    const id = confirmId;
+    setSendingId(id);
     setConfirmId(null);
     try {
-      const updated = await api.updateRemittanceStatus(confirmId, "transmited");
-      setItems(prev => prev.map(r => r.id === updated.id ? updated : r));
+      // Step 1: Pendiente → Transmitida
+      const transmited = await api.updateRemittanceStatus(id, "transmited");
+      setItems(prev => prev.map(r => r.id === transmited.id ? transmited : r));
+
+      setPayingId(id);
+      // TODO: replace setTimeout with real integration webhook/callback
+      setTimeout(async () => {
+        try {
+          // Step 2: Transmitida → Pagada (simulated integration response)
+          const payed = await api.updateRemittanceStatus(id, "payed");
+          setItems(prev => prev.map(r => r.id === payed.id ? payed : r));
+        } catch {
+          // silent — transmited state remains visible
+        } finally {
+          setSendingId(null);
+          setPayingId(null);
+        }
+      }, 8000);
     } catch {
       setError("Error al actualizar el estado.");
-    } finally {
       setSendingId(null);
     }
   };
@@ -249,13 +266,19 @@ export const RemittancesView = () => {
                     </span>
                   </td>
                   <td className="px-3 py-3">
-                    <button
-                      onClick={() => setConfirmId(r.id)}
-                      disabled={r.status !== "pending" || sendingId === r.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Send size={11} /> Enviar
-                    </button>
+                    {payingId === r.id ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-600 font-medium animate-pulse">
+                        ⏳ Procesando…
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmId(r.id)}
+                        disabled={r.status !== "pending" || sendingId === r.id}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Send size={11} /> Enviar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
