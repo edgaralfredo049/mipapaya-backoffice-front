@@ -393,6 +393,39 @@ export interface ClientsFilters {
   date_to?: string;
 }
 
+// ── Dashboard types ───────────────────────────────────────────────────────────
+
+export interface DashboardKpis {
+  date_hoy: string;       date_ayer: string;
+  registros_hoy: number;  registros_ayer: number;
+  nuevos_hoy: number;     nuevos_ayer: number;
+  txn_hoy: number;        txn_ayer: number;
+  monto_hoy: number;      monto_ayer: number;
+  ticket_hoy: number;     ticket_ayer: number;
+}
+export interface DashboardEmisorRow {
+  pais: string; registros: number; nuevos: number;
+  txn: number;  monto: number;     ticket: number;
+}
+export interface DashboardReceptorRow {
+  pais: string; txn: number; monto: number; ticket: number;
+}
+export interface DashboardPieSlice { name: string; value: number; }
+export interface DashboardTxnDay   { fecha: string; value: number; }
+export interface DashboardRegDay   { fecha: string; actual: number; promedio: number; meta: number; }
+export interface DashboardAdmin {
+  date_from: string;
+  date_to: string;
+  kpis: DashboardKpis;
+  emisor: DashboardEmisorRow[];
+  receptor: DashboardReceptorRow[];
+  metodo_recoleccion: DashboardPieSlice[];
+  metodo_pago: DashboardPieSlice[];
+  txn_paid_31d: DashboardTxnDay[];
+  registros_plataforma: DashboardRegDay[];
+  canales: { chatbot_landing: number; whatsapp: number };
+}
+
 export interface CalculateAmountResult {
   payerId: string;
   payerRate: number;
@@ -433,6 +466,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const api = {
+  // Dashboard
+  getDashboardAdmin: (dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo)   params.set("date_to",   dateTo);
+    const qs = params.toString();
+    return request<DashboardAdmin>(`/dashboard/admin${qs ? `?${qs}` : ""}`);
+  },
+
   // Partnerships
   getPartnerships: () => request<Partnership[]>("/partnerships"),
   createPartnership: (name: string) =>

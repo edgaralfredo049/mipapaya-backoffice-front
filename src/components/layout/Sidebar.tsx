@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { Settings, TrendingUp, Users, ArrowLeftRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Settings, TrendingUp, Users, ArrowLeftRight, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
 import logo from "../../../assets/Full logo Orange con espacio.avif";
 import logoIcon from "../../../assets/favicon.jpeg";
@@ -11,10 +11,11 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { to: "/configuracion", label: "Configuración",  Icon: Settings        },
-  { to: "/tasas",         label: "Tasas de Cambio", Icon: TrendingUp     },
-  { to: "/clientes",      label: "Clientes",        Icon: Users          },
-  { to: "/remesas",       label: "Remesas",         Icon: ArrowLeftRight },
+  { to: "/dashboards",    label: "Dashboards",      Icon: LayoutDashboard },
+  { to: "/configuracion", label: "Configuración",   Icon: Settings        },
+  { to: "/tasas",         label: "Tasas de Cambio", Icon: TrendingUp      },
+  { to: "/clientes",      label: "Clientes",        Icon: Users           },
+  { to: "/remesas",       label: "Remesas",         Icon: ArrowLeftRight  },
 ];
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
