@@ -324,6 +324,7 @@ export interface ClientDetail {
   id: number;
   phone: string;
   kyc_valid: boolean;
+  active: boolean;
   created_at: string;
   personal: {
     doc_id: string | null;
@@ -391,6 +392,13 @@ export interface ClientsFilters {
   phone?: string;
   date_from?: string;
   date_to?: string;
+}
+
+export interface ClientTxStatRow {
+  period_days: number;
+  cantidad: number;
+  monto_usd: number;
+  average: number;
 }
 
 // ── Dashboard types ───────────────────────────────────────────────────────────
@@ -630,6 +638,13 @@ export const api = {
     request<Beneficiary>(`/beneficiaries/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   getClientAuditLog: (id: number) =>
     request<AuditLogEntry[]>(`/clients/${id}/audit-log`),
+  getClientTxStats: (id: number) =>
+    request<{ items: ClientTxStatRow[] }>(`/clients/${id}/tx-stats`),
+  setClientActive: (id: number, active: boolean) =>
+    request<{ ok: boolean; active: boolean }>(`/clients/${id}/active`, {
+      method: "PATCH",
+      body: JSON.stringify({ active }),
+    }),
 
   // Remittances
   getRemittances: (params: {

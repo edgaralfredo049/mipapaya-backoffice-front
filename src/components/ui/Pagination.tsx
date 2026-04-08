@@ -6,6 +6,7 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   totalItems?: number;
   pageSize?: number;
+  alwaysShow?: boolean;
 }
 
 export const Pagination = ({
@@ -14,8 +15,9 @@ export const Pagination = ({
   onPageChange,
   totalItems,
   pageSize,
+  alwaysShow = false,
 }: PaginationProps) => {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1 && !alwaysShow) return null;
 
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1)
     .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)

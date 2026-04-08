@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -14,8 +14,25 @@ import {
   Check,
   X,
   AlertTriangle,
+  Pencil,
+  ChevronDown,
+  ArrowLeftRight,
+  Receipt,
 } from "lucide-react";
-import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry } from "../../api";
+import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord } from "../../api";
+import { Pagination } from "../../components/ui/Pagination";
+
+const REM_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente", transmited: "Transmitida",
+  unpayed: "No Pagada", payed: "Pagada", canceled: "Cancelada",
+};
+const REM_STATUS_COLORS: Record<string, string> = {
+  pending:    "bg-yellow-50 text-yellow-700",
+  transmited: "bg-blue-50 text-blue-700",
+  unpayed:    "bg-red-50 text-red-600",
+  payed:      "bg-green-50 text-green-700",
+  canceled:   "bg-gray-100 text-gray-500",
+};
 
 const FIELD_LABELS: Record<string, string> = {
   name: "Nombre", full_name: "Nombre",
@@ -25,7 +42,13 @@ const FIELD_LABELS: Record<string, string> = {
   city: "Ciudad",
   state: "Estado/Dpto.",
   address: "Dirección",
+  active: "Estado cuenta",
 };
+
+function fmtFieldValue(field: string, value: string | null | boolean): string {
+  if (field === "active") return value === true || value === "true" ? "Activa" : "Desactivada";
+  return value == null ? "—" : String(value);
+}
 
 function fmtNY(utcStr: string) {
   return new Date(utcStr + "Z").toLocaleString("es", {
@@ -55,19 +78,38 @@ function EditableField({
   label,
   value,
   onChange,
+  editing,
+  onToggleEdit,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  editing: boolean;
+  onToggleEdit: () => void;
 }) {
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-gray-400">{label}</p>
+        <button
+          type="button"
+          onClick={onToggleEdit}
+          className={`p-0.5 rounded transition-colors ${editing ? "text-papaya-orange" : "text-gray-300 hover:text-gray-500"}`}
+          title={editing ? "Bloquear campo" : "Editar campo"}
+        >
+          <Pencil size={11} />
+        </button>
+      </div>
       <input
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full text-sm text-gray-800 font-medium bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-papaya-orange/30 focus:border-papaya-orange transition-colors"
+        readOnly={!editing}
+        onChange={(e) => editing && onChange(e.target.value)}
+        className={`w-full text-sm font-medium rounded-md px-2.5 py-1.5 transition-colors focus:outline-none ${
+          editing
+            ? "text-gray-800 bg-white border border-papaya-orange focus:ring-2 focus:ring-papaya-orange/30"
+            : "text-gray-800 bg-gray-50 border border-gray-200 cursor-default select-none"
+        }`}
       />
     </div>
   );
@@ -102,18 +144,32 @@ function SectionCard({
   icon,
   title,
   children,
+  collapsible = false,
+  defaultOpen = true,
 }: {
   icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-gray-50">
+      <div
+        className={`flex items-center gap-2.5 px-6 py-4 border-b border-gray-50 ${collapsible ? "cursor-pointer select-none hover:bg-gray-50/60 transition-colors" : ""}`}
+        onClick={collapsible ? () => setOpen((v) => !v) : undefined}
+      >
         <span className="text-papaya-orange">{icon}</span>
-        <h2 className="text-sm font-semibold text-heading-text">{title}</h2>
+        <h2 className="text-sm font-semibold text-heading-text flex-1">{title}</h2>
+        {collapsible && (
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : "rotate-0"}`}
+          />
+        )}
       </div>
-      <div className="p-6">{children}</div>
+      {(!collapsible || open) && <div className="p-6">{children}</div>}
     </div>
   );
 }
@@ -149,11 +205,27 @@ export const ClientDetailView = () => {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<PersonalForm | null>(null);
   const [savedForm, setSavedForm] = useState<PersonalForm | null>(null);
+  const [editingFields, setEditingFields] = useState<Set<keyof PersonalForm>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [txStats, setTxStats] = useState<ClientTxStatRow[]>([]);
+
+  const B_PAGE_SIZE = 5;
+  const [bPage, setBPage] = useState(1);
+  const AUDIT_PAGE_SIZE = 8;
+  const [auditPage, setAuditPage] = useState(1);
+
+  const REM_PAGE_SIZE = 10;
+  const [remittances, setRemittances] = useState<RemittanceRecord[]>([]);
+  const [remTotal, setRemTotal] = useState(0);
+  const [remPage, setRemPage] = useState(1);
+  const [remLoading, setRemLoading] = useState(false);
+  const [activeStatus, setActiveStatus] = useState<boolean>(true);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const [showActiveModal, setShowActiveModal] = useState(false);
 
   // Beneficiary inline edit
   const [bEditingId,  setBEditingId]  = useState<string | null>(null);
@@ -167,6 +239,7 @@ export const ClientDetailView = () => {
       .getClientDetail(Number(id))
       .then((c) => {
         setClient(c);
+        setActiveStatus(c.active ?? true);
         const f = toForm(c.personal, c.phone);
         setForm(f);
         setSavedForm(f);
@@ -175,9 +248,20 @@ export const ClientDetailView = () => {
       .then((res) => setBeneficiaries(res.items))
       .then(() => api.getClientAuditLog(Number(id)))
       .then((log) => setAuditLog(log))
+      .then(() => api.getClientTxStats(Number(id)))
+      .then((res) => setTxStats(res.items))
       .catch(() => setError("No se pudo cargar el cliente."))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!client) return;
+    setRemLoading(true);
+    api.getRemittances({ client_id: client.phone, page: remPage })
+      .then((res) => { setRemittances(res.items); setRemTotal(res.total); })
+      .catch(() => {})
+      .finally(() => setRemLoading(false));
+  }, [client, remPage]);
 
   const isDirty =
     form && savedForm
@@ -207,6 +291,27 @@ export const ClientDetailView = () => {
 
   function setField(key: keyof PersonalForm, value: string) {
     setForm((prev) => prev ? { ...prev, [key]: value } : prev);
+  }
+
+  function toggleFieldEdit(key: keyof PersonalForm) {
+    setEditingFields((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  async function confirmToggleActive() {
+    if (!id || togglingActive) return;
+    setShowActiveModal(false);
+    setTogglingActive(true);
+    try {
+      const res = await api.setClientActive(Number(id), !activeStatus);
+      setActiveStatus(res.active);
+      refreshAuditLog();
+    } catch { /* silent */ } finally {
+      setTogglingActive(false);
+    }
   }
 
   async function refreshAuditLog() {
@@ -295,15 +400,30 @@ export const ClientDetailView = () => {
             </p>
           </div>
         </div>
-        {client.kyc_valid ? (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-light text-green-icon">
-            <ShieldCheck size={13} /> Verificado
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-light text-red-icon">
-            <ShieldOff size={13} /> Pendiente
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-2">
+          {client.kyc_valid ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-light text-green-icon">
+              <ShieldCheck size={13} /> Verificado
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-light text-red-icon">
+              <ShieldOff size={13} /> Pendiente
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowActiveModal(true)}
+            disabled={togglingActive}
+            className={`inline-flex items-center gap-2 text-xs font-medium transition-all disabled:opacity-50 ${
+              activeStatus ? "text-green-icon" : "text-gray-400"
+            }`}
+          >
+            <span className={`relative inline-flex items-center w-9 h-5 rounded-full transition-colors shrink-0 ${activeStatus ? "bg-green-icon/80" : "bg-gray-300"}`}>
+              <span className={`absolute w-3.5 h-3.5 bg-white rounded-full shadow transition-all ${activeStatus ? "left-[19px]" : "left-[3px]"}`} />
+            </span>
+            {activeStatus ? "Cuenta activa" : "Cuenta desactivada"}
+          </button>
+        </div>
       </div>
 
       {/* Two cards side by side */}
@@ -315,15 +435,15 @@ export const ClientDetailView = () => {
               <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                 <Field label="N° Documento"   value={client.personal.doc_id} />
                 <Field label="Tipo Documento" value={client.personal.id_type_label} />
-                <EditableField label="Nombre"         value={form.name}    onChange={(v) => setField("name", v)} />
-                <EditableField label="Correo"         value={form.email}   onChange={(v) => setField("email", v)} />
-                <EditableField label="Teléfono"       value={form.phone}   onChange={(v) => setField("phone", v)} />
-                <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} />
-                <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)} />
-                <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)} />
+                <EditableField label="Nombre"         value={form.name}    onChange={(v) => setField("name", v)}    editing={editingFields.has("name")}    onToggleEdit={() => toggleFieldEdit("name")} />
+                <EditableField label="Correo"         value={form.email}   onChange={(v) => setField("email", v)}   editing={editingFields.has("email")}   onToggleEdit={() => toggleFieldEdit("email")} />
+                <EditableField label="Teléfono"       value={form.phone}   onChange={(v) => setField("phone", v)}   editing={editingFields.has("phone")}   onToggleEdit={() => toggleFieldEdit("phone")} />
+                <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} editing={editingFields.has("country")} onToggleEdit={() => toggleFieldEdit("country")} />
+                <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)}    editing={editingFields.has("city")}    onToggleEdit={() => toggleFieldEdit("city")} />
+                <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)}   editing={editingFields.has("state")}   onToggleEdit={() => toggleFieldEdit("state")} />
               </div>
               <div className="border-t border-gray-50 mt-4 pt-4">
-                <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} />
+                <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} editing={editingFields.has("address")} onToggleEdit={() => toggleFieldEdit("address")} />
               </div>
               <div className="border-t border-gray-50 mt-4 pt-4 flex items-center justify-between">
                 <Field label="Fecha de registro" value={fmtDate(client.created_at)} />
@@ -373,155 +493,324 @@ export const ClientDetailView = () => {
             <DocImage label="Reverso"  url={client.kyc.document_back} />
             <DocImage label="Selfie"   url={client.kyc.selfie} />
           </div>
+          {txStats.length > 0 && (
+            <div className="mt-5 border-t border-gray-50 pt-4">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="bg-gray-50 border-y border-gray-100">
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-1/2"></th>
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Cantidad</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Monto USD</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Average</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {txStats.map((row) => (
+                    <tr key={row.period_days} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="px-3 py-2 text-xs text-gray-700 font-medium">
+                        Tx Últ. {row.period_days}D{" "}
+                        <span className="text-gray-400 font-normal">(últimos {row.period_days} días)</span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-800 text-right">{row.cantidad}</td>
+                      <td className="px-3 py-2 text-xs text-gray-800 text-right">
+                        {row.monto_usd > 0 ? `$${row.monto_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-800 text-right">
+                        {row.average > 0 ? `$${row.average.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </SectionCard>
       </div>
 
+      {/* Remittances */}
+      <SectionCard icon={<Receipt size={16} />} title={`Remesas (${remTotal})`} collapsible>
+        {remLoading ? (
+          <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
+        ) : remittances.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Receipt size={32} className="text-gray-200 mb-2" />
+            <p className="text-sm text-gray-400">Este cliente no tiene remesas registradas</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto -mx-6">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-y border-gray-100">
+                  <tr>
+                    {["ID Remesa", "Fecha / Hora (NY)", "Origen → Destino", "Monto USD", "Pagador", "Estado"].map((h) => (
+                      <th key={h} className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {remittances.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="px-3 py-3 font-mono text-xs whitespace-nowrap">
+                        <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">{r.id}</Link>
+                      </td>
+                      <td className="px-3 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtNY(r.created_at)}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 text-gray-700 text-xs">
+                          <span className="font-medium">{r.origin_country_name || r.origin_country_id || "—"}</span>
+                          <ArrowLeftRight size={11} className="text-gray-400" />
+                          <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">
+                        ${r.sent_amount.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
+                      <td className="px-3 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REM_STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
+                          {REM_STATUS_LABELS[r.status] ?? r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="-mx-6 -mb-6">
+              <Pagination
+                page={remPage}
+                totalPages={Math.ceil(remTotal / REM_PAGE_SIZE)}
+                onPageChange={setRemPage}
+                totalItems={remTotal}
+                pageSize={REM_PAGE_SIZE}
+                alwaysShow
+              />
+            </div>
+          </>
+        )}
+      </SectionCard>
+
       {/* Beneficiaries */}
-      <SectionCard icon={<Users size={16} />} title={`Beneficiarios (${beneficiaries.length})`}>
+      <SectionCard icon={<Users size={16} />} title={`Beneficiarios (${beneficiaries.length})`} collapsible defaultOpen={false}>
         {beneficiaries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <Users size={32} className="text-gray-200 mb-2" />
             <p className="text-sm text-gray-400">Este cliente no tiene beneficiarios registrados</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto -mx-6 -mb-6">
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="bg-gray-50 border-y border-gray-100">
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <span className="flex items-center gap-1.5"><CreditCard size={12} />Cédula</span>
-                  </th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <span className="flex items-center gap-1.5"><Phone size={12} />Teléfono</span>
-                  </th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <span className="flex items-center gap-1.5"><MapPin size={12} />Ciudad</span>
-                  </th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dirección</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Registro</th>
-                  <th className="px-3 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {beneficiaries.map((b) => {
-                  const isEditing = bEditingId === b.id;
-                  if (isEditing) {
-                    return (
-                      <React.Fragment key={b.id}>
-                        <tr className="bg-yellow-50/50">
-                          <td className="px-3 py-2">
-                            <input value={bEditForm.full_name} onChange={(e) => setBEditForm((p) => ({ ...p, full_name: e.target.value }))} className={cellInput} />
-                          </td>
-                          <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{b.cedula}</td>
-                          <td className="px-3 py-2">
-                            <input value={bEditForm.phone} onChange={(e) => setBEditForm((p) => ({ ...p, phone: e.target.value }))} className={cellInput} />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input value={bEditForm.city} onChange={(e) => setBEditForm((p) => ({ ...p, city: e.target.value }))} className={cellInput} />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input value={bEditForm.address} onChange={(e) => setBEditForm((p) => ({ ...p, address: e.target.value }))} className={cellInput} />
-                          </td>
-                          <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">{fmtDate(b.created_at)}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex items-center gap-1">
-                              <button onClick={saveBEdit} disabled={bEditSaving}
-                                className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
-                                <Check size={14} />
-                              </button>
-                              <button onClick={cancelBEdit}
-                                className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
-                                <X size={14} />
-                              </button>
-                            </div>
+        ) : (() => {
+          const bTotalPages = Math.ceil(beneficiaries.length / B_PAGE_SIZE);
+          const bSlice = beneficiaries.slice((bPage - 1) * B_PAGE_SIZE, bPage * B_PAGE_SIZE);
+          return (
+            <>
+              <div className="overflow-x-auto -mx-6">
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr className="bg-gray-50 border-y border-gray-100">
+                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <span className="flex items-center gap-1.5"><CreditCard size={12} />Cédula</span>
+                      </th>
+                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <span className="flex items-center gap-1.5"><Phone size={12} />Teléfono</span>
+                      </th>
+                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <span className="flex items-center gap-1.5"><MapPin size={12} />Ciudad</span>
+                      </th>
+                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dirección</th>
+                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Registro</th>
+                      <th className="px-3 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {bSlice.map((b) => {
+                      const isEditing = bEditingId === b.id;
+                      if (isEditing) {
+                        return (
+                          <React.Fragment key={b.id}>
+                            <tr className="bg-yellow-50/50">
+                              <td className="px-3 py-2">
+                                <input value={bEditForm.full_name} onChange={(e) => setBEditForm((p) => ({ ...p, full_name: e.target.value }))} className={cellInput} />
+                              </td>
+                              <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{b.cedula}</td>
+                              <td className="px-3 py-2">
+                                <input value={bEditForm.phone} onChange={(e) => setBEditForm((p) => ({ ...p, phone: e.target.value }))} className={cellInput} />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input value={bEditForm.city} onChange={(e) => setBEditForm((p) => ({ ...p, city: e.target.value }))} className={cellInput} />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input value={bEditForm.address} onChange={(e) => setBEditForm((p) => ({ ...p, address: e.target.value }))} className={cellInput} />
+                              </td>
+                              <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">{fmtDate(b.created_at)}</td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-1">
+                                  <button onClick={saveBEdit} disabled={bEditSaving}
+                                    className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
+                                    <Check size={14} />
+                                  </button>
+                                  <button onClick={cancelBEdit}
+                                    className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {bEditError && (
+                              <tr className="bg-red-50">
+                                <td colSpan={7} className="px-4 py-2 text-xs text-red-700">
+                                  <AlertTriangle size={12} className="inline mr-1 text-red-500" />{bEditError}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      }
+                      return (
+                        <tr key={b.id} className="hover:bg-gray-50/60 transition-colors">
+                          <td className="px-3 py-3 font-medium text-gray-800 whitespace-nowrap">{b.full_name}</td>
+                          <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.cedula}</td>
+                          <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.phone}</td>
+                          <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.city}</td>
+                          <td className="px-3 py-3 text-gray-600">{b.address}</td>
+                          <td className="px-3 py-3 text-gray-400 whitespace-nowrap text-xs">{fmtDate(b.created_at)}</td>
+                          <td className="px-3 py-3">
+                            <button onClick={() => startBEdit(b)}
+                              className="p-1.5 rounded hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                              ✎
+                            </button>
                           </td>
                         </tr>
-                        {bEditError && (
-                          <tr className="bg-red-50">
-                            <td colSpan={7} className="px-4 py-2 text-xs text-red-700">
-                              <AlertTriangle size={12} className="inline mr-1 text-red-500" />{bEditError}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  }
-                  return (
-                    <tr key={b.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-3 py-3 font-medium text-gray-800 whitespace-nowrap">{b.full_name}</td>
-                      <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.cedula}</td>
-                      <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.phone}</td>
-                      <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.city}</td>
-                      <td className="px-3 py-3 text-gray-600">{b.address}</td>
-                      <td className="px-3 py-3 text-gray-400 whitespace-nowrap text-xs">{fmtDate(b.created_at)}</td>
-                      <td className="px-3 py-3">
-                        <button onClick={() => startBEdit(b)}
-                          className="p-1.5 rounded hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
-                          ✎
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="-mx-6 -mb-6">
+                <Pagination
+                  page={bPage}
+                  totalPages={bTotalPages}
+                  onPageChange={setBPage}
+                  totalItems={beneficiaries.length}
+                  pageSize={B_PAGE_SIZE}
+                  alwaysShow
+                />
+              </div>
+            </>
+          );
+        })()}
       </SectionCard>
 
+      {/* Confirmation modal — active toggle */}
+      {showActiveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${activeStatus ? "bg-red-50" : "bg-green-50"}`}>
+                {activeStatus
+                  ? <ShieldOff size={18} className="text-red-icon" />
+                  : <ShieldCheck size={18} className="text-green-icon" />}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-heading-text">
+                  {activeStatus ? "Desactivar cuenta" : "Activar cuenta"}
+                </p>
+                <p className="text-xs text-body-text mt-0.5">
+                  {client.personal.name || client.phone}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">
+              {activeStatus
+                ? "¿Estás seguro de que deseas desactivar esta cuenta? El cliente no podrá realizar operaciones."
+                : "¿Deseas reactivar esta cuenta? El cliente podrá volver a operar con normalidad."}
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setShowActiveModal(false)}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmToggleActive}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${
+                  activeStatus ? "bg-red-500 hover:bg-red-600" : "bg-green-icon hover:bg-green-icon/90"
+                }`}
+              >
+                {activeStatus ? "Sí, desactivar" : "Sí, activar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Audit log */}
-      <SectionCard icon={<FileText size={16} />} title="Historial de modificaciones">
+      <SectionCard icon={<FileText size={16} />} title="Historial de modificaciones" collapsible defaultOpen={false}>
         {auditLog.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <FileText size={32} className="text-gray-200 mb-2" />
             <p className="text-sm text-gray-400">Sin modificaciones registradas</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto -mx-6 -mb-6">
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="bg-gray-50 border-y border-gray-100">
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Fecha (New York)</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuario</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Entidad</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cambios</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {auditLog.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-gray-50/60 transition-colors align-top">
-                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtNY(entry.created_at)}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{entry.user}</td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap">
-                      {entry.entity_type === "client" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
-                          <User size={10} /> Cliente
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">
-                          <Users size={10} /> {entry.entity_label || "Beneficiario"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <ul className="space-y-0.5">
-                        {Object.entries(entry.changes).map(([field, { from, to }]) => (
-                          <li key={field} className="text-xs text-gray-700">
-                            <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
-                            <span className="text-gray-400 line-through">{from ?? "—"}</span>
-                            {" → "}
-                            <span className="text-gray-800 font-medium">{to ?? "—"}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        ) : (() => {
+          const auditTotalPages = Math.ceil(auditLog.length / AUDIT_PAGE_SIZE);
+          const auditSlice = auditLog.slice((auditPage - 1) * AUDIT_PAGE_SIZE, auditPage * AUDIT_PAGE_SIZE);
+          return (
+            <>
+              <div className="overflow-x-auto -mx-6">
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr className="bg-gray-50 border-y border-gray-100">
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Fecha (New York)</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuario</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Entidad</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cambios</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {auditSlice.map((entry) => (
+                      <tr key={entry.id} className="hover:bg-gray-50/60 transition-colors align-top">
+                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtNY(entry.created_at)}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{entry.user}</td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap">
+                          {entry.entity_type === "client" ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+                              <User size={10} /> Cliente
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">
+                              <Users size={10} /> {entry.entity_label || "Beneficiario"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <ul className="space-y-0.5">
+                            {Object.entries(entry.changes).map(([field, { from, to }]) => (
+                              <li key={field} className="text-xs text-gray-700">
+                                <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                                <span className="text-gray-400 line-through">{fmtFieldValue(field, from)}</span>
+                                {" → "}
+                                <span className="text-gray-800 font-medium">{fmtFieldValue(field, to)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="-mx-6 -mb-6">
+                <Pagination
+                  page={auditPage}
+                  totalPages={auditTotalPages}
+                  onPageChange={setAuditPage}
+                  totalItems={auditLog.length}
+                  pageSize={AUDIT_PAGE_SIZE}
+                  alwaysShow
+                />
+              </div>
+            </>
+          );
+        })()}
       </SectionCard>
     </div>
   );
