@@ -495,27 +495,27 @@ export const ClientDetailView = () => {
           </div>
           {txStats.length > 0 && (
             <div className="mt-5 border-t border-gray-50 pt-4">
-              <table className="w-full text-sm text-left">
+              <table className="w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 border-y border-gray-100">
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-1/2"></th>
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Cantidad</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Monto USD</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Average</th>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"></th>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">Cant.</th>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">Monto USD</th>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">Avg.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {txStats.map((row) => (
                     <tr key={row.period_days} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-3 py-2 text-xs text-gray-700 font-medium">
-                        Tx Últ. {row.period_days}D{" "}
-                        <span className="text-gray-400 font-normal">(últimos {row.period_days} días)</span>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className="text-xs font-semibold text-gray-700">Últ. {row.period_days}D</span>
+                        <span className="text-[10px] text-gray-400 ml-1">({row.period_days}d)</span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-800 text-right">{row.cantidad}</td>
-                      <td className="px-3 py-2 text-xs text-gray-800 text-right">
+                      <td className="px-3 py-2 text-xs text-gray-800 text-right tabular-nums">{row.cantidad}</td>
+                      <td className="px-3 py-2 text-xs text-gray-800 text-right tabular-nums whitespace-nowrap">
                         {row.monto_usd > 0 ? `$${row.monto_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-800 text-right">
+                      <td className="px-3 py-2 text-xs text-gray-800 text-right tabular-nums whitespace-nowrap">
                         {row.average > 0 ? `$${row.average.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
                       </td>
                     </tr>
