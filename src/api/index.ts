@@ -366,6 +366,13 @@ export interface BeneficiaryUpdateIn {
   phone: string;
 }
 
+export interface ChatLogMessage {
+  text: string;
+  sender: "user" | "bot";
+  time: string;
+  system?: boolean;
+}
+
 export interface RemittanceAuditEntry {
   id: number;
   remittance_id: string;
@@ -678,4 +685,6 @@ export const api = {
     }),
   getRemittanceAuditLog: (id: string) =>
     request<RemittanceAuditEntry[]>(`/remittances/${id}/audit-log`),
+  getRemittanceChatLog: (id: string) =>
+    request<{ remittance_id: string; messages: ChatLogMessage[] }>(`/remittances/${id}/chat-log`),
 };

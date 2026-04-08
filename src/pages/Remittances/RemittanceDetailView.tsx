@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, ArrowLeftRight, User, Package, FileText } from "lucide-react";
-import { api, RemittanceRecord, RemittanceAuditEntry, Pagador } from "../../api";
+import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X } from "lucide-react";
+import { api, RemittanceRecord, RemittanceAuditEntry, Pagador, ChatLogMessage } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -103,6 +103,37 @@ export const RemittanceDetailView = () => {
   const [savingPayer, setSavingPayer] = useState(false);
   const [payerError, setPayerError]   = useState<string | null>(null);
 
+  const [showChat, setShowChat]       = useState(false);
+  const [chatLog, setChatLog]         = useState<ChatLogMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showChat) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showChat]);
+
+  async function openChatLog() {
+    if (!id) return;
+    setShowChat(true);
+    if (chatLog.length > 0) {
+      setTimeout(() => { chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight }); }, 50);
+      return;
+    }
+    setChatLoading(true);
+    try {
+      const res = await api.getRemittanceChatLog(id);
+      setChatLog(res.messages);
+      setTimeout(() => { chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight }); }, 50);
+    } catch { /* silent */ } finally {
+      setChatLoading(false);
+    }
+  }
+
   const refreshAuditLog = useCallback(async (remittanceId: string) => {
     try {
       const log = await api.getRemittanceAuditLog(remittanceId);
@@ -184,9 +215,18 @@ export const RemittanceDetailView = () => {
             </p>
           </div>
         </div>
-        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${STATUS_COLORS[record.status] ?? "bg-gray-100 text-gray-500"}`}>
-          {STATUS_LABELS[record.status] ?? record.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openChatLog}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-papaya-orange text-white hover:bg-papaya-orange/90 transition-colors"
+          >
+            <img src="/favicon.jpeg" alt="Chat" className="w-4 h-4 rounded-full object-cover" />
+            Ver chat
+          </button>
+          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${STATUS_COLORS[record.status] ?? "bg-gray-100 text-gray-500"}`}>
+            {STATUS_LABELS[record.status] ?? record.status}
+          </span>
+        </div>
       </div>
 
       {/* Monetary summary bar */}
@@ -365,6 +405,48 @@ export const RemittanceDetailView = () => {
           </div>
         )}
       </SectionCard>
+
+      {/* Chat log modal */}
+      {showChat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden" style={{ maxHeight: "80vh" }}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={16} className="text-papaya-orange" />
+                <span className="text-sm font-semibold text-heading-text">Chat de la remesa</span>
+              </div>
+              <button onClick={() => setShowChat(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            {/* Messages */}
+            <div
+              ref={chatScrollRef}
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-papaya-orange/60 [&::-webkit-scrollbar-track]:bg-transparent"
+            >
+              {chatLoading ? (
+                <div className="text-center text-sm text-gray-400 animate-pulse py-8">Cargando…</div>
+              ) : chatLog.length === 0 ? (
+                <div className="text-center text-sm text-gray-400 py-8">Sin historial de chat registrado</div>
+              ) : chatLog.filter(m => !m.system).map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug ${
+                    msg.sender === "user"
+                      ? "bg-papaya-orange text-white rounded-br-sm"
+                      : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                  }`}>
+                    <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                    <p className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-white/60 text-right" : "text-gray-400"}`}>
+                      {msg.time}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm payer change dialog */}
       {confirmPayer && (

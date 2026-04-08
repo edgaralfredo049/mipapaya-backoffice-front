@@ -400,7 +400,7 @@ export const ClientDetailView = () => {
             </p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-3">
           {client.kyc_valid ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-light text-green-icon">
               <ShieldCheck size={13} /> Verificado
