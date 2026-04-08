@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord } from "../../api";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Pagination } from "../../components/ui/Pagination";
 
 const REM_STATUS_LABELS: Record<string, string> = {
@@ -493,37 +494,88 @@ export const ClientDetailView = () => {
             <DocImage label="Reverso"  url={client.kyc.document_back} />
             <DocImage label="Selfie"   url={client.kyc.selfie} />
           </div>
-          {txStats.length > 0 && (
-            <div className="mt-5 border-t border-gray-50 pt-4">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-y border-gray-100">
-                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"></th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">Cant.</th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">Monto USD</th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">Avg.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {txStats.map((row) => (
-                    <tr key={row.period_days} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <span className="text-xs font-semibold text-gray-700">Últ. {row.period_days}D</span>
-                        <span className="text-[10px] text-gray-400 ml-1">({row.period_days}d)</span>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-800 text-right tabular-nums">{row.cantidad}</td>
-                      <td className="px-3 py-2 text-xs text-gray-800 text-right tabular-nums whitespace-nowrap">
-                        {row.monto_usd > 0 ? `$${row.monto_usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-800 text-right tabular-nums whitespace-nowrap">
-                        {row.average > 0 ? `$${row.average.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {txStats.length > 0 && (() => {
+            const chartData = txStats.map((r) => ({
+              label: `${r.period_days} Días`,
+              monto: r.monto_usd,
+              cantidad: r.cantidad,
+              avg: r.average,
+            }));
+            const maxMonto = Math.max(...chartData.map((d) => d.monto), 1);
+            return (
+              <div className="mt-5 border-t border-gray-50 pt-5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Actividad por período · Monto USD</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 24 }} barSize={28} barCategoryGap="25%">
+                    <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
+                    <XAxis
+                      type="number"
+                      domain={[0, maxMonto * 1.15]}
+                      tick={{ fontSize: 10, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `$${Math.round(v)}`}
+                      tickCount={5}
+                    />
+                    <YAxis
+                      type="category" dataKey="label" width={58}
+                      tick={(props) => (
+                        <text x={props.x - 54} y={props.y} dominantBaseline="middle" textAnchor="start" fontSize={10} fill="#9ca3af" fontWeight={500}>
+                          {props.payload.value}
+                        </text>
+                      )}
+                      axisLine={false} tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "#fff7ed" }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-white border border-gray-100 shadow-xl rounded-xl px-4 py-3 text-xs space-y-1.5">
+                            <p className="font-bold text-gray-800 text-sm">Últ. {d.label}</p>
+                            <p className="text-gray-500">Monto: <span className="font-semibold text-papaya-orange">${d.monto.toFixed(2)}</span></p>
+                            <p className="text-gray-500">Transacciones: <span className="font-semibold text-gray-800">{d.cantidad}</span></p>
+                            <p className="text-gray-500">Promedio: <span className="font-semibold text-gray-800">${d.avg.toFixed(2)}</span></p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar dataKey="monto" radius={[0, 6, 6, 0]} background={{ radius: [0, 6, 6, 0], fill: "#f3f4f6" }}>
+                      {chartData.map((d, i) => (
+                        <Cell key={i} fill={d.monto > 0 ? "#f97316" : "#d1d5db"} fillOpacity={d.monto > 0 ? 1 : 0.5} />
+                      ))}
+                      <LabelList
+                        content={({ x, y, width, height, index }) => {
+                          const d = chartData[index as number];
+                          if (!d) return null;
+                          const xNum = Number(x) + Number(width);
+                          const yNum = Number(y) + Number(height) / 2;
+                          const inside = Number(width) > 90;
+                          const label = d.monto > 0
+                            ? `$${d.monto % 1 === 0 ? d.monto.toFixed(0) : d.monto.toFixed(2)}  ·  ${d.cantidad} tx  ·  avg $${d.avg.toFixed(0)}`
+                            : "sin txs";
+                          return (
+                            <text
+                              x={inside ? xNum - 10 : xNum + 8}
+                              y={yNum}
+                              dominantBaseline="middle"
+                              textAnchor={inside ? "end" : "start"}
+                              fontSize={11}
+                              fontWeight={inside ? 600 : 500}
+                              fill={inside ? "#ffffff" : d.monto > 0 ? "#f97316" : "#9ca3af"}
+                            >
+                              {label}
+                            </text>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
         </SectionCard>
       </div>
 
