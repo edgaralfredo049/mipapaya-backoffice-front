@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { Settings, TrendingUp, Users, ArrowLeftRight, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
+import { Settings, TrendingUp, Users, ArrowLeftRight, LayoutDashboard, ChevronLeft, ChevronRight, HelpCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 import logo from "../../../assets/Full logo Orange con espacio.avif";
 import logoIcon from "../../../assets/favicon.jpeg";
+import { api } from "../../api";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -16,9 +17,21 @@ const navItems = [
   { to: "/tasas",         label: "Tasas de Cambio", Icon: TrendingUp      },
   { to: "/clientes",      label: "Clientes",        Icon: Users           },
   { to: "/remesas",       label: "Remesas",         Icon: ArrowLeftRight  },
+  { to: "/soporte",       label: "Soporte",         Icon: HelpCircle        },
 ];
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetch = () => {
+      api.getHandoffPendingCount().then((r) => setPendingCount(r.count)).catch(() => {});
+    };
+    fetch();
+    const id = setInterval(fetch, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <aside
       className="fixed inset-y-0 left-0 z-40 bg-sidebar-bg border-r border-gray-800 flex flex-col transition-all duration-300 overflow-visible"
@@ -42,7 +55,9 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       {/* Nav */}
       <nav className="flex-1 py-4">
         <ul className="space-y-1 px-2">
-          {navItems.map(({ to, label, Icon }) => (
+          {navItems.map(({ to, label, Icon }) => {
+            const showBadge = to === "/soporte" && pendingCount > 0;
+            return (
             <li key={to}>
               <NavLink
                 to={to}
@@ -63,28 +78,43 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               >
                 {({ isActive }) => (
                   <>
-                    <Icon
-                      className={cn(
-                        "flex-shrink-0 transition-colors",
-                        collapsed ? "w-4 h-4" : "w-5 h-5",
-                        isActive ? "text-white" : "text-sidebar-text group-hover:text-white"
+                    <span className="relative flex-shrink-0">
+                      <Icon
+                        className={cn(
+                          "transition-colors",
+                          collapsed ? "w-4 h-4" : "w-5 h-5",
+                          isActive ? "text-white" : "text-sidebar-text group-hover:text-white"
+                        )}
+                      />
+                      {showBadge && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                          {pendingCount > 99 ? "99+" : pendingCount}
+                        </span>
                       )}
-                    />
+                    </span>
                     {!collapsed && (
-                      <span className="text-sm font-medium whitespace-nowrap">{label}</span>
+                      <span className="flex-1 text-sm font-medium whitespace-nowrap flex items-center justify-between">
+                        {label}
+                        {showBadge && (
+                          <span className="ml-2 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                            {pendingCount > 99 ? "99+" : pendingCount}
+                          </span>
+                        )}
+                      </span>
                     )}
 
                     {/* Tooltip when collapsed */}
                     {collapsed && (
                       <span className="pointer-events-none absolute left-full ml-3 px-2.5 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-50">
-                        {label}
+                        {label}{showBadge ? ` (${pendingCount})` : ""}
                       </span>
                     )}
                   </>
                 )}
               </NavLink>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </nav>
 

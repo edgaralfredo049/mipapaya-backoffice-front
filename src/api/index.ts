@@ -373,6 +373,27 @@ export interface ChatLogMessage {
   system?: boolean;
 }
 
+export interface HandoffRequest {
+  id: string;
+  session_id: string;
+  client_phone: string | null;
+  client_name: string | null;
+  status: "pendiente" | "en_proceso" | "cerrado";
+  agent_id: string | null;
+  notes: string | null;
+  created_at: string;
+  opened_at: string | null;
+  closed_at: string | null;
+  unread_count?: number;
+}
+
+export interface HandoffMessage {
+  id: number;
+  sender: "user" | "agent";
+  text: string;
+  created_at: string;
+}
+
 export interface RemittanceAuditEntry {
   id: number;
   remittance_id: string;
@@ -687,4 +708,42 @@ export const api = {
     request<RemittanceAuditEntry[]>(`/remittances/${id}/audit-log`),
   getRemittanceChatLog: (id: string) =>
     request<{ remittance_id: string; messages: ChatLogMessage[] }>(`/remittances/${id}/chat-log`),
+
+  // Handoff
+  getHandoffPendingCount: () =>
+    request<{ count: number }>(`/handoff/pending-count`),
+  getHandoffRequests: (params: {
+    status?: string; search?: string; date_from?: string; date_to?: string;
+    agent_id?: string; limit?: number; offset?: number;
+  }) => {
+    const p = new URLSearchParams();
+    if (params.status)    p.set("status",    params.status);
+    if (params.search)    p.set("search",    params.search);
+    if (params.date_from) p.set("date_from", params.date_from);
+    if (params.date_to)   p.set("date_to",   params.date_to);
+    if (params.agent_id)  p.set("agent_id",  params.agent_id);
+    if (params.limit)     p.set("limit",     String(params.limit));
+    if (params.offset)    p.set("offset",    String(params.offset));
+    return request<{ total: number; items: HandoffRequest[] }>(`/handoff?${p.toString()}`);
+  },
+  getHandoffRequest: (id: string) =>
+    request<HandoffRequest>(`/handoff/${id}`),
+  updateHandoffStatus: (id: string, status: string, agent_id?: string) =>
+    request<HandoffRequest>(`/handoff/${id}/status`, {
+      method: "PATCH", body: JSON.stringify({ status, agent_id }),
+    }),
+  updateHandoffNotes: (id: string, notes: string) =>
+    request<{ ok: boolean }>(`/handoff/${id}/notes`, {
+      method: "PATCH", body: JSON.stringify({ notes }),
+    }),
+  getHandoffMessages: (id: string, since_id?: number) => {
+    const p = since_id ? `?since_id=${since_id}` : "";
+    return request<{ messages: HandoffMessage[]; user_typing: boolean; status: string }>(`/handoff/${id}/messages${p}`);
+  },
+  postHandoffMessage: (id: string, text: string) =>
+    request<{ id: number; sender: string; text: string }>(`/handoff/${id}/messages`, {
+      method: "POST", body: JSON.stringify({ text, sender: "agent" }),
+    }),
+  setHandoffTyping: (id: string, sender = "agent") =>
+    request<{ ok: boolean }>(`/handoff/${id}/typing?sender=${sender}`, { method: "POST" }),
 };

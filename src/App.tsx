@@ -9,6 +9,7 @@ import { ClientDetailView } from "./pages/Clients/ClientDetailView";
 import { RemittancesView } from "./pages/Remittances/RemittancesView";
 import { RemittanceDetailView } from "./pages/Remittances/RemittanceDetailView";
 import { Dashboards } from "./pages/Dashboards/Dashboards";
+import { HumanHandoffView } from "./pages/Handoff/HumanHandoffView";
 
 export default function App() {
   const { init, isLoaded } = useAppStore();
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="remesas" element={<RemittancesView />} />
           <Route path="remesas/:id" element={<RemittanceDetailView />} />
           <Route path="dashboards" element={<Dashboards />} />
+          <Route path="soporte" element={<HumanHandoffView />} />
         </Route>
         <Route path="*" element={<Navigate to="/configuracion" replace />} />
       </Routes>
