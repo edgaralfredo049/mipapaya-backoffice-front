@@ -18,8 +18,10 @@ import {
   ChevronDown,
   ArrowLeftRight,
   Receipt,
+  HelpCircle,
+  MessageSquare,
 } from "lucide-react";
-import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord } from "../../api";
+import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest } from "../../api";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Pagination } from "../../components/ui/Pagination";
 
@@ -224,6 +226,9 @@ export const ClientDetailView = () => {
   const [remTotal, setRemTotal] = useState(0);
   const [remPage, setRemPage] = useState(1);
   const [remLoading, setRemLoading] = useState(false);
+  const [handoffs, setHandoffs]         = useState<HandoffRequest[]>([]);
+  const [handoffLoading, setHandoffLoading] = useState(false);
+
   const [activeStatus, setActiveStatus] = useState<boolean>(true);
   const [togglingActive, setTogglingActive] = useState(false);
   const [showActiveModal, setShowActiveModal] = useState(false);
@@ -254,6 +259,16 @@ export const ClientDetailView = () => {
       .catch(() => setError("No se pudo cargar el cliente."))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Load handoff requests for this client (by phone)
+  useEffect(() => {
+    if (!client?.phone) return;
+    setHandoffLoading(true);
+    api.getHandoffRequests({ search: client.phone, limit: 50 })
+      .then(res => setHandoffs(res.items))
+      .catch(() => {})
+      .finally(() => setHandoffLoading(false));
+  }, [client?.phone]);
 
   useEffect(() => {
     if (!client) return;
@@ -794,6 +809,69 @@ export const ClientDetailView = () => {
           </div>
         </div>
       )}
+
+      {/* Support chats */}
+      <SectionCard icon={<HelpCircle size={16} />} title={`Chats de Soporte (${handoffs.length})`} collapsible defaultOpen={false}>
+        {handoffLoading ? (
+          <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
+        ) : handoffs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <HelpCircle size={32} className="text-gray-200 mb-2" />
+            <p className="text-sm text-gray-400">Sin solicitudes de soporte registradas</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-6">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 border-y border-gray-100">
+                <tr>
+                  {["Fecha (NY)", "Estado", "Agente", "Espera", ""].map((h) => (
+                    <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {handoffs.map((h) => {
+                  const iso = (s: string) => s.includes("T") ? s : s.replace(" ", "T") + "Z";
+                  const statusColors: Record<string, string> = {
+                    pendiente:  "bg-yellow-50 text-yellow-700",
+                    en_proceso: "bg-blue-50 text-blue-700",
+                    cerrado:    "bg-gray-100 text-gray-500",
+                  };
+                  const statusLabels: Record<string, string> = {
+                    pendiente: "Pendiente", en_proceso: "En proceso", cerrado: "Cerrado",
+                  };
+                  const diffMs = h.closed_at
+                    ? new Date(iso(h.closed_at)).getTime() - new Date(iso(h.created_at)).getTime()
+                    : Date.now() - new Date(iso(h.created_at)).getTime();
+                  const mins = Math.floor(diffMs / 60000);
+                  const duration = mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)}h ${mins % 60}min`;
+                  return (
+                    <tr key={h.id} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtNY(h.created_at)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[h.status] ?? "bg-gray-100 text-gray-500"}`}>
+                          {statusLabels[h.status] ?? h.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{h.agent_id || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-400">{duration}</td>
+                      <td className="px-4 py-3">
+                        <Link
+                          to="/soporte"
+                          state={{ openHandoffId: h.id }}
+                          className="inline-flex items-center gap-1 text-xs text-papaya-orange hover:text-orange-600 font-medium whitespace-nowrap"
+                        >
+                          <MessageSquare size={12} /> Ver chat
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
 
       {/* Audit log */}
       <SectionCard icon={<FileText size={16} />} title="Historial de modificaciones" collapsible defaultOpen={false}>

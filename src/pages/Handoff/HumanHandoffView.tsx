@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Search, X, HelpCircle, Send, Minimize2, MessageSquare, Clock, FileText, ArrowLeftRight, Bell } from "lucide-react";
-import { api, HandoffRequest, HandoffMessage, RemittanceRecord } from "../../api";
+import { Search, X, HelpCircle, Send, Minimize2, MessageSquare, Clock, FileText, ArrowLeftRight, Bell, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { api, HandoffRequest, HandoffMessage, HandoffNote, RemittanceRecord } from "../../api";
 import { Pagination } from "../../components/ui/Pagination";
 import favicon from "../../../assets/favicon.jpeg";
 
@@ -87,8 +88,9 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
   const [closing, setClosing]         = useState(false);
   const [userTyping, setUserTyping]   = useState(false);
   const [tab, setTab]                 = useState<ModalTab>("chat");
-  const [notes, setNotes]             = useState(request.notes || "");
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [notes, setNotes]             = useState<HandoffNote[]>([]);
+  const [noteText, setNoteText]       = useState("");
+  const [savingNote, setSavingNote]   = useState(false);
   const [remittances, setRemittances] = useState<RemittanceRecord[]>([]);
   const [loadingRem, setLoadingRem]   = useState(false);
   const scrollRef  = useRef<HTMLDivElement>(null);
@@ -114,6 +116,12 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
       }
     } catch {}
   }, [request.id]);
+
+  // Load notes feed when tab switches to notas
+  useEffect(() => {
+    if (tab !== "notas") return;
+    api.getHandoffNotes(request.id).then(res => setNotes(res.notes)).catch(() => {});
+  }, [tab, request.id]);
 
   useEffect(() => {
     // Load all messages on open
@@ -142,7 +150,7 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
   useEffect(() => {
     if (tab !== "historial" || !request.client_phone) return;
     setLoadingRem(true);
-    api.getRemittances({ client_id: request.client_phone, limit: 5 } as any)
+    api.getRemittances({ client_id: request.client_phone, limit: 100 })
       .then(res => setRemittances(res.items))
       .catch(() => {})
       .finally(() => setLoadingRem(false));
@@ -169,10 +177,17 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
     }
   };
 
-  const saveNotes = async () => {
-    setSavingNotes(true);
-    try { await api.updateHandoffNotes(request.id, notes); }
-    finally { setSavingNotes(false); }
+  const addNote = async () => {
+    const trimmed = noteText.trim();
+    if (!trimmed) return;
+    setSavingNote(true);
+    try {
+      const note = await api.addHandoffNote(request.id, trimmed);
+      setNotes(p => [...p, note]);
+      setNoteText("");
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const closeCase = async () => {
@@ -183,15 +198,6 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
 
   const isReadOnly = request.status === "cerrado";
 
-  const REM_STATUS: Record<string, string> = {
-    pending: "Pendiente", transmited: "Transmitida",
-    unpayed: "No Pagada", payed: "Pagada", canceled: "Cancelada",
-  };
-  const REM_COLOR: Record<string, string> = {
-    pending: "bg-yellow-50 text-yellow-700", transmited: "bg-blue-50 text-blue-700",
-    unpayed: "bg-red-50 text-red-600", payed: "bg-green-50 text-green-700",
-    canceled: "bg-gray-100 text-gray-500",
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -322,7 +328,7 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
 
         {/* ── Historial Tab ── */}
         {tab === "historial" && (
-          <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#f97316 transparent" }}>
             {!request.client_phone && (
               <p className="text-sm text-gray-400 text-center mt-8">Sin cliente identificado</p>
             )}
@@ -330,39 +336,84 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
             {!loadingRem && remittances.length === 0 && request.client_phone && (
               <p className="text-sm text-gray-400 text-center mt-8">Sin remesas registradas</p>
             )}
-            {remittances.map(r => (
-              <div key={r.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
-                <div>
-                  <p className="text-xs font-mono text-gray-500">{r.id}</p>
-                  <p className="text-sm font-semibold text-gray-800">${r.sent_amount} USD → {r.destination_country_id}</p>
-                  <p className="text-xs text-gray-400">{fmtDateNY(r.created_at)}</p>
-                </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  r.status === "payed" ? "bg-green-50 text-green-700" :
-                  r.status === "pending" ? "bg-yellow-50 text-yellow-700" :
-                  "bg-gray-100 text-gray-500"
-                }`}>
-                  {r.status === "payed" ? "Pagada" : r.status === "pending" ? "Pendiente" : r.status}
-                </span>
-              </div>
-            ))}
+            {!loadingRem && remittances.length > 0 && (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 sticky top-0">
+                    <th className="text-left px-4 py-2.5 text-gray-500 font-semibold uppercase tracking-wide">Fecha</th>
+                    <th className="text-left px-4 py-2.5 text-gray-500 font-semibold uppercase tracking-wide">Monto</th>
+                    <th className="text-left px-4 py-2.5 text-gray-500 font-semibold uppercase tracking-wide">Destino</th>
+                    <th className="text-left px-4 py-2.5 text-gray-500 font-semibold uppercase tracking-wide">Estado</th>
+                    <th className="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {remittances.map(r => (
+                    <tr key={r.id} className="hover:bg-orange-50/30 transition-colors">
+                      <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fmtDateNY(r.created_at)}</td>
+                      <td className="px-4 py-2.5 font-semibold text-gray-800 whitespace-nowrap">${r.sent_amount}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{r.destination_country_id}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`font-medium px-2 py-0.5 rounded-full ${
+                          r.status === "payed"     ? "bg-green-50 text-green-700" :
+                          r.status === "pending"   ? "bg-yellow-50 text-yellow-700" :
+                          r.status === "transmited"? "bg-blue-50 text-blue-700" :
+                          r.status === "unpayed"   ? "bg-red-50 text-red-600" :
+                          "bg-gray-100 text-gray-500"
+                        }`}>
+                          {r.status === "payed" ? "Pagada" : r.status === "pending" ? "Pendiente" :
+                           r.status === "transmited" ? "Transmitida" : r.status === "unpayed" ? "No pagada" : "Cancelada"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Link
+                          to={`/remesas/${r.id}`}
+                          state={{ from: "soporte" }}
+                          className="flex items-center gap-1 text-papaya-orange hover:text-orange-600 font-medium whitespace-nowrap"
+                        >
+                          Ver <ArrowRight size={11} />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
         {/* ── Notas Tab ── */}
         {tab === "notas" && (
-          <div className="flex-1 flex flex-col px-4 py-3 gap-3">
-            <p className="text-xs text-gray-400">Notas internas — solo visibles en el backoffice</p>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Escribe notas sobre este caso..."
-              className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-papaya-orange focus:outline-none resize-none"
-            />
-            <button onClick={saveNotes} disabled={savingNotes}
-              className="self-end px-4 py-2 rounded-xl bg-papaya-orange hover:bg-orange-600 text-white text-sm font-medium transition-colors disabled:opacity-60">
-              {savingNotes ? "Guardando..." : "Guardar notas"}
-            </button>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Notes feed */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5" style={{ scrollbarWidth: "thin", scrollbarColor: "#f97316 transparent" }}>
+              {notes.length === 0 && (
+                <p className="text-center text-sm text-gray-400 mt-8">Sin notas aún</p>
+              )}
+              {notes.map(n => (
+                <div key={n.id} className="bg-amber-50 border border-amber-100 rounded-xl px-3.5 py-2.5">
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{n.text}</p>
+                  <p className="text-[10px] text-amber-500 mt-1.5">
+                    {n.agent_id} · {fmtDateNY(n.created_at)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Add note input */}
+            <div className="flex items-end gap-2 px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <textarea
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), addNote())}
+                placeholder="Escribe una nota interna..."
+                rows={2}
+                className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-papaya-orange focus:outline-none resize-none"
+              />
+              <button onClick={addNote} disabled={savingNote || !noteText.trim()}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-papaya-orange hover:bg-orange-600 text-white disabled:opacity-50 transition-colors flex-shrink-0">
+                <Send size={15} />
+              </button>
+            </div>
           </div>
         )}
       </div>

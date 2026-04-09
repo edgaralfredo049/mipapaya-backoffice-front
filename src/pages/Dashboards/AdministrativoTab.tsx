@@ -58,16 +58,29 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 }
 function MiniDonut({ data, title, colorMap }: { data: DashboardPieSlice[]; title: string; colorMap: Record<string, string> }) {
   return (
-    <div className="flex flex-col items-center justify-center flex-shrink-0" style={{ width: 220 }}>
-      <p className="text-xs font-semibold text-gray-500 mb-0.5">{title}</p>
-      <ResponsiveContainer width="100%" height={190}>
-        <PieChart>
-          <Pie data={data} cx="50%" cy="45%" innerRadius={48} outerRadius={68} dataKey="value"
-            label={({ value }) => value > 0 ? `${value}%` : ""} labelLine={false} fontSize={12}>
+    <div className="flex flex-col items-center flex-shrink-0" style={{ width: 300 }}>
+      <p className="text-sm font-semibold text-gray-600 mb-1">{title}</p>
+      <ResponsiveContainer width="100%" height={240}>
+        <PieChart margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
+          <Pie
+            data={data} cx="50%" cy="40%"
+            innerRadius={58} outerRadius={82}
+            dataKey="value"
+            label={({ value }) => value > 0 ? `${value}%` : ""}
+            labelLine={false}
+            fontSize={12}
+          >
             {data.map((e, i) => <Cell key={i} fill={colorMap[e.name] ?? GRAY} />)}
           </Pie>
           <Tooltip formatter={(v) => `${v}%`} />
-          <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+          <Legend
+            iconSize={10}
+            iconType="circle"
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            wrapperStyle={{ fontSize: 11, paddingTop: 12, lineHeight: "20px" }}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>

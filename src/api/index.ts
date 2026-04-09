@@ -394,6 +394,13 @@ export interface HandoffMessage {
   created_at: string;
 }
 
+export interface HandoffNote {
+  id: number;
+  agent_id: string;
+  text: string;
+  created_at: string;
+}
+
 export interface RemittanceAuditEntry {
   id: number;
   remittance_id: string;
@@ -481,6 +488,7 @@ export interface CalculateAmountResult {
 
 const API_KEY  = import.meta.env.VITE_API_KEY ?? "";
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
+const AGENT_ID = "admin@mipapaya.com";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}/api${url}`, {
@@ -682,7 +690,7 @@ export const api = {
     status?: string; partnership_id?: number;
   }) => {
     const p = new URLSearchParams();
-    const limit = 10;
+    const limit = params.limit ?? 10;
     const offset = ((params.page ?? 1) - 1) * limit;
     p.set("limit",  String(limit));
     p.set("offset", String(offset));
@@ -732,9 +740,11 @@ export const api = {
     request<HandoffRequest>(`/handoff/${id}/status`, {
       method: "PATCH", body: JSON.stringify({ status, agent_id }),
     }),
-  updateHandoffNotes: (id: string, notes: string) =>
-    request<{ ok: boolean }>(`/handoff/${id}/notes`, {
-      method: "PATCH", body: JSON.stringify({ notes }),
+  getHandoffNotes: (id: string) =>
+    request<{ notes: HandoffNote[] }>(`/handoff/${id}/notes`),
+  addHandoffNote: (id: string, text: string, agent_id = AGENT_ID) =>
+    request<HandoffNote>(`/handoff/${id}/notes`, {
+      method: "POST", body: JSON.stringify({ text, agent_id }),
     }),
   getHandoffMessages: (id: string, since_id?: number) => {
     const p = since_id ? `?since_id=${since_id}` : "";

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X } from "lucide-react";
 import { api, RemittanceRecord, RemittanceAuditEntry, Pagador, ChatLogMessage } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
@@ -90,6 +90,9 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 export const RemittanceDetailView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromSoporte = (location.state as any)?.from === "soporte";
+  const handleBack = () => fromSoporte ? navigate("/soporte") : window.history.length > 1 ? navigate(-1) : navigate("/remesas");
   const { pagadores } = useAppStore();
 
   const [record, setRecord]           = useState<RemittanceRecord | null>(null);
@@ -179,7 +182,7 @@ export const RemittanceDetailView = () => {
     return (
       <div className="p-8 max-w-5xl mx-auto space-y-4">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-3.5 py-2 rounded-lg shadow-sm transition-all"
         >
           <ArrowLeft size={14} /> Volver
@@ -196,7 +199,7 @@ export const RemittanceDetailView = () => {
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       {/* Back */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
         className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-3.5 py-2 rounded-lg shadow-sm transition-all"
       >
         <ArrowLeft size={14} /> Volver
