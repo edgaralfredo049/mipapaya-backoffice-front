@@ -116,11 +116,11 @@ export const AlianzasTab = () => {
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-1">
                       <button onClick={saveNew} disabled={newSaving || !newName.trim()}
-                        className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
+                        className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
                         <Check size={14} />
                       </button>
                       <button onClick={() => setShowNew(false)}
-                        className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
                         <X size={14} />
                       </button>
                     </div>
@@ -165,11 +165,11 @@ export const AlianzasTab = () => {
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-1">
                           <button onClick={saveEdit} disabled={editSaving || !editName.trim()}
-                            className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
+                            className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
                             <Check size={14} />
                           </button>
                           <button onClick={cancelEdit}
-                            className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
                             <X size={14} />
                           </button>
                         </div>
@@ -196,11 +196,11 @@ export const AlianzasTab = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-red-600 font-medium">¿Eliminar?</span>
                           <button onClick={() => confirmDelete(p.id)} disabled={deleteSaving}
-                            className="p-1.5 rounded hover:bg-red-100 text-red-600 disabled:opacity-40 transition-colors" title="Confirmar">
+                            className="p-1.5 rounded-lg hover:bg-red-100 text-red-600 disabled:opacity-40 transition-colors" title="Confirmar">
                             <Check size={14} />
                           </button>
                           <button onClick={() => { setDeleteId(null); setDeleteError(null); }}
-                            className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
                             <X size={14} />
                           </button>
                         </div>
@@ -224,11 +224,11 @@ export const AlianzasTab = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => startEdit(p)}
-                        className="p-1.5 rounded hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
                         ✎
                       </button>
                       <button onClick={() => { setDeleteId(p.id); setDeleteError(null); setEditingId(null); }}
-                        className="p-1.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
                         <Trash2 size={13} />
                       </button>
                     </div>

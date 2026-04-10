@@ -426,7 +426,7 @@ export const RemittanceDetailView = () => {
             {/* Messages */}
             <div
               ref={chatScrollRef}
-              className="flex-1 overflow-y-auto px-4 py-4 space-y-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-papaya-orange/60 [&::-webkit-scrollbar-track]:bg-transparent"
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
             >
               {chatLoading ? (
                 <div className="text-center text-sm text-gray-400 animate-pulse py-8">Cargando…</div>

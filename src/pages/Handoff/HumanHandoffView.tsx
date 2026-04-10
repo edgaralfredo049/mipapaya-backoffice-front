@@ -311,10 +311,10 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
                   onChange={e => handleTyping(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
                   placeholder="Escribe un mensaje..."
-                  className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:border-papaya-orange focus:outline-none"
+                  className="flex-1 rounded-lg border border-gray-200 px-3.5 py-2 text-sm focus:border-papaya-orange focus:outline-none"
                 />
                 <button onClick={() => send()} disabled={sending || !text.trim()}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-papaya-orange hover:bg-orange-600 text-white disabled:opacity-50 transition-colors flex-shrink-0">
+                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-papaya-orange hover:bg-orange-600 text-white disabled:opacity-50 transition-colors flex-shrink-0">
                   <Send size={15} />
                 </button>
               </div>
@@ -407,10 +407,10 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
                 onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), addNote())}
                 placeholder="Escribe una nota interna..."
                 rows={2}
-                className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-papaya-orange focus:outline-none resize-none"
+                className="flex-1 rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-papaya-orange focus:outline-none resize-none"
               />
               <button onClick={addNote} disabled={savingNote || !noteText.trim()}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-papaya-orange hover:bg-orange-600 text-white disabled:opacity-50 transition-colors flex-shrink-0">
+                className="w-9 h-9 flex items-center justify-center rounded-lg bg-papaya-orange hover:bg-orange-600 text-white disabled:opacity-50 transition-colors flex-shrink-0">
                 <Send size={15} />
               </button>
             </div>
@@ -539,7 +539,7 @@ export const HumanHandoffView = () => {
         </div>
         <button
           onClick={() => { setMyOnly(m => !m); setPage(1); }}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors border ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
             myOnly ? "bg-papaya-orange text-white border-papaya-orange" : "bg-white text-gray-600 border-gray-200 hover:border-papaya-orange"
           }`}
         >

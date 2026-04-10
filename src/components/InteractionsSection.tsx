@@ -27,6 +27,7 @@ import {
   StickyNote,
   Clock,
   User,
+  X,
 } from "lucide-react";
 import { api, ClientInteraction } from "../api";
 
@@ -64,7 +65,7 @@ function ToolbarButton({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`p-1.5 rounded transition-colors ${
+      className={`p-1.5 rounded-md transition-colors ${
         active
           ? "bg-papaya-orange/10 text-papaya-orange"
           : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
@@ -119,7 +120,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <button
           type="button"
           onClick={() => { setFontOpen((v) => !v); setSizeOpen(false); setAlignOpen(false); }}
-          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 rounded hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
         >
           {currentFont} <ChevronDown size={12} />
         </button>
@@ -145,7 +146,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <button
           type="button"
           onClick={() => { setSizeOpen((v) => !v); setFontOpen(false); setAlignOpen(false); }}
-          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 rounded hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
         >
           {currentSize.label} <ChevronDown size={12} />
         </button>
@@ -184,7 +185,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
       {/* Text color */}
       <div className="relative flex items-center" title="Color de texto">
-        <label className="flex items-center gap-0.5 p-1.5 rounded cursor-pointer hover:bg-gray-100 transition-colors">
+        <label className="flex items-center gap-0.5 p-1.5 rounded-md cursor-pointer hover:bg-gray-100 transition-colors">
           <span className="text-xs font-bold text-gray-700 underline decoration-2" style={{ textDecorationColor: editor.getAttributes("textStyle").color ?? "#000" }}>A</span>
           <input
             type="color"
@@ -203,7 +204,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <button
           type="button"
           onClick={() => { setAlignOpen((v) => !v); setFontOpen(false); setSizeOpen(false); }}
-          className="flex items-center gap-0.5 p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+          className="flex items-center gap-0.5 p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
           title="Alineación"
         >
           {currentAlign.icon} <ChevronDown size={10} />
@@ -249,10 +250,12 @@ function RichEditor({
   content,
   onChange,
   placeholder = "Escribe aquí…",
+  header,
 }: {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  header?: React.ReactNode;
 }) {
   const editor = useEditor({
     extensions: [
@@ -276,10 +279,11 @@ function RichEditor({
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:border-papaya-orange focus-within:ring-2 focus-within:ring-papaya-orange/20 transition-all">
+      {header}
       <EditorToolbar editor={editor} />
       <EditorContent
         editor={editor}
-        className="min-h-[160px] max-h-[320px] overflow-y-auto px-4 py-3 text-sm text-gray-800 focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[140px] [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5 [&_.ProseMirror_h1]:text-xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h2]:text-lg [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_h3]:text-base [&_.ProseMirror_h3]:font-semibold"
+        className="min-h-[160px] max-h-[260px] overflow-y-auto px-4 py-3 text-sm text-gray-800 focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[140px] [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5 [&_.ProseMirror_h1]:text-xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h2]:text-lg [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_h3]:text-base [&_.ProseMirror_h3]:font-semibold"
       />
     </div>
   );
@@ -296,11 +300,16 @@ function NotesTab({
   interactions: ClientInteraction[];
   onAdded: (item: ClientInteraction) => void;
 }) {
-  const [text, setText]       = useState("");
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [text, setText]           = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [notePage, setNotePage]   = useState(1);
+  const [viewNote, setViewNote]   = useState<ClientInteraction | null>(null);
+  const NOTE_PAGE_SIZE = 5;
 
   const notes = interactions.filter((i) => i.type === "note");
+  const noteTotalPages = Math.ceil(notes.length / NOTE_PAGE_SIZE);
+  const notesSlice = notes.slice((notePage - 1) * NOTE_PAGE_SIZE, notePage * NOTE_PAGE_SIZE);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -311,6 +320,7 @@ function NotesTab({
       const created = await api.addClientNote(clientId, text.trim());
       onAdded(created);
       setText("");
+      setNotePage(1);
     } catch {
       setError("Error al guardar la nota.");
     } finally {
@@ -319,13 +329,13 @@ function NotesTab({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <form onSubmit={handleSubmit} className="space-y-2">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Escribe una nota sobre la conversación…"
-          rows={3}
+          rows={2}
           className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 resize-none focus:outline-none focus:border-papaya-orange focus:ring-2 focus:ring-papaya-orange/20 transition-all"
         />
         {error && <p className="text-xs text-red-500">{error}</p>}
@@ -342,27 +352,73 @@ function NotesTab({
       </form>
 
       {notes.length > 0 && (
-        <div className="space-y-2 border-t border-gray-50 pt-4">
-          {notes.map((n) => (
-            <div key={n.id} className="bg-yellow-50/60 border border-yellow-100 rounded-lg px-4 py-3 space-y-1">
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{n.content}</p>
-              <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                <span className="flex items-center gap-1"><User size={10} /> {n.created_by}</span>
-                <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(n.created_at)}</span>
+        <div className="border-t border-gray-50 pt-3 space-y-2">
+          <div className="space-y-2">
+            {notesSlice.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => setViewNote(n)}
+                className="w-full text-left bg-yellow-50/60 border border-yellow-100 rounded-lg px-3 py-2.5 space-y-1 hover:bg-yellow-100/60 hover:border-yellow-200 transition-colors"
+              >
+                <p className="text-sm text-gray-800 line-clamp-2">{n.content}</p>
+                <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                  <span className="flex items-center gap-1"><User size={10} /> {n.created_by}</span>
+                  <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(n.created_at)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          {noteTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[11px] text-gray-400">{(notePage - 1) * NOTE_PAGE_SIZE + 1}–{Math.min(notePage * NOTE_PAGE_SIZE, notes.length)} de {notes.length}</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setNotePage(1)} disabled={notePage === 1} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">«</button>
+                <button onClick={() => setNotePage((p) => p - 1)} disabled={notePage === 1} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">‹</button>
+                <span className="px-2 py-0.5 rounded bg-papaya-orange text-white text-[11px] font-semibold min-w-[24px] text-center">{notePage}</span>
+                <button onClick={() => setNotePage((p) => p + 1)} disabled={notePage === noteTotalPages} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">›</button>
+                <button onClick={() => setNotePage(noteTotalPages)} disabled={notePage === noteTotalPages} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">»</button>
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 
       {notes.length === 0 && (
         <div className="py-6 text-center text-sm text-gray-400">Sin notas registradas</div>
       )}
+
+      {/* Note detail modal */}
+      {viewNote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={() => setViewNote(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-sm font-semibold text-heading-text">
+                <StickyNote size={15} className="text-papaya-orange" /> Nota
+              </div>
+              <button onClick={() => setViewNote(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{viewNote.content}</p>
+            </div>
+            <div className="px-6 py-3 border-t border-gray-50 flex items-center gap-4 text-[11px] text-gray-400">
+              <span className="flex items-center gap-1"><User size={10} /> {viewNote.created_by}</span>
+              <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(viewNote.created_at)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Email Tab ───────────────────────────────────────────────────────────────
+
+function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
 
 function EmailTab({
   clientId,
@@ -376,13 +432,18 @@ function EmailTab({
   onAdded: (item: ClientInteraction) => void;
 }) {
   const to = clientEmail ?? "";
-  const [subject, setSubject] = useState("");
-  const [html, setHtml]       = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
-  const [sent, setSent]       = useState(false);
+  const [subject, setSubject]       = useState("");
+  const [html, setHtml]             = useState("");
+  const [sending, setSending]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [sent, setSent]             = useState(false);
+  const [emailPage, setEmailPage]   = useState(1);
+  const [viewEmail, setViewEmail]   = useState<ClientInteraction | null>(null);
+  const EMAIL_PAGE_SIZE = 2;
 
   const emails = interactions.filter((i) => i.type === "email");
+  const emailTotalPages = Math.ceil(emails.length / EMAIL_PAGE_SIZE);
+  const emailsSlice = emails.slice((emailPage - 1) * EMAIL_PAGE_SIZE, emailPage * EMAIL_PAGE_SIZE);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -396,6 +457,7 @@ function EmailTab({
       setSubject("");
       setHtml("");
       setSent(true);
+      setEmailPage(1);
       setTimeout(() => setSent(false), 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error al enviar el correo.");
@@ -405,28 +467,31 @@ function EmailTab({
   }
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSend} className="space-y-3">
-        <div>
-          <label className="text-xs text-gray-400 mb-1 block">Para</label>
-          <div className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 select-none">
-            {to || <span className="text-gray-400">Sin correo registrado</span>}
-          </div>
-        </div>
-        <div>
-          <label className="text-xs text-gray-400 mb-1 block">Asunto</label>
-          <input
-            type="text"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="Asunto del correo"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-papaya-orange focus:ring-2 focus:ring-papaya-orange/20 transition-all"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-gray-400 mb-1 block">Mensaje</label>
-          <RichEditor content={html} onChange={setHtml} placeholder="Escribe el mensaje…" />
-        </div>
+    <div className="space-y-3">
+      <form onSubmit={handleSend} className="space-y-2">
+        <RichEditor
+          content={html}
+          onChange={setHtml}
+          placeholder="Escribe el mensaje…"
+          header={
+            <>
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 text-sm">
+                <span className="text-xs text-gray-400 w-12 shrink-0">Para</span>
+                <span className="text-gray-700 truncate">{to || <span className="text-gray-400 text-xs">Sin correo registrado</span>}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 text-sm">
+                <span className="text-xs text-gray-400 w-12 shrink-0">Asunto</span>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Escribe el asunto…"
+                  className="flex-1 text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent py-0.5"
+                />
+              </div>
+            </>
+          }
+        />
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex items-center justify-end gap-2">
           {sent && <span className="text-xs text-green-600 font-medium">¡Correo guardado!</span>}
@@ -442,25 +507,66 @@ function EmailTab({
       </form>
 
       {emails.length > 0 && (
-        <div className="space-y-2 border-t border-gray-50 pt-4">
-          {emails.map((e) => (
-            <div key={e.id} className="bg-yellow-50/60 border border-yellow-100 rounded-lg px-4 py-3 space-y-1">
-              <p className="text-xs font-semibold text-gray-700">{e.subject}</p>
-              <div
-                className="text-sm text-gray-800 [&_*]:max-w-full"
-                dangerouslySetInnerHTML={{ __html: e.content }}
-              />
-              <div className="flex items-center gap-3 text-[11px] text-gray-400 pt-1">
-                <span className="flex items-center gap-1"><User size={10} /> {e.created_by}</span>
-                <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(e.created_at)}</span>
+        <div className="border-t border-gray-50 pt-3 space-y-2">
+          <div className="space-y-2">
+            {emailsSlice.map((em) => (
+              <button
+                key={em.id}
+                type="button"
+                onClick={() => setViewEmail(em)}
+                className="w-full text-left bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2.5 space-y-1 hover:bg-blue-100/50 hover:border-blue-200 transition-colors"
+              >
+                <p className="text-xs font-semibold text-gray-700 line-clamp-1">{em.subject}</p>
+                <p className="text-sm text-gray-600 line-clamp-2">{stripHtml(em.content)}</p>
+                <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                  <span className="flex items-center gap-1"><User size={10} /> {em.created_by}</span>
+                  <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(em.created_at)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          {emailTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[11px] text-gray-400">{(emailPage - 1) * EMAIL_PAGE_SIZE + 1}–{Math.min(emailPage * EMAIL_PAGE_SIZE, emails.length)} de {emails.length}</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setEmailPage(1)} disabled={emailPage === 1} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">«</button>
+                <button onClick={() => setEmailPage((p) => p - 1)} disabled={emailPage === 1} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">‹</button>
+                <span className="px-2 py-0.5 rounded bg-papaya-orange text-white text-[11px] font-semibold min-w-[24px] text-center">{emailPage}</span>
+                <button onClick={() => setEmailPage((p) => p + 1)} disabled={emailPage === emailTotalPages} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">›</button>
+                <button onClick={() => setEmailPage(emailTotalPages)} disabled={emailPage === emailTotalPages} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">»</button>
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 
       {emails.length === 0 && (
         <div className="py-6 text-center text-sm text-gray-400">Sin correos enviados</div>
+      )}
+
+      {/* Email detail modal */}
+      {viewEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={() => setViewEmail(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={(ev) => ev.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-sm font-semibold text-heading-text">
+                <Mail size={15} className="text-papaya-orange" />
+                <span className="truncate max-w-[340px]">{viewEmail.subject}</span>
+              </div>
+              <button onClick={() => setViewEmail(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div
+              className="px-6 py-5 max-h-[60vh] overflow-y-auto text-sm text-gray-800 [&_*]:max-w-full [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+              dangerouslySetInnerHTML={{ __html: viewEmail.content }}
+            />
+            <div className="px-6 py-3 border-t border-gray-50 flex items-center gap-4 text-[11px] text-gray-400">
+              <span className="flex items-center gap-1"><User size={10} /> {viewEmail.created_by}</span>
+              <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(viewEmail.created_at)}</span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -481,9 +587,11 @@ function fmtDate(s: string) {
 export function InteractionsSection({
   clientId,
   clientEmail,
+  bare = false,
 }: {
   clientId: number;
   clientEmail: string | null;
+  bare?: boolean;
 }) {
   const [tab, setTab]                         = useState<"notes" | "email">("notes");
   const [interactions, setInteractions]       = useState<ClientInteraction[]>([]);
@@ -503,50 +611,55 @@ export function InteractionsSection({
   const noteCount  = interactions.filter((i) => i.type === "note").length;
   const emailCount = interactions.filter((i) => i.type === "email").length;
 
+  const body = (
+    <div className="space-y-5">
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+        <button
+          type="button"
+          onClick={() => setTab("notes")}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            tab === "notes"
+              ? "bg-papaya-orange text-white shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <StickyNote size={13} />
+          Notas {noteCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{noteCount}</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("email")}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            tab === "email"
+              ? "bg-papaya-orange text-white shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <Mail size={13} />
+          Correo electrónico {emailCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{emailCount}</span>}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
+      ) : tab === "notes" ? (
+        <NotesTab clientId={clientId} interactions={interactions} onAdded={handleAdded} />
+      ) : (
+        <EmailTab clientId={clientId} clientEmail={clientEmail} interactions={interactions} onAdded={handleAdded} />
+      )}
+    </div>
+  );
+
+  if (bare) return body;
+
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="flex items-center gap-2.5 px-6 py-4 border-b border-gray-50">
         <span className="text-papaya-orange"><MessageSquarePlus size={16} /></span>
         <h2 className="text-sm font-semibold text-heading-text flex-1">Interacciones</h2>
       </div>
-
-      <div className="p-6 space-y-5">
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-          <button
-            type="button"
-            onClick={() => setTab("notes")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === "notes"
-                ? "bg-white text-heading-text shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <StickyNote size={13} />
-            Notas {noteCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{noteCount}</span>}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("email")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === "email"
-                ? "bg-white text-heading-text shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Mail size={13} />
-            Correo electrónico {emailCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{emailCount}</span>}
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
-        ) : tab === "notes" ? (
-          <NotesTab clientId={clientId} interactions={interactions} onAdded={handleAdded} />
-        ) : (
-          <EmailTab clientId={clientId} clientEmail={clientEmail} interactions={interactions} onAdded={handleAdded} />
-        )}
-      </div>
+      <div className="p-6">{body}</div>
     </div>
   );
 }

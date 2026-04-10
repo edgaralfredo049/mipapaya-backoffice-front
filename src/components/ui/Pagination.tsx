@@ -28,7 +28,7 @@ export const Pagination = ({
     }, []);
 
   const btnBase =
-    "px-2.5 py-1 text-xs border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed";
+    "px-2.5 py-1 text-xs border rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed";
   const btnNeutral = `${btnBase} border-gray-200 hover:bg-gray-50`;
   const btnActive  = `${btnBase} bg-papaya-orange text-white border-papaya-orange`;
 

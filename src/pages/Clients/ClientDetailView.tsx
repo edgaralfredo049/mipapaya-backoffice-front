@@ -255,6 +255,8 @@ export const ClientDetailView = () => {
   const [togglingActive, setTogglingActive] = useState(false);
   const [showActiveModal, setShowActiveModal] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
+  const [dataTab, setDataTab] = useState<"remesas" | "beneficiarios" | "soporte" | "historial" | "interacciones">("remesas");
+  const [leftTab, setLeftTab] = useState<"kyc" | "personal">("kyc");
 
   // Beneficiary inline edit
   const [bEditingId,  setBEditingId]  = useState<string | null>(null);
@@ -435,407 +437,488 @@ export const ClientDetailView = () => {
     : "bg-gray-100 text-gray-400";
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
-      {/* Back */}
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-3.5 py-2 rounded-lg shadow-sm transition-all"
-      >
-        <ArrowLeft size={14} /> Volver
-      </button>
-
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-papaya-orange/10 flex items-center justify-center shrink-0">
-            <User size={22} className="text-papaya-orange" />
+    <div className="p-5 max-w-7xl mx-auto space-y-4">
+      {/* Header — back + identity + actions in one row */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg shadow-sm transition-all shrink-0"
+        >
+          <ArrowLeft size={14} /> Volver
+        </button>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-papaya-orange/10 flex items-center justify-center shrink-0">
+            <User size={18} className="text-papaya-orange" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-heading-text">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-heading-text truncate leading-tight">
               {client.personal.name || client.phone}
             </h1>
-            <p className="text-sm text-body-text mt-0.5">
+            <p className="text-xs text-body-text">
               Cliente #{client.id} · {client.phone}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setShowRiskModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-papaya-orange text-white hover:bg-papaya-orange/90 transition-colors"
           >
-            <AlertOctagon size={13} /> Nivel de riesgo
+            <AlertOctagon size={12} /> Nivel de riesgo
           </button>
           {client.kyc_valid ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-light text-green-icon">
-              <ShieldCheck size={13} /> Verificado
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-green-light text-green-icon">
+              <ShieldCheck size={12} /> Verificado
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-light text-red-icon">
-              <ShieldOff size={13} /> Pendiente
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-red-light text-red-icon">
+              <ShieldOff size={12} /> Pendiente
             </span>
           )}
           <button
             type="button"
             onClick={() => setShowActiveModal(true)}
             disabled={togglingActive}
-            className={`inline-flex items-center gap-2 text-xs font-medium transition-all disabled:opacity-50 ${
-              activeStatus ? "text-green-icon" : "text-gray-400"
-            }`}
+            className={`inline-flex items-center gap-1.5 text-xs font-medium transition-all disabled:opacity-50 ${activeStatus ? "text-green-icon" : "text-gray-400"}`}
           >
-            <span className={`relative inline-flex items-center w-9 h-5 rounded-full transition-colors shrink-0 ${activeStatus ? "bg-green-icon/80" : "bg-gray-300"}`}>
-              <span className={`absolute w-3.5 h-3.5 bg-white rounded-full shadow transition-all ${activeStatus ? "left-[19px]" : "left-[3px]"}`} />
+            <span className={`relative inline-flex items-center w-8 h-4 rounded-full transition-colors shrink-0 ${activeStatus ? "bg-green-icon/80" : "bg-gray-300"}`}>
+              <span className={`absolute w-3 h-3 bg-white rounded-full shadow transition-all ${activeStatus ? "left-[17px]" : "left-[2px]"}`} />
             </span>
-            {activeStatus ? "Cuenta activa" : "Cuenta desactivada"}
+            {activeStatus ? "Activa" : "Inactiva"}
           </button>
         </div>
       </div>
 
-      {/* Two cards side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Personal info */}
-        <SectionCard icon={<User size={16} />} title="Información Personal">
-          {form && (
-            <>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                <Field label="N° Documento"   value={client.personal.doc_id} />
-                <Field label="Tipo Documento" value={client.personal.id_type_label} />
-                <EditableField label="Nombre"         value={form.name}    onChange={(v) => setField("name", v)}    editing={editingFields.has("name")}    onToggleEdit={() => toggleFieldEdit("name")} />
-                <EditableField label="Correo"         value={form.email}   onChange={(v) => setField("email", v)}   editing={editingFields.has("email")}   onToggleEdit={() => toggleFieldEdit("email")} />
-                <EditableField label="Teléfono"       value={form.phone}   onChange={(v) => setField("phone", v)}   editing={editingFields.has("phone")}   onToggleEdit={() => toggleFieldEdit("phone")} />
-                <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} editing={editingFields.has("country")} onToggleEdit={() => toggleFieldEdit("country")} />
-                <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)}    editing={editingFields.has("city")}    onToggleEdit={() => toggleFieldEdit("city")} />
-                <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)}   editing={editingFields.has("state")}   onToggleEdit={() => toggleFieldEdit("state")} />
-                <EditableField label="Código Postal"     value={form.postal_code} onChange={(v) => setField("postal_code", v)} editing={editingFields.has("postal_code")} onToggleEdit={() => toggleFieldEdit("postal_code")} />
-                <EditableField label="Fecha de nacimiento" value={form.birth_date}  onChange={(v) => setField("birth_date", v)}  editing={editingFields.has("birth_date")}  onToggleEdit={() => toggleFieldEdit("birth_date")} type="date" />
-                <EditableField label="Ocupación"          value={form.occupation}  onChange={(v) => setField("occupation", v)}  editing={editingFields.has("occupation")}  onToggleEdit={() => toggleFieldEdit("occupation")} />
-              </div>
-              <div className="border-t border-gray-50 mt-4 pt-4">
-                <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} editing={editingFields.has("address")} onToggleEdit={() => toggleFieldEdit("address")} />
-              </div>
-              <div className="border-t border-gray-50 mt-4 pt-4 flex items-center justify-between">
-                <Field label="Fecha de registro" value={fmtDate(client.created_at)} />
-                <div className="flex items-center gap-2">
-                  {saveError && (
-                    <span className="text-xs text-red-500">{saveError}</span>
-                  )}
-                  {saveSuccess && (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-icon">
-                      <Check size={13} /> Guardado
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={!isDirty || saving}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg transition-all
-                      bg-papaya-orange text-white shadow-sm
-                      hover:bg-papaya-orange/90
-                      disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
-                  >
-                    <Save size={14} />
-                    {saving ? "Guardando…" : "Guardar cambios"}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </SectionCard>
+      {/* Two-column master-detail layout */}
+      <div className="flex gap-4 items-start">
 
-        {/* KYC */}
-        <SectionCard icon={<FileText size={16} />} title="Información KYC">
-          <div className="flex items-center gap-6 mb-5">
-            <div>
-              <p className="text-xs text-gray-400 mb-1.5">Resultado</p>
-              <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kycResultColor}`}>
-                {client.kyc.verification_result || "—"}
-              </span>
+        {/* Left sidebar — sticky, tabbed */}
+        <div className="w-96 shrink-0 sticky top-5">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            {/* Tab bar */}
+            <div className="flex items-center gap-0.5 px-4 pt-3 border-b border-gray-100">
+              {([
+                { key: "kyc",      icon: <FileText size={13} />, label: "KYC" },
+                { key: "personal", icon: <User size={13} />,     label: "Información Personal" },
+              ] as { key: typeof leftTab; icon: React.ReactNode; label: string }[]).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setLeftTab(t.key)}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                    leftTab === t.key
+                      ? "border-papaya-orange text-papaya-orange"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {t.icon} {t.label}
+                </button>
+              ))}
             </div>
-            <div>
-              <p className="text-xs text-gray-400 mb-1.5">Fecha verificación</p>
-              <p className="text-sm font-medium text-gray-800">{fmtDate(client.kyc.kyc_created_at)}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <DocImage label="Frente"   url={client.kyc.document_front} />
-            <DocImage label="Reverso"  url={client.kyc.document_back} />
-            <DocImage label="Selfie"   url={client.kyc.selfie} />
-          </div>
-          {txStats.length > 0 && (() => {
-            const chartData = txStats.map((r) => ({
-              label: `${r.period_days} Días`,
-              monto: r.monto_usd,
-              cantidad: r.cantidad,
-              avg: r.average,
-            }));
-            const maxMonto = Math.max(...chartData.map((d) => d.monto), 1);
-            return (
-              <div className="mt-5 border-t border-gray-50 pt-5">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Actividad por período · Monto USD</p>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 24 }} barSize={28} barCategoryGap="25%">
-                    <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
-                    <XAxis
-                      type="number"
-                      domain={[0, maxMonto * 1.15]}
-                      tick={{ fontSize: 10, fill: "#9ca3af" }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v) => `$${Math.round(v)}`}
-                      tickCount={5}
-                    />
-                    <YAxis
-                      type="category" dataKey="label" width={58}
-                      tick={(props) => (
-                        <text x={props.x - 54} y={props.y} dominantBaseline="middle" textAnchor="start" fontSize={10} fill="#9ca3af" fontWeight={500}>
-                          {props.payload.value}
-                        </text>
+
+            {/* Fixed-height scrollable content */}
+            <div className="h-[700px] overflow-y-auto p-6">
+
+              {/* ── KYC ── */}
+              {leftTab === "kyc" && (
+                <>
+                  <div className="flex items-center gap-6 mb-5">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1.5">Resultado</p>
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kycResultColor}`}>
+                        {client.kyc.verification_result || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1.5">Fecha verificación</p>
+                      <p className="text-sm font-medium text-gray-800">{fmtDate(client.kyc.kyc_created_at)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <DocImage label="Frente"  url={client.kyc.document_front} />
+                    <DocImage label="Reverso" url={client.kyc.document_back} />
+                    <DocImage label="Selfie"  url={client.kyc.selfie} />
+                  </div>
+                  {txStats.length > 0 && (() => {
+                    const chartData = txStats.map((r) => ({
+                      label: `${r.period_days} Días`,
+                      monto: r.monto_usd,
+                      cantidad: r.cantidad,
+                      avg: r.average,
+                    }));
+                    const maxMonto = Math.max(...chartData.map((d) => d.monto), 1);
+                    return (
+                      <div className="mt-5 border-t border-gray-50 pt-5">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Actividad por período · Monto USD</p>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 16 }} barSize={24} barCategoryGap="25%">
+                            <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
+                            <XAxis type="number" domain={[0, maxMonto * 1.15]} tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(v)}`} tickCount={4} />
+                            <YAxis
+                              type="category" dataKey="label" width={52}
+                              tick={(props) => (
+                                <text x={props.x - 52} y={props.y} dominantBaseline="middle" textAnchor="start" fontSize={10} fill="#9ca3af" fontWeight={500}>
+                                  {props.payload.value}
+                                </text>
+                              )}
+                              axisLine={false} tickLine={false}
+                            />
+                            <Tooltip
+                              cursor={{ fill: "#fff7ed" }}
+                              content={({ active, payload }) => {
+                                if (!active || !payload?.length) return null;
+                                const d = payload[0].payload;
+                                return (
+                                  <div className="bg-white border border-gray-100 shadow-xl rounded-xl px-4 py-3 text-xs space-y-1.5">
+                                    <p className="font-bold text-gray-800 text-sm">Últ. {d.label}</p>
+                                    <p className="text-gray-500">Monto: <span className="font-semibold text-papaya-orange">${d.monto.toFixed(2)}</span></p>
+                                    <p className="text-gray-500">Transacciones: <span className="font-semibold text-gray-800">{d.cantidad}</span></p>
+                                    <p className="text-gray-500">Promedio: <span className="font-semibold text-gray-800">${d.avg.toFixed(2)}</span></p>
+                                  </div>
+                                );
+                              }}
+                            />
+                            <Bar dataKey="monto" radius={[0, 6, 6, 0]} background={{ radius: [0, 6, 6, 0], fill: "#f3f4f6" }}>
+                              {chartData.map((d, i) => (
+                                <Cell key={i} fill={d.monto > 0 ? "#f97316" : "#d1d5db"} fillOpacity={d.monto > 0 ? 1 : 0.5} />
+                              ))}
+                              <LabelList
+                                content={({ x, y, width, height, index }) => {
+                                  const d = chartData[index as number];
+                                  if (!d) return null;
+                                  const xNum = Number(x) + Number(width);
+                                  const yNum = Number(y) + Number(height) / 2;
+                                  const inside = Number(width) > 80;
+                                  const label = d.monto > 0
+                                    ? `$${d.monto % 1 === 0 ? d.monto.toFixed(0) : d.monto.toFixed(2)}  ·  ${d.cantidad} tx`
+                                    : "sin txs";
+                                  return (
+                                    <text x={inside ? xNum - 8 : xNum + 6} y={yNum} dominantBaseline="middle" textAnchor={inside ? "end" : "start"} fontSize={10} fontWeight={inside ? 600 : 500} fill={inside ? "#ffffff" : d.monto > 0 ? "#f97316" : "#9ca3af"}>
+                                      {label}
+                                    </text>
+                                  );
+                                }}
+                              />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+
+              {/* ── Información Personal ── */}
+              {leftTab === "personal" && form && (
+                <>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <Field label="N° Documento"   value={client.personal.doc_id} />
+                    <Field label="Tipo Documento" value={client.personal.id_type_label} />
+                    <EditableField label="Nombre"         value={form.name}    onChange={(v) => setField("name", v)}    editing={editingFields.has("name")}    onToggleEdit={() => toggleFieldEdit("name")} />
+                    <EditableField label="Correo"         value={form.email}   onChange={(v) => setField("email", v)}   editing={editingFields.has("email")}   onToggleEdit={() => toggleFieldEdit("email")} />
+                    <EditableField label="Teléfono"       value={form.phone}   onChange={(v) => setField("phone", v)}   editing={editingFields.has("phone")}   onToggleEdit={() => toggleFieldEdit("phone")} />
+                    <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} editing={editingFields.has("country")} onToggleEdit={() => toggleFieldEdit("country")} />
+                    <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)}    editing={editingFields.has("city")}    onToggleEdit={() => toggleFieldEdit("city")} />
+                    <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)}   editing={editingFields.has("state")}   onToggleEdit={() => toggleFieldEdit("state")} />
+                    <EditableField label="Código Postal"    value={form.postal_code} onChange={(v) => setField("postal_code", v)} editing={editingFields.has("postal_code")} onToggleEdit={() => toggleFieldEdit("postal_code")} />
+                    <EditableField label="Fecha nacimiento" value={form.birth_date}  onChange={(v) => setField("birth_date", v)}  editing={editingFields.has("birth_date")}  onToggleEdit={() => toggleFieldEdit("birth_date")} type="date" />
+                    <EditableField label="Ocupación"        value={form.occupation}  onChange={(v) => setField("occupation", v)}  editing={editingFields.has("occupation")}  onToggleEdit={() => toggleFieldEdit("occupation")} />
+                  </div>
+                  <div className="border-t border-gray-50 mt-3 pt-3">
+                    <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} editing={editingFields.has("address")} onToggleEdit={() => toggleFieldEdit("address")} />
+                  </div>
+                  <div className="border-t border-gray-50 mt-3 pt-3 flex items-center justify-between">
+                    <Field label="Registro" value={fmtDate(client.created_at)} />
+                    <div className="flex items-center gap-2">
+                      {saveError && <span className="text-xs text-red-500">{saveError}</span>}
+                      {saveSuccess && (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-icon">
+                          <Check size={13} /> Guardado
+                        </span>
                       )}
-                      axisLine={false} tickLine={false}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "#fff7ed" }}
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const d = payload[0].payload;
-                        return (
-                          <div className="bg-white border border-gray-100 shadow-xl rounded-xl px-4 py-3 text-xs space-y-1.5">
-                            <p className="font-bold text-gray-800 text-sm">Últ. {d.label}</p>
-                            <p className="text-gray-500">Monto: <span className="font-semibold text-papaya-orange">${d.monto.toFixed(2)}</span></p>
-                            <p className="text-gray-500">Transacciones: <span className="font-semibold text-gray-800">{d.cantidad}</span></p>
-                            <p className="text-gray-500">Promedio: <span className="font-semibold text-gray-800">${d.avg.toFixed(2)}</span></p>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Bar dataKey="monto" radius={[0, 6, 6, 0]} background={{ radius: [0, 6, 6, 0], fill: "#f3f4f6" }}>
-                      {chartData.map((d, i) => (
-                        <Cell key={i} fill={d.monto > 0 ? "#f97316" : "#d1d5db"} fillOpacity={d.monto > 0 ? 1 : 0.5} />
-                      ))}
-                      <LabelList
-                        content={({ x, y, width, height, index }) => {
-                          const d = chartData[index as number];
-                          if (!d) return null;
-                          const xNum = Number(x) + Number(width);
-                          const yNum = Number(y) + Number(height) / 2;
-                          const inside = Number(width) > 90;
-                          const label = d.monto > 0
-                            ? `$${d.monto % 1 === 0 ? d.monto.toFixed(0) : d.monto.toFixed(2)}  ·  ${d.cantidad} tx  ·  avg $${d.avg.toFixed(0)}`
-                            : "sin txs";
-                          return (
-                            <text
-                              x={inside ? xNum - 10 : xNum + 8}
-                              y={yNum}
-                              dominantBaseline="middle"
-                              textAnchor={inside ? "end" : "start"}
-                              fontSize={11}
-                              fontWeight={inside ? 600 : 500}
-                              fill={inside ? "#ffffff" : d.monto > 0 ? "#f97316" : "#9ca3af"}
-                            >
-                              {label}
-                            </text>
-                          );
-                        }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={!isDirty || saving}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg transition-all bg-papaya-orange text-white shadow-sm hover:bg-papaya-orange/90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                      >
+                        <Save size={14} />
+                        {saving ? "Guardando…" : "Guardar cambios"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+            </div>{/* end fixed-height content */}
+          </div>
+        </div>{/* end left sidebar */}
+
+        {/* Right tabbed panel */}
+        <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex items-center gap-0.5 px-4 pt-3 border-b border-gray-100">
+            {([
+              { key: "remesas",       icon: <Receipt size={13} />,       label: "Remesas",       count: remTotal },
+              { key: "interacciones", icon: <MessageSquare size={13} />, label: "Interacciones" },
+              { key: "beneficiarios", icon: <Users size={13} />,         label: "Beneficiarios", count: beneficiaries.length },
+              { key: "soporte",       icon: <HelpCircle size={13} />,    label: "Chats",         count: handoffs.length },
+              { key: "historial",     icon: <FileText size={13} />,      label: "Historial",     count: auditLog.length },
+            ] as { key: typeof dataTab; icon: React.ReactNode; label: string; count?: number }[]).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setDataTab(t.key)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                  dataTab === t.key
+                    ? "border-papaya-orange text-papaya-orange"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {t.icon} {t.label}
+                {(t.count ?? 0) > 0 && (
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    dataTab === t.key ? "bg-papaya-orange/10 text-papaya-orange" : "bg-gray-100 text-gray-500"
+                  }`}>{t.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="h-[700px] overflow-y-auto p-6">
+
+            {dataTab === "interacciones" && (
+              <InteractionsSection bare clientId={Number(id)} clientEmail={form?.email ?? client.personal.email} />
+            )}
+
+            {dataTab === "remesas" && (remLoading ? (
+              <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
+            ) : remittances.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Receipt size={32} className="text-gray-200 mb-2" />
+                <p className="text-sm text-gray-400">Este cliente no tiene remesas registradas</p>
               </div>
-            );
-          })()}
-        </SectionCard>
-      </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto -mx-6">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 border-y border-gray-100">
+                      <tr>
+                        {["ID Remesa", "Fecha / Hora (NY)", "Origen → Destino", "Monto USD", "Pagador", "Estado"].map((h) => (
+                          <th key={h} className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {remittances.map((r) => (
+                        <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
+                          <td className="px-3 py-3 font-mono text-xs whitespace-nowrap">
+                            <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">{r.id}</Link>
+                          </td>
+                          <td className="px-3 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtNY(r.created_at)}</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 text-gray-700 text-xs">
+                              <span className="font-medium">{r.origin_country_name || r.origin_country_id || "—"}</span>
+                              <ArrowLeftRight size={11} className="text-gray-400" />
+                              <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">${r.sent_amount.toFixed(2)}</td>
+                          <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
+                          <td className="px-3 py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REM_STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
+                              {REM_STATUS_LABELS[r.status] ?? r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="-mx-6 -mb-6">
+                  <Pagination page={remPage} totalPages={Math.ceil(remTotal / REM_PAGE_SIZE)} onPageChange={setRemPage} totalItems={remTotal} pageSize={REM_PAGE_SIZE} alwaysShow />
+                </div>
+              </>
+            ))}
 
-      {/* Remittances */}
-      <SectionCard icon={<Receipt size={16} />} title={`Remesas (${remTotal})`} collapsible>
-        {remLoading ? (
-          <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
-        ) : remittances.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <Receipt size={32} className="text-gray-200 mb-2" />
-            <p className="text-sm text-gray-400">Este cliente no tiene remesas registradas</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto -mx-6">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 border-y border-gray-100">
-                  <tr>
-                    {["ID Remesa", "Fecha / Hora (NY)", "Origen → Destino", "Monto USD", "Pagador", "Estado"].map((h) => (
-                      <th key={h} className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {remittances.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-3 py-3 font-mono text-xs whitespace-nowrap">
-                        <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">{r.id}</Link>
-                      </td>
-                      <td className="px-3 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtNY(r.created_at)}</td>
-                      <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 text-gray-700 text-xs">
-                          <span className="font-medium">{r.origin_country_name || r.origin_country_id || "—"}</span>
-                          <ArrowLeftRight size={11} className="text-gray-400" />
-                          <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">
-                        ${r.sent_amount.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
-                      <td className="px-3 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REM_STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
-                          {REM_STATUS_LABELS[r.status] ?? r.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="-mx-6 -mb-6">
-              <Pagination
-                page={remPage}
-                totalPages={Math.ceil(remTotal / REM_PAGE_SIZE)}
-                onPageChange={setRemPage}
-                totalItems={remTotal}
-                pageSize={REM_PAGE_SIZE}
-                alwaysShow
-              />
-            </div>
-          </>
-        )}
-      </SectionCard>
-
-      {/* Beneficiaries */}
-      <SectionCard icon={<Users size={16} />} title={`Beneficiarios (${beneficiaries.length})`} collapsible defaultOpen={false}>
-        {beneficiaries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <Users size={32} className="text-gray-200 mb-2" />
-            <p className="text-sm text-gray-400">Este cliente no tiene beneficiarios registrados</p>
-          </div>
-        ) : (() => {
-          const bTotalPages = Math.ceil(beneficiaries.length / B_PAGE_SIZE);
-          const bSlice = beneficiaries.slice((bPage - 1) * B_PAGE_SIZE, bPage * B_PAGE_SIZE);
-          return (
-            <>
-              <div className="overflow-x-auto -mx-6">
-                <table className="w-full text-sm text-left">
-                  <thead>
-                    <tr className="bg-gray-50 border-y border-gray-100">
-                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <span className="flex items-center gap-1.5"><CreditCard size={12} />Cédula</span>
-                      </th>
-                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <span className="flex items-center gap-1.5"><Phone size={12} />Teléfono</span>
-                      </th>
-                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <span className="flex items-center gap-1.5"><MapPin size={12} />Ciudad</span>
-                      </th>
-                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dirección</th>
-                      <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Registro</th>
-                      <th className="px-3 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {bSlice.map((b) => {
-                      const isEditing = bEditingId === b.id;
-                      if (isEditing) {
-                        return (
-                          <React.Fragment key={b.id}>
-                            <tr className="bg-yellow-50/50">
-                              <td className="px-3 py-2">
-                                <input value={bEditForm.full_name} onChange={(e) => setBEditForm((p) => ({ ...p, full_name: e.target.value }))} className={cellInput} />
-                              </td>
-                              <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{b.cedula}</td>
-                              <td className="px-3 py-2">
-                                <input value={bEditForm.phone} onChange={(e) => setBEditForm((p) => ({ ...p, phone: e.target.value }))} className={cellInput} />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input value={bEditForm.city} onChange={(e) => setBEditForm((p) => ({ ...p, city: e.target.value }))} className={cellInput} />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input value={bEditForm.address} onChange={(e) => setBEditForm((p) => ({ ...p, address: e.target.value }))} className={cellInput} />
-                              </td>
-                              <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">{fmtDate(b.created_at)}</td>
-                              <td className="px-3 py-2">
-                                <div className="flex items-center gap-1">
-                                  <button onClick={saveBEdit} disabled={bEditSaving}
-                                    className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
-                                    <Check size={14} />
-                                  </button>
-                                  <button onClick={cancelBEdit}
-                                    className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
-                                    <X size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            {bEditError && (
-                              <tr className="bg-red-50">
-                                <td colSpan={7} className="px-4 py-2 text-xs text-red-700">
-                                  <AlertTriangle size={12} className="inline mr-1 text-red-500" />{bEditError}
+            {dataTab === "beneficiarios" && (beneficiaries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Users size={32} className="text-gray-200 mb-2" />
+                <p className="text-sm text-gray-400">Este cliente no tiene beneficiarios registrados</p>
+              </div>
+            ) : (() => {
+              const bTotalPages = Math.ceil(beneficiaries.length / B_PAGE_SIZE);
+              const bSlice = beneficiaries.slice((bPage - 1) * B_PAGE_SIZE, bPage * B_PAGE_SIZE);
+              return (
+                <>
+                  <div className="overflow-x-auto -mx-6">
+                    <table className="w-full text-sm text-left">
+                      <thead>
+                        <tr className="bg-gray-50 border-y border-gray-100">
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"><span className="flex items-center gap-1.5"><CreditCard size={12} />Cédula</span></th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"><span className="flex items-center gap-1.5"><Phone size={12} />Teléfono</span></th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"><span className="flex items-center gap-1.5"><MapPin size={12} />Ciudad</span></th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dirección</th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Registro</th>
+                          <th className="px-3 py-3" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {bSlice.map((b) => {
+                          const isEditing = bEditingId === b.id;
+                          if (isEditing) return (
+                            <React.Fragment key={b.id}>
+                              <tr className="bg-yellow-50/50">
+                                <td className="px-3 py-2"><input value={bEditForm.full_name} onChange={(e) => setBEditForm((p) => ({ ...p, full_name: e.target.value }))} className={cellInput} /></td>
+                                <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{b.cedula}</td>
+                                <td className="px-3 py-2"><input value={bEditForm.phone} onChange={(e) => setBEditForm((p) => ({ ...p, phone: e.target.value }))} className={cellInput} /></td>
+                                <td className="px-3 py-2"><input value={bEditForm.city} onChange={(e) => setBEditForm((p) => ({ ...p, city: e.target.value }))} className={cellInput} /></td>
+                                <td className="px-3 py-2"><input value={bEditForm.address} onChange={(e) => setBEditForm((p) => ({ ...p, address: e.target.value }))} className={cellInput} /></td>
+                                <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">{fmtDate(b.created_at)}</td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={saveBEdit} disabled={bEditSaving} className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar"><Check size={14} /></button>
+                                    <button onClick={cancelBEdit} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar"><X size={14} /></button>
+                                  </div>
                                 </td>
                               </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      }
+                              {bEditError && <tr className="bg-red-50"><td colSpan={7} className="px-4 py-2 text-xs text-red-700"><AlertTriangle size={12} className="inline mr-1 text-red-500" />{bEditError}</td></tr>}
+                            </React.Fragment>
+                          );
+                          return (
+                            <tr key={b.id} className="hover:bg-gray-50/60 transition-colors">
+                              <td className="px-3 py-3 font-medium text-gray-800 whitespace-nowrap">{b.full_name}</td>
+                              <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.cedula}</td>
+                              <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.phone}</td>
+                              <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.city}</td>
+                              <td className="px-3 py-3 text-gray-600">{b.address}</td>
+                              <td className="px-3 py-3 text-gray-400 whitespace-nowrap text-xs">{fmtDate(b.created_at)}</td>
+                              <td className="px-3 py-3"><button onClick={() => startBEdit(b)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">✎</button></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="-mx-6 -mb-6">
+                    <Pagination page={bPage} totalPages={bTotalPages} onPageChange={setBPage} totalItems={beneficiaries.length} pageSize={B_PAGE_SIZE} alwaysShow />
+                  </div>
+                </>
+              );
+            })())}
+
+            {dataTab === "soporte" && (handoffLoading ? (
+              <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
+            ) : handoffs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <HelpCircle size={32} className="text-gray-200 mb-2" />
+                <p className="text-sm text-gray-400">Sin solicitudes de soporte registradas</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto -mx-6">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50 border-y border-gray-100">
+                    <tr>{["Fecha (NY)", "Estado", "Agente", "Espera", ""].map((h) => (
+                      <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {handoffs.map((h) => {
+                      const iso = (s: string) => s.includes("T") ? s : s.replace(" ", "T") + "Z";
+                      const statusColors: Record<string, string> = { pendiente: "bg-yellow-50 text-yellow-700", en_proceso: "bg-blue-50 text-blue-700", cerrado: "bg-gray-100 text-gray-500" };
+                      const statusLabels: Record<string, string> = { pendiente: "Pendiente", en_proceso: "En proceso", cerrado: "Cerrado" };
+                      const diffMs = h.closed_at ? new Date(iso(h.closed_at)).getTime() - new Date(iso(h.created_at)).getTime() : Date.now() - new Date(iso(h.created_at)).getTime();
+                      const mins = Math.floor(diffMs / 60000);
+                      const duration = mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)}h ${mins % 60}min`;
                       return (
-                        <tr key={b.id} className="hover:bg-gray-50/60 transition-colors">
-                          <td className="px-3 py-3 font-medium text-gray-800 whitespace-nowrap">{b.full_name}</td>
-                          <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.cedula}</td>
-                          <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.phone}</td>
-                          <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{b.city}</td>
-                          <td className="px-3 py-3 text-gray-600">{b.address}</td>
-                          <td className="px-3 py-3 text-gray-400 whitespace-nowrap text-xs">{fmtDate(b.created_at)}</td>
-                          <td className="px-3 py-3">
-                            <button onClick={() => startBEdit(b)}
-                              className="p-1.5 rounded hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
-                              ✎
-                            </button>
-                          </td>
+                        <tr key={h.id} className="hover:bg-gray-50/60 transition-colors">
+                          <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtNY(h.created_at)}</td>
+                          <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[h.status] ?? "bg-gray-100 text-gray-500"}`}>{statusLabels[h.status] ?? h.status}</span></td>
+                          <td className="px-4 py-3 text-xs text-gray-600">{h.agent_id || "—"}</td>
+                          <td className="px-4 py-3 text-xs text-gray-400">{duration}</td>
+                          <td className="px-4 py-3"><button onClick={() => openHandoffChat(h.id)} className="inline-flex items-center gap-1 text-xs text-papaya-orange hover:text-orange-600 font-medium whitespace-nowrap"><MessageSquare size={12} /> Ver chat</button></td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-              <div className="-mx-6 -mb-6">
-                <Pagination
-                  page={bPage}
-                  totalPages={bTotalPages}
-                  onPageChange={setBPage}
-                  totalItems={beneficiaries.length}
-                  pageSize={B_PAGE_SIZE}
-                  alwaysShow
-                />
+            ))}
+
+            {dataTab === "historial" && (auditLog.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <FileText size={32} className="text-gray-200 mb-2" />
+                <p className="text-sm text-gray-400">Sin modificaciones registradas</p>
               </div>
-            </>
-          );
-        })()}
-      </SectionCard>
+            ) : (() => {
+              const auditTotalPages = Math.ceil(auditLog.length / AUDIT_PAGE_SIZE);
+              const auditSlice = auditLog.slice((auditPage - 1) * AUDIT_PAGE_SIZE, auditPage * AUDIT_PAGE_SIZE);
+              return (
+                <>
+                  <div className="overflow-x-auto -mx-6">
+                    <table className="w-full text-sm text-left">
+                      <thead>
+                        <tr className="bg-gray-50 border-y border-gray-100">
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Fecha (New York)</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuario</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Entidad</th>
+                          <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cambios</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {auditSlice.map((entry) => (
+                          <tr key={entry.id} className="hover:bg-gray-50/60 transition-colors align-top">
+                            <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtNY(entry.created_at)}</td>
+                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{entry.user}</td>
+                            <td className="px-4 py-3 text-xs whitespace-nowrap">
+                              {entry.entity_type === "client" ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium"><User size={10} /> Cliente</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium"><Users size={10} /> {entry.entity_label || "Beneficiario"}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <ul className="space-y-0.5">
+                                {Object.entries(entry.changes).map(([field, { from, to }]) => (
+                                  <li key={field} className="text-xs text-gray-700">
+                                    <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                                    <span className="text-gray-400 line-through">{fmtFieldValue(field, from)}</span>{" → "}
+                                    <span className="text-gray-800 font-medium">{fmtFieldValue(field, to)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="-mx-6 -mb-6">
+                    <Pagination page={auditPage} totalPages={auditTotalPages} onPageChange={setAuditPage} totalItems={auditLog.length} pageSize={AUDIT_PAGE_SIZE} alwaysShow />
+                  </div>
+                </>
+              );
+            })())}
+
+          </div>{/* end tab content */}
+        </div>{/* end right tabbed panel */}
+
+      </div>{/* end two-column layout */}
 
       {/* Confirmation modal — active toggle */}
       {showActiveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm cursor-default">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${activeStatus ? "bg-red-50" : "bg-green-50"}`}>
-                {activeStatus
-                  ? <ShieldOff size={18} className="text-red-icon" />
-                  : <ShieldCheck size={18} className="text-green-icon" />}
+                {activeStatus ? <ShieldOff size={18} className="text-red-icon" /> : <ShieldCheck size={18} className="text-green-icon" />}
               </div>
               <div>
-                <p className="text-sm font-semibold text-heading-text">
-                  {activeStatus ? "Desactivar cuenta" : "Activar cuenta"}
-                </p>
-                <p className="text-xs text-body-text mt-0.5">
-                  {client.personal.name || client.phone}
-                </p>
+                <p className="text-sm font-semibold text-heading-text">{activeStatus ? "Desactivar cuenta" : "Activar cuenta"}</p>
+                <p className="text-xs text-body-text mt-0.5">{client.personal.name || client.phone}</p>
               </div>
             </div>
             <p className="text-sm text-gray-600">
@@ -844,159 +927,14 @@ export const ClientDetailView = () => {
                 : "¿Deseas reactivar esta cuenta? El cliente podrá volver a operar con normalidad."}
             </p>
             <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setShowActiveModal(false)}
-                className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmToggleActive}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${
-                  activeStatus ? "bg-red-500 hover:bg-red-600" : "bg-green-icon hover:bg-green-icon/90"
-                }`}
-              >
+              <button onClick={() => setShowActiveModal(false)} className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
+              <button onClick={confirmToggleActive} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${activeStatus ? "bg-red-500 hover:bg-red-600" : "bg-green-icon hover:bg-green-icon/90"}`}>
                 {activeStatus ? "Sí, desactivar" : "Sí, activar"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Interactions */}
-      <InteractionsSection clientId={Number(id)} clientEmail={form?.email ?? client.personal.email} />
-
-      {/* Support chats */}
-      <SectionCard icon={<HelpCircle size={16} />} title={`Chats de Soporte (${handoffs.length})`} collapsible defaultOpen={false}>
-        {handoffLoading ? (
-          <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
-        ) : handoffs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <HelpCircle size={32} className="text-gray-200 mb-2" />
-            <p className="text-sm text-gray-400">Sin solicitudes de soporte registradas</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto -mx-6">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 border-y border-gray-100">
-                <tr>
-                  {["Fecha (NY)", "Estado", "Agente", "Espera", ""].map((h) => (
-                    <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {handoffs.map((h) => {
-                  const iso = (s: string) => s.includes("T") ? s : s.replace(" ", "T") + "Z";
-                  const statusColors: Record<string, string> = {
-                    pendiente:  "bg-yellow-50 text-yellow-700",
-                    en_proceso: "bg-blue-50 text-blue-700",
-                    cerrado:    "bg-gray-100 text-gray-500",
-                  };
-                  const statusLabels: Record<string, string> = {
-                    pendiente: "Pendiente", en_proceso: "En proceso", cerrado: "Cerrado",
-                  };
-                  const diffMs = h.closed_at
-                    ? new Date(iso(h.closed_at)).getTime() - new Date(iso(h.created_at)).getTime()
-                    : Date.now() - new Date(iso(h.created_at)).getTime();
-                  const mins = Math.floor(diffMs / 60000);
-                  const duration = mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)}h ${mins % 60}min`;
-                  return (
-                    <tr key={h.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtNY(h.created_at)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[h.status] ?? "bg-gray-100 text-gray-500"}`}>
-                          {statusLabels[h.status] ?? h.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-600">{h.agent_id || "—"}</td>
-                      <td className="px-4 py-3 text-xs text-gray-400">{duration}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => openHandoffChat(h.id)}
-                          className="inline-flex items-center gap-1 text-xs text-papaya-orange hover:text-orange-600 font-medium whitespace-nowrap"
-                        >
-                          <MessageSquare size={12} /> Ver chat
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* Audit log */}
-      <SectionCard icon={<FileText size={16} />} title="Historial de modificaciones" collapsible defaultOpen={false}>
-        {auditLog.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <FileText size={32} className="text-gray-200 mb-2" />
-            <p className="text-sm text-gray-400">Sin modificaciones registradas</p>
-          </div>
-        ) : (() => {
-          const auditTotalPages = Math.ceil(auditLog.length / AUDIT_PAGE_SIZE);
-          const auditSlice = auditLog.slice((auditPage - 1) * AUDIT_PAGE_SIZE, auditPage * AUDIT_PAGE_SIZE);
-          return (
-            <>
-              <div className="overflow-x-auto -mx-6">
-                <table className="w-full text-sm text-left">
-                  <thead>
-                    <tr className="bg-gray-50 border-y border-gray-100">
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Fecha (New York)</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuario</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Entidad</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cambios</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {auditSlice.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-gray-50/60 transition-colors align-top">
-                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtNY(entry.created_at)}</td>
-                        <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{entry.user}</td>
-                        <td className="px-4 py-3 text-xs whitespace-nowrap">
-                          {entry.entity_type === "client" ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
-                              <User size={10} /> Cliente
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">
-                              <Users size={10} /> {entry.entity_label || "Beneficiario"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <ul className="space-y-0.5">
-                            {Object.entries(entry.changes).map(([field, { from, to }]) => (
-                              <li key={field} className="text-xs text-gray-700">
-                                <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
-                                <span className="text-gray-400 line-through">{fmtFieldValue(field, from)}</span>
-                                {" → "}
-                                <span className="text-gray-800 font-medium">{fmtFieldValue(field, to)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="-mx-6 -mb-6">
-                <Pagination
-                  page={auditPage}
-                  totalPages={auditTotalPages}
-                  onPageChange={setAuditPage}
-                  totalItems={auditLog.length}
-                  pageSize={AUDIT_PAGE_SIZE}
-                  alwaysShow
-                />
-              </div>
-            </>
-          );
-        })()}
-      </SectionCard>
 
       {/* Risk analysis modal */}
       {showRiskModal && (
@@ -1008,7 +946,7 @@ export const ClientDetailView = () => {
                 <AlertOctagon size={16} className="text-papaya-orange" />
                 <span className="text-sm font-semibold text-heading-text">Análisis de riesgo</span>
               </div>
-              <button onClick={() => setShowRiskModal(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400 transition-colors">
+              <button onClick={() => setShowRiskModal(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -1086,13 +1024,13 @@ export const ClientDetailView = () => {
                 <MessageSquare size={16} className="text-papaya-orange" />
                 <span className="text-sm font-semibold text-heading-text">Chat de soporte</span>
               </div>
-              <button onClick={() => setShowHandoffChat(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400 transition-colors">
+              <button onClick={() => setShowHandoffChat(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
                 <X size={16} />
               </button>
             </div>
             <div
               ref={handoffChatScrollRef}
-              className="flex-1 overflow-y-auto px-4 py-4 space-y-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-papaya-orange/60 [&::-webkit-scrollbar-track]:bg-transparent"
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-2 "
             >
               {handoffChatLoading ? (
                 <div className="text-center text-sm text-gray-400 animate-pulse py-8">Cargando…</div>

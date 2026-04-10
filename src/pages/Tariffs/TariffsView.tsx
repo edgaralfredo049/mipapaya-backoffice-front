@@ -482,11 +482,11 @@ export const TariffsView = () => {
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
                         <button onClick={saveNew} disabled={newSaving}
-                          className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
+                          className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
                           <Check size={14} />
                         </button>
                         <button onClick={cancelNew}
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
                           <X size={14} />
                         </button>
                       </div>
@@ -617,11 +617,11 @@ export const TariffsView = () => {
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1">
                             <button onClick={saveEdit} disabled={editSaving}
-                              className="p-1.5 rounded hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
+                              className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 disabled:opacity-40 transition-colors" title="Guardar">
                               <Check size={14} />
                             </button>
                             <button onClick={cancelEdit}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
+                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Cancelar">
                               <X size={14} />
                             </button>
                           </div>
@@ -659,15 +659,15 @@ export const TariffsView = () => {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1">
                         <button onClick={() => startEdit(t)}
-                          className="p-1.5 rounded hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
                           ✎
                         </button>
                         <button onClick={() => startDuplicate(t)}
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Duplicar">
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Duplicar">
                           <Copy size={14} />
                         </button>
                         <button onClick={() => { setDeleteId(t.id); setDeleteError(null); setEditingId(null); }}
-                          className="p-1.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
                           <Trash2 size={14} />
                         </button>
                       </div>
