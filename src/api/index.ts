@@ -250,6 +250,21 @@ export interface TariffIn {
   partnership_id: number;
 }
 
+export interface ClientRule {
+  id: number;
+  max_amount_usd: number;
+  document_description: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientRuleIn {
+  max_amount_usd: number;
+  document_description: string;
+  active: boolean;
+}
+
 export interface RemittanceRecord {
   id: string;
   created_at: string;
@@ -409,6 +424,7 @@ export interface ClientDocument {
   name: string;
   mime_type: string;
   uploaded_by: string;
+  document_type: string | null;
   created_at: string;
 }
 
@@ -637,6 +653,15 @@ export const api = {
   duplicateTariff: (id: number) =>
     request<Tariff>(`/tariffs/${id}/duplicate`, { method: "POST" }),
 
+  // Client Rules
+  getClientRules: () => request<ClientRule[]>("/client-rules"),
+  createClientRule: (data: ClientRuleIn) =>
+    request<ClientRule>("/client-rules", { method: "POST", body: JSON.stringify(data) }),
+  updateClientRule: (id: number, data: ClientRuleIn) =>
+    request<ClientRule>(`/client-rules/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteClientRule: (id: number) =>
+    request<void>(`/client-rules/${id}`, { method: "DELETE" }),
+
   // Delivery Flows
   getDeliveryFlows: (partnershipId: number, countryId: string) =>
     request<DeliveryFlow[]>(`/delivery-flows/${partnershipId}/${countryId}`),
@@ -797,9 +822,10 @@ export const api = {
   // Documents
   getClientDocuments: (clientId: number) =>
     request<ClientDocument[]>(`/clients/${clientId}/documents`),
-  uploadClientDocument: async (clientId: number, file: File): Promise<ClientDocument> => {
+  uploadClientDocument: async (clientId: number, file: File, documentType?: string): Promise<ClientDocument> => {
     const form = new FormData();
     form.append("file", file);
+    if (documentType) form.append("document_type", documentType);
     const res = await fetch(`${API_BASE}/api/clients/${clientId}/documents`, {
       method: "POST",
       headers: { "X-API-Key": API_KEY },

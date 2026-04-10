@@ -8,8 +8,9 @@ import { AlternanciaView } from "./AlternanciaView";
 import { GatewayAlternanciaView } from "./GatewayAlternanciaView";
 import { DeliveryFlowsView } from "./DeliveryFlowsView";
 import { TariffsView } from "../Tariffs/TariffsView";
+import { ClientRulesTab } from "./ClientRulesTab";
 
-type Tab = "alianzas" | "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "delivery-flows" | "tarifas";
+type Tab = "alianzas" | "paises" | "gateways" | "pagadores" | "alternancia" | "alt-recolectores" | "delivery-flows" | "tarifas" | "client-rules";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "alianzas",         label: "Alianzas"          },
@@ -20,6 +21,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "pagadores",        label: "Pagadores"         },
   { key: "alternancia",      label: "Alternancia"       },
   { key: "tarifas",          label: "Tarifas"           },
+  { key: "client-rules",    label: "Reglas de Cliente" },
 ];
 
 const VALID_TABS = TABS.map((t) => t.key);
@@ -66,6 +68,7 @@ export const Config = () => {
       case "alt-recolectores": return <GatewayAlternanciaView />;
       case "delivery-flows":   return <DeliveryFlowsView />;
       case "tarifas":          return <TariffsView />;
+      case "client-rules":    return <ClientRulesTab />;
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X, CheckCircle2 } from "lucide-react";
 import { api, RemittanceRecord, RemittanceAuditEntry, Pagador, ChatLogMessage } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
 
@@ -101,10 +101,16 @@ export const RemittanceDetailView = () => {
   const [auditLog, setAuditLog]       = useState<RemittanceAuditEntry[]>([]);
 
   // Payer change
-  const [newPayerId, setNewPayerId]   = useState("");
+  const [newPayerId, setNewPayerId]     = useState("");
   const [confirmPayer, setConfirmPayer] = useState(false);
-  const [savingPayer, setSavingPayer] = useState(false);
-  const [payerError, setPayerError]   = useState<string | null>(null);
+  const [savingPayer, setSavingPayer]   = useState(false);
+  const [payerError, setPayerError]     = useState<string | null>(null);
+
+  // Status change
+  const [newStatus, setNewStatus]         = useState("");
+  const [confirmStatus, setConfirmStatus] = useState(false);
+  const [savingStatus, setSavingStatus]   = useState(false);
+  const [statusError, setStatusError]     = useState<string | null>(null);
 
   const [showChat, setShowChat]       = useState(false);
   const [chatLog, setChatLog]         = useState<ChatLogMessage[]>([]);
@@ -147,7 +153,7 @@ export const RemittanceDetailView = () => {
   useEffect(() => {
     if (!id) return;
     api.getRemittance(id)
-      .then(r => { setRecord(r); setNewPayerId(r.payer_id ?? ""); return r.id; })
+      .then(r => { setRecord(r); setNewPayerId(r.payer_id ?? ""); setNewStatus(r.status ?? ""); return r.id; })
       .then(rid => refreshAuditLog(rid))
       .catch(() => setError("No se pudo cargar la remesa."))
       .finally(() => setLoading(false));
@@ -167,6 +173,23 @@ export const RemittanceDetailView = () => {
       setPayerError("Error al actualizar el pagador.");
     } finally {
       setSavingPayer(false);
+    }
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!record || !newStatus) return;
+    setSavingStatus(true);
+    setStatusError(null);
+    setConfirmStatus(false);
+    try {
+      const updated = await api.updateRemittanceStatus(record.id, newStatus);
+      setRecord(updated);
+      setNewStatus(updated.status ?? "");
+      await refreshAuditLog(record.id);
+    } catch {
+      setStatusError("Error al actualizar el estado.");
+    } finally {
+      setSavingStatus(false);
     }
   };
 
@@ -327,39 +350,82 @@ export const RemittanceDetailView = () => {
         </div>
       </SectionCard>
 
-      {/* Payer change section */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2.5 px-6 py-4 border-b border-gray-50">
-          <h2 className="text-sm font-semibold text-heading-text">Cambiar pagador</h2>
-        </div>
-        <div className="p-6">
-          {payerError && (
-            <p className="text-xs text-red-500 mb-3">{payerError}</p>
-          )}
-          <div className="flex gap-3 items-end">
-            <div className="flex flex-col gap-1 flex-1 max-w-xs">
-              <label className="text-xs text-gray-500">Pagador</label>
-              <select
-                value={newPayerId}
-                onChange={e => setNewPayerId(e.target.value)}
-                className="h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white"
-              >
-                <option value="">Seleccionar…</option>
-                {pagadores.map((p: Pagador) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+      {/* Estado update section */}
+      {(() => {
+        const locked = record.status === "payed" || record.status === "transmited";
+        return (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
+              <h2 className="text-sm font-semibold text-heading-text">Actualización de estados</h2>
+              {locked && (
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                  <CheckCircle2 size={12} className={record.status === "payed" ? "text-green-500" : "text-blue-500"} />
+                  {record.status === "payed" ? "Pagada — bloqueado" : "Transmitida — bloqueado"}
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => setConfirmPayer(true)}
-              disabled={!newPayerId || newPayerId === record.payer_id || savingPayer}
-              className="h-9 px-4 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              {savingPayer ? "Guardando…" : "Guardar"}
-            </button>
+            <div className="p-6">
+              {locked ? (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-500">
+                  <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : "text-blue-500 shrink-0"} />
+                  La remesa está en estado <span className="font-semibold mx-1">{STATUS_LABELS[record.status]}</span> y no puede modificarse.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-6">
+                  {/* Estado selector */}
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
+                    <label className="text-xs text-gray-400">Estado</label>
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={newStatus}
+                        onChange={e => setNewStatus(e.target.value)}
+                        className="h-9 flex-1 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white"
+                      >
+                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                          <option key={val} value={val}>{label}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setConfirmStatus(true)}
+                        disabled={!newStatus || newStatus === record.status || savingStatus}
+                        className="h-9 px-4 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {savingStatus ? "Guardando…" : "Guardar"}
+                      </button>
+                    </div>
+                    {statusError && <p className="text-xs text-red-500">{statusError}</p>}
+                  </div>
+
+                  {/* Pagador selector */}
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
+                    <label className="text-xs text-gray-400">Pagador</label>
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={newPayerId}
+                        onChange={e => setNewPayerId(e.target.value)}
+                        className="h-9 flex-1 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white"
+                      >
+                        <option value="">Seleccionar…</option>
+                        {pagadores.map((p: Pagador) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setConfirmPayer(true)}
+                        disabled={!newPayerId || newPayerId === record.payer_id || savingPayer}
+                        className="h-9 px-4 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {savingPayer ? "Guardando…" : "Guardar"}
+                      </button>
+                    </div>
+                    {payerError && <p className="text-xs text-red-500">{payerError}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Audit log */}
       <SectionCard icon={<FileText size={16} />} title="Historial de modificaciones">
@@ -460,16 +526,32 @@ export const RemittanceDetailView = () => {
               ¿Desea cambiar el pagador de la remesa <span className="font-mono text-papaya-orange">{record.id}</span>?
             </p>
             <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setConfirmPayer(false)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setConfirmPayer(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>
-              <button
-                onClick={handleConfirmPayerChange}
-                className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
-              >
+              <button onClick={handleConfirmPayerChange} className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors">
+                Sí, cambiar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm status change dialog */}
+      {confirmStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
+            <h3 className="text-sm font-semibold text-heading-text">Confirmar cambio de estado</h3>
+            <p className="text-sm text-body-text">
+              ¿Desea cambiar el estado de la remesa <span className="font-mono text-papaya-orange">{record.id}</span> a{" "}
+              <span className="font-semibold">{STATUS_LABELS[newStatus] ?? newStatus}</span>?
+              Esta acción quedará registrada en el historial.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setConfirmStatus(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleConfirmStatusChange} className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors">
                 Sí, cambiar
               </button>
             </div>

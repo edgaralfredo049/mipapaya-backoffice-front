@@ -30,7 +30,7 @@ import {
   FilePlus,
   FileImage,
 } from "lucide-react";
-import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage, ClientDocument } from "../../api";
+import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage, ClientDocument, ClientRule } from "../../api";
 import { InteractionsSection } from "../../components/InteractionsSection";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Pagination } from "../../components/ui/Pagination";
@@ -185,25 +185,48 @@ function DocThumb({ clientId, doc }: { clientId: number; doc: ClientDocument }) 
 // ─── Client Documents Upload ─────────────────────────────────────────────────
 
 function ClientDocumentsSection({ clientId }: { clientId: number }) {
-  const [docs, setDocs]             = useState<ClientDocument[]>([]);
-  const [uploading, setUploading]   = useState(false);
-  const [lightboxSrc, setLightbox]  = useState<{ src: string; name: string } | null>(null);
+  const [docs, setDocs]               = useState<ClientDocument[]>([]);
+  const [uploading, setUploading]     = useState(false);
+  const [lightboxSrc, setLightbox]    = useState<{ src: string; name: string } | null>(null);
+  const [rules, setRules]             = useState<ClientRule[]>([]);
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [selectedType, setSelectedType]   = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.getClientDocuments(clientId).then(setDocs).catch(() => {});
+    api.getClientRules().then(setRules).catch(() => {});
   }, [clientId]);
+
+  const uploadedTypes = new Set(docs.map((d) => d.document_type).filter(Boolean) as string[]);
+  const availableRules = rules.filter((r) => !uploadedTypes.has(r.document_description));
+
+  function requestUpload() {
+    if (availableRules.length > 0) {
+      setSelectedType(availableRules[0].document_description);
+      setShowTypeModal(true);
+    } else {
+      setSelectedType("");
+      inputRef.current?.click();
+    }
+  }
+
+  function confirmTypeAndPickFile() {
+    setShowTypeModal(false);
+    inputRef.current?.click();
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploading(true);
     for (const file of Array.from(files)) {
       try {
-        const doc = await api.uploadClientDocument(clientId, file);
+        const doc = await api.uploadClientDocument(clientId, file, selectedType || undefined);
         setDocs((prev) => [doc, ...prev]);
       } catch {}
     }
     setUploading(false);
+    setSelectedType("");
   }
 
   async function openDoc(doc: ClientDocument) {
@@ -224,15 +247,13 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
   }
 
-  function isImage(mime: string) { return mime.startsWith("image/"); }
-
   return (
     <div className="mt-3 border-t border-gray-50 pt-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Documentos adicionales</p>
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={requestUpload}
           disabled={uploading}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-papaya-orange text-white hover:bg-papaya-orange/90 disabled:opacity-40 transition-colors"
         >
@@ -252,7 +273,7 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
       {docs.length === 0 && !uploading ? (
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={requestUpload}
           className="w-full border-2 border-dashed border-gray-200 rounded-lg py-6 flex flex-col items-center gap-2 text-gray-300 hover:border-papaya-orange/40 hover:text-papaya-orange/50 transition-colors"
         >
           <FilePlus size={22} />
@@ -269,7 +290,12 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
               >
                 <DocThumb clientId={clientId} doc={doc} />
               </button>
-              <p className="mt-1 text-[10px] text-gray-400 truncate text-center leading-tight">{doc.name}</p>
+              {doc.document_type && (
+                <p className="mt-0.5 text-[9px] font-semibold text-papaya-orange truncate text-center leading-tight px-0.5">
+                  {doc.document_type}
+                </p>
+              )}
+              <p className="mt-0.5 text-[10px] text-gray-400 truncate text-center leading-tight">{doc.name}</p>
               <button
                 type="button"
                 onClick={(e) => handleDelete(e, doc)}
@@ -284,6 +310,47 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
 
       {lightboxSrc && (
         <ImageLightbox src={lightboxSrc.src} alt={lightboxSrc.name} onClose={() => setLightbox(null)} />
+      )}
+
+      {/* Document type selection modal */}
+      {showTypeModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="bg-orange-50 border-b border-orange-100 px-5 py-4 flex items-center gap-3">
+              <FileText size={18} className="text-papaya-orange shrink-0" />
+              <h3 className="font-semibold text-gray-800 text-sm">Tipo de documento</h3>
+            </div>
+            <div className="px-5 py-4 flex flex-col gap-3">
+              <p className="text-xs text-gray-500">Selecciona el tipo de documento que vas a subir.</p>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-papaya-orange/30"
+              >
+                {availableRules.map((r) => (
+                  <option key={r.id} value={r.document_description}>{r.document_description}</option>
+                ))}
+              </select>
+            </div>
+            <div className="px-5 pb-5 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={confirmTypeAndPickFile}
+                className="w-full bg-papaya-orange text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-papaya-orange/90 transition-colors"
+              >
+                Seleccionar archivo
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowTypeModal(false)}
+                className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
