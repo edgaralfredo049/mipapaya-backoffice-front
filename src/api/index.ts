@@ -403,6 +403,15 @@ export interface ClientInteraction {
   created_at: string;
 }
 
+export interface ClientDocument {
+  id: number;
+  client_id: number;
+  name: string;
+  mime_type: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
 export interface HandoffMessage {
   id: number;
   sender: "user" | "agent";
@@ -430,10 +439,10 @@ export interface AuditLogEntry {
   id: number;
   client_id: number;
   user: string;
-  entity_type: "client" | "beneficiary";
+  entity_type: "client" | "beneficiary" | "document";
   entity_id: string;
   entity_label: string | null;
-  changes: Record<string, { from: string | null; to: string | null }>;
+  changes: Record<string, { from: string | null; to: string | null } | string>;
   created_at: string;
 }
 
@@ -784,4 +793,28 @@ export const api = {
     request<ClientInteraction>(`/clients/${clientId}/interactions/email`, {
       method: "POST", body: JSON.stringify({ to, subject, html }),
     }),
+
+  // Documents
+  getClientDocuments: (clientId: number) =>
+    request<ClientDocument[]>(`/clients/${clientId}/documents`),
+  uploadClientDocument: async (clientId: number, file: File): Promise<ClientDocument> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_BASE}/api/clients/${clientId}/documents`, {
+      method: "POST",
+      headers: { "X-API-Key": API_KEY },
+      body: form,
+    });
+    if (!res.ok) throw new Error("Error al subir el archivo");
+    return res.json();
+  },
+  fetchDocumentBlob: async (clientId: number, docId: number): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/api/clients/${clientId}/documents/${docId}/file`, {
+      headers: { "X-API-Key": API_KEY },
+    });
+    if (!res.ok) throw new Error("Archivo no encontrado");
+    return res.blob();
+  },
+  deleteClientDocument: (clientId: number, docId: number) =>
+    request<void>(`/clients/${clientId}/documents/${docId}`, { method: "DELETE" }),
 };

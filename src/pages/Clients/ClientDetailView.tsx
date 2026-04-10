@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -24,8 +25,12 @@ import {
   Receipt,
   HelpCircle,
   MessageSquare,
+  Upload,
+  Trash2,
+  FilePlus,
+  FileImage,
 } from "lucide-react";
-import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage } from "../../api";
+import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage, ClientDocument } from "../../api";
 import { InteractionsSection } from "../../components/InteractionsSection";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Pagination } from "../../components/ui/Pagination";
@@ -130,22 +135,180 @@ function EditableField({
   );
 }
 
+// ─── Image Lightbox (portal — escapes stacking contexts) ─────────────────────
+
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+      onClick={onClose}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>,
+    document.body
+  );
+}
+
+// ─── Blob URL cache (session-scoped) ─────────────────────────────────────────
+const _blobCache = new Map<number, string>();
+
+async function getBlobUrl(clientId: number, docId: number): Promise<string> {
+  if (_blobCache.has(docId)) return _blobCache.get(docId)!;
+  const blob = await api.fetchDocumentBlob(clientId, docId);
+  const url  = URL.createObjectURL(blob);
+  _blobCache.set(docId, url);
+  return url;
+}
+
+// ─── Document Thumbnail ──────────────────────────────────────────────────────
+
+function DocThumb({ clientId, doc }: { clientId: number; doc: ClientDocument }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!doc.mime_type.startsWith("image/")) return;
+    getBlobUrl(clientId, doc.id).then(setSrc).catch(() => {});
+  }, [clientId, doc.id, doc.mime_type]);
+
+  if (src) {
+    return <img src={src} alt={doc.name} className="w-full h-full object-cover" />;
+  }
+  return doc.mime_type.startsWith("image/")
+    ? <FileImage size={28} className="text-gray-300" />
+    : <FileText  size={28} className="text-gray-300" />;
+}
+
+// ─── Client Documents Upload ─────────────────────────────────────────────────
+
+function ClientDocumentsSection({ clientId }: { clientId: number }) {
+  const [docs, setDocs]             = useState<ClientDocument[]>([]);
+  const [uploading, setUploading]   = useState(false);
+  const [lightboxSrc, setLightbox]  = useState<{ src: string; name: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.getClientDocuments(clientId).then(setDocs).catch(() => {});
+  }, [clientId]);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      try {
+        const doc = await api.uploadClientDocument(clientId, file);
+        setDocs((prev) => [doc, ...prev]);
+      } catch {}
+    }
+    setUploading(false);
+  }
+
+  async function openDoc(doc: ClientDocument) {
+    try {
+      const blobUrl = await getBlobUrl(clientId, doc.id);
+      if (doc.mime_type.startsWith("image/")) {
+        setLightbox({ src: blobUrl, name: doc.name });
+      } else {
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch {}
+  }
+
+  async function handleDelete(e: React.MouseEvent, doc: ClientDocument) {
+    e.stopPropagation();
+    await api.deleteClientDocument(clientId, doc.id).catch(() => {});
+    _blobCache.delete(doc.id);
+    setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+  }
+
+  function isImage(mime: string) { return mime.startsWith("image/"); }
+
+  return (
+    <div className="mt-3 border-t border-gray-50 pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Documentos adicionales</p>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-papaya-orange text-white hover:bg-papaya-orange/90 disabled:opacity-40 transition-colors"
+        >
+          <Upload size={11} />
+          {uploading ? "Cargando…" : "Subir"}
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="image/*,application/pdf"
+          className="sr-only"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
+
+      {docs.length === 0 && !uploading ? (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full border-2 border-dashed border-gray-200 rounded-lg py-6 flex flex-col items-center gap-2 text-gray-300 hover:border-papaya-orange/40 hover:text-papaya-orange/50 transition-colors"
+        >
+          <FilePlus size={22} />
+          <span className="text-xs">Arrastra archivos o haz click para subir</span>
+        </button>
+      ) : (
+        <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1">
+          {docs.map((doc) => (
+            <div key={doc.id} className="relative group shrink-0 w-20">
+              <button
+                type="button"
+                onClick={() => openDoc(doc)}
+                className="w-20 h-20 rounded-lg border border-gray-100 overflow-hidden bg-gray-50 hover:border-papaya-orange/40 transition-colors cursor-zoom-in flex items-center justify-center"
+              >
+                <DocThumb clientId={clientId} doc={doc} />
+              </button>
+              <p className="mt-1 text-[10px] text-gray-400 truncate text-center leading-tight">{doc.name}</p>
+              <button
+                type="button"
+                onClick={(e) => handleDelete(e, doc)}
+                className="absolute top-1 right-1 p-0.5 rounded-md bg-white/80 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc.src} alt={lightboxSrc.name} onClose={() => setLightbox(null)} />
+      )}
+    </div>
+  );
+}
+
 function DocImage({ label, url }: { label: string; url: string | null | undefined }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{label}</p>
       {url ? (
-        <button
-          type="button"
-          onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-          className="block w-full text-left cursor-zoom-in"
-        >
-          <img
-            src={url}
-            alt={label}
-            className="w-full h-28 object-cover rounded-lg border border-gray-100 hover:opacity-90 transition-opacity shadow-sm"
-          />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="block w-full text-left cursor-zoom-in"
+          >
+            <img
+              src={url}
+              alt={label}
+              className="w-full h-28 object-cover rounded-lg border border-gray-100 hover:opacity-90 transition-opacity shadow-sm"
+            />
+          </button>
+          {open && <ImageLightbox src={url} alt={label} onClose={() => setOpen(false)} />}
+        </>
       ) : (
         <div className="w-full h-28 rounded-lg border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-xs text-gray-300">
           Sin imagen
@@ -523,7 +686,7 @@ export const ClientDetailView = () => {
               {/* ── KYC ── */}
               {leftTab === "kyc" && (
                 <>
-                  <div className="flex items-center gap-6 mb-5">
+                  <div className="flex items-center gap-6 mb-3">
                     <div>
                       <p className="text-xs text-gray-400 mb-1.5">Resultado</p>
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kycResultColor}`}>
@@ -549,9 +712,9 @@ export const ClientDetailView = () => {
                     }));
                     const maxMonto = Math.max(...chartData.map((d) => d.monto), 1);
                     return (
-                      <div className="mt-5 border-t border-gray-50 pt-5">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Actividad por período · Monto USD</p>
-                        <ResponsiveContainer width="100%" height={200}>
+                      <div className="mt-3 border-t border-gray-50 pt-3">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Actividad por período · Monto USD</p>
+                        <ResponsiveContainer width="100%" height={175}>
                           <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 16 }} barSize={24} barCategoryGap="25%">
                             <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
                             <XAxis type="number" domain={[0, maxMonto * 1.15]} tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(v)}`} tickCount={4} />
@@ -591,7 +754,7 @@ export const ClientDetailView = () => {
                                   const yNum = Number(y) + Number(height) / 2;
                                   const inside = Number(width) > 80;
                                   const label = d.monto > 0
-                                    ? `$${d.monto % 1 === 0 ? d.monto.toFixed(0) : d.monto.toFixed(2)}  ·  ${d.cantidad} tx`
+                                    ? `${d.cantidad} tx`
                                     : "sin txs";
                                   return (
                                     <text x={inside ? xNum - 8 : xNum + 6} y={yNum} dominantBaseline="middle" textAnchor={inside ? "end" : "start"} fontSize={10} fontWeight={inside ? 600 : 500} fill={inside ? "#ffffff" : d.monto > 0 ? "#f97316" : "#9ca3af"}>
@@ -606,6 +769,7 @@ export const ClientDetailView = () => {
                       </div>
                     );
                   })()}
+                  <ClientDocumentsSection clientId={client.id} />
                 </>
               )}
 
@@ -876,20 +1040,39 @@ export const ClientDetailView = () => {
                             <td className="px-4 py-3 text-xs whitespace-nowrap">
                               {entry.entity_type === "client" ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium"><User size={10} /> Cliente</span>
+                              ) : entry.entity_type === "document" ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-500 font-medium"><FileText size={10} /> Documento</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium"><Users size={10} /> {entry.entity_label || "Beneficiario"}</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <ul className="space-y-0.5">
-                                {Object.entries(entry.changes).map(([field, { from, to }]) => (
-                                  <li key={field} className="text-xs text-gray-700">
-                                    <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
-                                    <span className="text-gray-400 line-through">{fmtFieldValue(field, from)}</span>{" → "}
-                                    <span className="text-gray-800 font-medium">{fmtFieldValue(field, to)}</span>
-                                  </li>
-                                ))}
-                              </ul>
+                              {entry.entity_type === "document" ? (() => {
+                                const c = entry.changes as Record<string, string>;
+                                const isUpload = c.action === "upload";
+                                return (
+                                  <p className="text-xs text-gray-700">
+                                    <span className={`font-medium ${isUpload ? "text-green-600" : "text-red-500"}`}>
+                                      {isUpload ? "Subido" : "Eliminado"}:
+                                    </span>{" "}
+                                    {c.name}
+                                    {c.mime_type && <span className="text-gray-400 ml-1">({c.mime_type})</span>}
+                                  </p>
+                                );
+                              })() : (
+                                <ul className="space-y-0.5">
+                                  {Object.entries(entry.changes).map(([field, val]) => {
+                                    const { from, to } = val as { from: string | null; to: string | null };
+                                    return (
+                                      <li key={field} className="text-xs text-gray-700">
+                                        <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                                        <span className="text-gray-400 line-through">{fmtFieldValue(field, from)}</span>{" → "}
+                                        <span className="text-gray-800 font-medium">{fmtFieldValue(field, to)}</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
                             </td>
                           </tr>
                         ))}
