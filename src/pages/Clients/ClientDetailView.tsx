@@ -199,7 +199,7 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
   }, [clientId]);
 
   const uploadedTypes = new Set(docs.map((d) => d.document_type).filter(Boolean) as string[]);
-  const availableRules = rules.filter((r) => !uploadedTypes.has(r.document_description));
+  const availableRules = rules.filter((r) => r.active && !uploadedTypes.has(r.document_description));
 
   function requestUpload() {
     if (availableRules.length > 0) {
@@ -219,14 +219,21 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploading(true);
+    const errors: string[] = [];
     for (const file of Array.from(files)) {
       try {
         const doc = await api.uploadClientDocument(clientId, file, selectedType || undefined);
         setDocs((prev) => [doc, ...prev]);
-      } catch {}
+      } catch (err: any) {
+        const detail = err?.response?.data?.detail || err?.message || "Error desconocido";
+        errors.push(`${file.name}: ${detail}`);
+      }
     }
     setUploading(false);
     setSelectedType("");
+    if (errors.length > 0) {
+      alert(`No se pudieron subir ${errors.length} archivo(s):\n${errors.join("\n")}`);
+    }
   }
 
   async function openDoc(doc: ClientDocument) {
@@ -250,7 +257,7 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
   return (
     <div className="mt-3 border-t border-gray-50 pt-3">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Documentos adicionales</p>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Documentos requeridos en reglas</p>
         <button
           type="button"
           onClick={requestUpload}
