@@ -314,6 +314,9 @@ export interface ClientPersonalUpdate {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  postal_code?: string | null;
+  birth_date?: string | null;
+  occupation?: string | null;
   country?: string | null;
   city?: string | null;
   state?: string | null;
@@ -337,6 +340,9 @@ export interface ClientDetail {
     city: string | null;
     state: string | null;
     country: string | null;
+    postal_code: string | null;
+    birth_date: string | null;
+    occupation: string | null;
   };
   kyc: {
     verification_result: string | null;
@@ -385,6 +391,16 @@ export interface HandoffRequest {
   opened_at: string | null;
   closed_at: string | null;
   unread_count?: number;
+}
+
+export interface ClientInteraction {
+  id: number;
+  client_id: number;
+  type: "note" | "email";
+  subject: string | null;
+  content: string;
+  created_by: string;
+  created_at: string;
 }
 
 export interface HandoffMessage {
@@ -756,4 +772,16 @@ export const api = {
     }),
   setHandoffTyping: (id: string, sender = "agent") =>
     request<{ ok: boolean }>(`/handoff/${id}/typing?sender=${sender}`, { method: "POST" }),
+
+  // Client interactions
+  getClientInteractions: (clientId: number) =>
+    request<ClientInteraction[]>(`/clients/${clientId}/interactions`),
+  addClientNote: (clientId: number, content: string) =>
+    request<ClientInteraction>(`/clients/${clientId}/interactions/note`, {
+      method: "POST", body: JSON.stringify({ content }),
+    }),
+  sendClientEmail: (clientId: number, to: string, subject: string, html: string) =>
+    request<ClientInteraction>(`/clients/${clientId}/interactions/email`, {
+      method: "POST", body: JSON.stringify({ to, subject, html }),
+    }),
 };

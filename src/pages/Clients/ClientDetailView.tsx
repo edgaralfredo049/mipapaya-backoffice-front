@@ -6,6 +6,10 @@ import {
   ShieldOff,
   User,
   FileText,
+  AlertOctagon,
+  TrendingUp,
+  CheckCircle2,
+  Info,
   Users,
   MapPin,
   Phone,
@@ -21,7 +25,8 @@ import {
   HelpCircle,
   MessageSquare,
 } from "lucide-react";
-import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest } from "../../api";
+import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage } from "../../api";
+import { InteractionsSection } from "../../components/InteractionsSection";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Pagination } from "../../components/ui/Pagination";
 
@@ -83,13 +88,20 @@ function EditableField({
   onChange,
   editing,
   onToggleEdit,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   editing: boolean;
   onToggleEdit: () => void;
+  type?: "text" | "date";
 }) {
+  const displayValue =
+    type === "date" && !editing && value
+      ? new Date(value + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })
+      : value;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -104,8 +116,8 @@ function EditableField({
         </button>
       </div>
       <input
-        type="text"
-        value={value}
+        type={editing && type === "date" ? "date" : "text"}
+        value={displayValue}
         readOnly={!editing}
         onChange={(e) => editing && onChange(e.target.value)}
         className={`w-full text-sm font-medium rounded-md px-2.5 py-1.5 transition-colors focus:outline-none ${
@@ -185,6 +197,9 @@ type PersonalForm = {
   city: string;
   state: string;
   address: string;
+  postal_code: string;
+  birth_date: string;
+  occupation: string;
 };
 
 function toForm(p: ClientDetail["personal"], fallbackPhone: string): PersonalForm {
@@ -193,9 +208,12 @@ function toForm(p: ClientDetail["personal"], fallbackPhone: string): PersonalFor
     email:   p.email   ?? "",
     phone:   p.phone   ?? fallbackPhone,
     country: p.country ?? "",
-    city:    p.city    ?? "",
-    state:   p.state   ?? "",
-    address: p.address ?? "",
+    city:        p.city        ?? "",
+    state:       p.state       ?? "",
+    address:     p.address     ?? "",
+    postal_code: p.postal_code ?? "",
+    birth_date:  p.birth_date  ?? "",
+    occupation:  p.occupation  ?? "",
   };
 }
 
@@ -228,10 +246,15 @@ export const ClientDetailView = () => {
   const [remLoading, setRemLoading] = useState(false);
   const [handoffs, setHandoffs]         = useState<HandoffRequest[]>([]);
   const [handoffLoading, setHandoffLoading] = useState(false);
+  const [showHandoffChat, setShowHandoffChat] = useState(false);
+  const [handoffChatMessages, setHandoffChatMessages] = useState<HandoffMessage[]>([]);
+  const [handoffChatLoading, setHandoffChatLoading] = useState(false);
+  const handoffChatScrollRef = useRef<HTMLDivElement>(null);
 
   const [activeStatus, setActiveStatus] = useState<boolean>(true);
   const [togglingActive, setTogglingActive] = useState(false);
   const [showActiveModal, setShowActiveModal] = useState(false);
+  const [showRiskModal, setShowRiskModal] = useState(false);
 
   // Beneficiary inline edit
   const [bEditingId,  setBEditingId]  = useState<string | null>(null);
@@ -271,6 +294,25 @@ export const ClientDetailView = () => {
   }, [client?.phone]);
 
   useEffect(() => {
+    const anyModal = showHandoffChat || showRiskModal || showActiveModal;
+    document.body.style.overflow = anyModal ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [showHandoffChat, showRiskModal, showActiveModal]);
+
+  async function openHandoffChat(handoffId: string) {
+    setHandoffChatMessages([]);
+    setShowHandoffChat(true);
+    setHandoffChatLoading(true);
+    try {
+      const res = await api.getHandoffMessages(handoffId);
+      setHandoffChatMessages(res.messages);
+      setTimeout(() => { handoffChatScrollRef.current?.scrollTo({ top: handoffChatScrollRef.current.scrollHeight }); }, 50);
+    } catch { /* silent */ } finally {
+      setHandoffChatLoading(false);
+    }
+  }
+
+  useEffect(() => {
     if (!client) return;
     setRemLoading(true);
     api.getRemittances({ client_id: client.phone, page: remPage })
@@ -295,6 +337,7 @@ export const ClientDetailView = () => {
       });
       await api.updateClientPersonal(Number(id), payload);
       setSavedForm(form);
+      setEditingFields(new Set());
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
       refreshAuditLog();
@@ -417,6 +460,13 @@ export const ClientDetailView = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowRiskModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-papaya-orange text-white hover:bg-papaya-orange/90 transition-colors"
+          >
+            <AlertOctagon size={13} /> Nivel de riesgo
+          </button>
           {client.kyc_valid ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-light text-green-icon">
               <ShieldCheck size={13} /> Verificado
@@ -457,6 +507,9 @@ export const ClientDetailView = () => {
                 <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} editing={editingFields.has("country")} onToggleEdit={() => toggleFieldEdit("country")} />
                 <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)}    editing={editingFields.has("city")}    onToggleEdit={() => toggleFieldEdit("city")} />
                 <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)}   editing={editingFields.has("state")}   onToggleEdit={() => toggleFieldEdit("state")} />
+                <EditableField label="Código Postal"     value={form.postal_code} onChange={(v) => setField("postal_code", v)} editing={editingFields.has("postal_code")} onToggleEdit={() => toggleFieldEdit("postal_code")} />
+                <EditableField label="Fecha de nacimiento" value={form.birth_date}  onChange={(v) => setField("birth_date", v)}  editing={editingFields.has("birth_date")}  onToggleEdit={() => toggleFieldEdit("birth_date")} type="date" />
+                <EditableField label="Ocupación"          value={form.occupation}  onChange={(v) => setField("occupation", v)}  editing={editingFields.has("occupation")}  onToggleEdit={() => toggleFieldEdit("occupation")} />
               </div>
               <div className="border-t border-gray-50 mt-4 pt-4">
                 <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} editing={editingFields.has("address")} onToggleEdit={() => toggleFieldEdit("address")} />
@@ -810,6 +863,9 @@ export const ClientDetailView = () => {
         </div>
       )}
 
+      {/* Interactions */}
+      <InteractionsSection clientId={Number(id)} clientEmail={form?.email ?? client.personal.email} />
+
       {/* Support chats */}
       <SectionCard icon={<HelpCircle size={16} />} title={`Chats de Soporte (${handoffs.length})`} collapsible defaultOpen={false}>
         {handoffLoading ? (
@@ -856,13 +912,12 @@ export const ClientDetailView = () => {
                       <td className="px-4 py-3 text-xs text-gray-600">{h.agent_id || "—"}</td>
                       <td className="px-4 py-3 text-xs text-gray-400">{duration}</td>
                       <td className="px-4 py-3">
-                        <Link
-                          to="/soporte"
-                          state={{ openHandoffId: h.id }}
+                        <button
+                          onClick={() => openHandoffChat(h.id)}
                           className="inline-flex items-center gap-1 text-xs text-papaya-orange hover:text-orange-600 font-medium whitespace-nowrap"
                         >
                           <MessageSquare size={12} /> Ver chat
-                        </Link>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -942,6 +997,125 @@ export const ClientDetailView = () => {
           );
         })()}
       </SectionCard>
+
+      {/* Risk analysis modal */}
+      {showRiskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 cursor-default">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <AlertOctagon size={16} className="text-papaya-orange" />
+                <span className="text-sm font-semibold text-heading-text">Análisis de riesgo</span>
+              </div>
+              <button onClick={() => setShowRiskModal(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[75vh]">
+              {/* Overall score */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-yellow-50 border border-yellow-100">
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">Puntuación de riesgo</p>
+                  <p className="text-2xl font-bold text-yellow-600">Medio</p>
+                </div>
+                <div className="w-14 h-14 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-yellow-600">54</span>
+                </div>
+              </div>
+
+              {/* Factors */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Factores evaluados</p>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
+                  <CheckCircle2 size={15} className="text-green-icon mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Identidad verificada</p>
+                    <p className="text-xs text-gray-500 mt-0.5">KYC aprobado. Documentos válidos y selfie coincidente.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
+                  <CheckCircle2 size={15} className="text-green-icon mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Historial de transacciones</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Volumen consistente con el perfil declarado. Sin patrones inusuales.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <TrendingUp size={15} className="text-yellow-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Frecuencia de envíos</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Ligero incremento en los últimos 30 días. Requiere monitoreo.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <Info size={15} className="text-yellow-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">País de destino</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Destino clasificado en categoría de vigilancia moderada.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recommendation */}
+              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recomendación</p>
+                <p className="text-sm text-gray-700">Continuar operaciones con seguimiento mensual. Solicitar documentación de origen de fondos si el volumen supera $2,000 USD en el próximo periodo.</p>
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-center">
+                Este análisis es generado de forma simulada. Próximamente será procesado por inteligencia artificial.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Handoff chat read-only modal */}
+      {showHandoffChat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden" style={{ maxHeight: "80vh" }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={16} className="text-papaya-orange" />
+                <span className="text-sm font-semibold text-heading-text">Chat de soporte</span>
+              </div>
+              <button onClick={() => setShowHandoffChat(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div
+              ref={handoffChatScrollRef}
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-papaya-orange/60 [&::-webkit-scrollbar-track]:bg-transparent"
+            >
+              {handoffChatLoading ? (
+                <div className="text-center text-sm text-gray-400 animate-pulse py-8">Cargando…</div>
+              ) : handoffChatMessages.length === 0 ? (
+                <div className="text-center text-sm text-gray-400 py-8">Sin historial de chat registrado</div>
+              ) : handoffChatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug ${
+                    msg.sender === "user"
+                      ? "bg-papaya-orange text-white rounded-br-sm"
+                      : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                  }`}>
+                    <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                    <p className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-white/60 text-right" : "text-gray-400"}`}>
+                      {new Date(msg.created_at).toLocaleString("es", { timeZone: "America/New_York", dateStyle: "short", timeStyle: "short" })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
