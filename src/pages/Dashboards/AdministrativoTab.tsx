@@ -64,7 +64,7 @@ function MiniDonut({ data, title, colorMap }: { data: DashboardPieSlice[]; title
         <PieChart margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
           <Pie
             data={data} cx="50%" cy="40%"
-            innerRadius={58} outerRadius={82}
+            innerRadius={45} outerRadius={82}
             dataKey="value"
             label={({ value }) => value > 0 ? `${value}%` : ""}
             labelLine={false}
