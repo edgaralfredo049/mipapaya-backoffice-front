@@ -792,58 +792,30 @@ export const ClientDetailView = () => {
                     return (
                       <div className="mt-3 border-t border-gray-50 pt-3">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Actividad por período · Monto USD</p>
-                        <ResponsiveContainer width="100%" height={170}>
-                          <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, left: 16, bottom: 16 }} barSize={24} barCategoryGap="30%">
-                            <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
-                            <XAxis type="number" domain={[0, maxMonto * 1.15]} tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(v)}`} tickCount={4} />
-                            <YAxis
-                              type="category" dataKey="label" width={52}
-                              tick={(props) => (
-                                <text x={props.x - 52} y={props.y} dominantBaseline="middle" textAnchor="start" fontSize={10} fill="#9ca3af" fontWeight={500}>
-                                  {props.payload.value}
-                                </text>
-                              )}
-                              axisLine={false} tickLine={false}
-                            />
-                            <Tooltip
-                              cursor={{ fill: "#fff7ed" }}
-                              content={({ active, payload }) => {
-                                if (!active || !payload?.length) return null;
-                                const d = payload[0].payload;
-                                return (
-                                  <div className="bg-white border border-gray-100 shadow-xl rounded-xl px-4 py-3 text-xs space-y-1.5">
-                                    <p className="font-bold text-gray-800 text-sm">Últ. {d.label}</p>
-                                    <p className="text-gray-500">Monto: <span className="font-semibold text-papaya-orange">${d.monto.toFixed(2)}</span></p>
-                                    <p className="text-gray-500">Transacciones: <span className="font-semibold text-gray-800">{d.cantidad}</span></p>
-                                    <p className="text-gray-500">Promedio: <span className="font-semibold text-gray-800">${d.avg.toFixed(2)}</span></p>
-                                  </div>
-                                );
-                              }}
-                            />
-                            <Bar dataKey="monto" radius={[0, 6, 6, 0]} background={{ radius: [0, 6, 6, 0], fill: "#f3f4f6" }}>
-                              {chartData.map((d, i) => (
-                                <Cell key={i} fill={d.monto > 0 ? "#f97316" : "#d1d5db"} fillOpacity={d.monto > 0 ? 1 : 0.5} />
-                              ))}
-                              <LabelList
-                                content={({ x, y, width, height, index }) => {
-                                  const d = chartData[index as number];
-                                  if (!d) return null;
-                                  const xNum = Number(x) + Number(width);
-                                  const yNum = Number(y) + Number(height) / 2;
-                                  const inside = Number(width) > 80;
-                                  const label = d.monto > 0
-                                    ? `${d.cantidad} tx`
-                                    : "sin txs";
-                                  return (
-                                    <text x={inside ? xNum - 8 : xNum + 6} y={yNum} dominantBaseline="middle" textAnchor={inside ? "end" : "start"} fontSize={10} fontWeight={inside ? 600 : 500} fill={inside ? "#ffffff" : d.monto > 0 ? "#f97316" : "#9ca3af"}>
-                                      {label}
-                                    </text>
-                                  );
-                                }}
-                              />
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <div className="space-y-2">
+                          {chartData.map((d, i) => {
+                            const pct = (d.monto / maxMonto) * 100;
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-400 font-medium w-14 shrink-0 text-right">{d.label}</span>
+                                <div className="relative flex-1 h-6 bg-gray-100 rounded-md overflow-hidden">
+                                  {d.monto > 0 && (
+                                    <div
+                                      className="h-full bg-orange-500 rounded-md flex items-center justify-end pr-2 transition-all duration-300"
+                                      style={{ width: `${pct}%` }}
+                                    >
+                                      <span className="text-[10px] font-semibold text-white whitespace-nowrap">{d.cantidad} tx</span>
+                                    </div>
+                                  )}
+                                  {d.monto === 0 && (
+                                    <span className="absolute inset-0 flex items-center pl-2 text-[10px] text-gray-400">sin txs</span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-gray-400 w-16 shrink-0">${d.monto.toFixed(0)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     );
                   })()}
