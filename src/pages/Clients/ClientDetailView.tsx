@@ -777,18 +777,22 @@ export const ClientDetailView = () => {
                     <DocImage label="Reverso" url={client.kyc.document_back} />
                     <DocImage label="Selfie"  url={client.kyc.selfie} />
                   </div>
-                  {txStats.length > 0 && (() => {
-                    const chartData = txStats.map((r) => ({
-                      label: `${r.period_days} Días`,
-                      monto: r.monto_usd,
-                      cantidad: r.cantidad,
-                      avg: r.average,
-                    }));
+                  {(() => {
+                    const statsMap = Object.fromEntries(txStats.map((r) => [r.period_days, r]));
+                    const chartData = [7, 30, 90, 360].map((days) => {
+                      const r = statsMap[days];
+                      return {
+                        label: `${days} Días`,
+                        monto: r?.monto_usd ?? 0,
+                        cantidad: r?.cantidad ?? 0,
+                        avg: r?.average ?? 0,
+                      };
+                    });
                     const maxMonto = Math.max(...chartData.map((d) => d.monto), 1);
                     return (
                       <div className="mt-3 border-t border-gray-50 pt-3">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Actividad por período · Monto USD</p>
-                        <ResponsiveContainer width="100%" height={150}>
+                        <ResponsiveContainer width="100%" height={170}>
                           <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, left: 16, bottom: 16 }} barSize={24} barCategoryGap="30%">
                             <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
                             <XAxis type="number" domain={[0, maxMonto * 1.15]} tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(v)}`} tickCount={4} />
