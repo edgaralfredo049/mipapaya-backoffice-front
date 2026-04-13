@@ -9,5 +9,30 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.Userback = window.Userback || {};
+      Userback.access_token = "A-eaAdOF8ntehRKyab2mCpiTJu0";
+      Userback.user_data = {
+        id: "123456",
+        info: {
+          name: "Mipapaya",
+          email: "it@mipapaya.com"
+        }
+      };
+      Userback.widget_settings = { position: 'tr' };
+      (function(d) {
+        var s = d.createElement('script');s.async = true;s.src = 'https://static.userback.io/widget/v1.js';(d.head || d.body).appendChild(s);
+      })(document);
+      var _ubFix = setInterval(function() {
+        var c = document.querySelector('#userback_button_container .userback-button');
+        if (c) {
+          c.style.setProperty('top', '80px', 'important');
+          c.style.setProperty('right', '20px', 'important');
+          c.style.setProperty('bottom', 'auto', 'important');
+          c.style.setProperty('left', 'auto', 'important');
+        }
+      }, 100);
+      setTimeout(function() { clearInterval(_ubFix); }, 6000);
+    </script>
   </body>
 </html>
