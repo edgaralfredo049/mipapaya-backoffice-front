@@ -788,8 +788,8 @@ export const ClientDetailView = () => {
                     return (
                       <div className="mt-3 border-t border-gray-50 pt-3">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Actividad por período · Monto USD</p>
-                        <ResponsiveContainer width="100%" height={130}>
-                          <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 16 }} barSize={24} barCategoryGap="30%">
+                        <ResponsiveContainer width="100%" height={150}>
+                          <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, left: 16, bottom: 16 }} barSize={24} barCategoryGap="30%">
                             <CartesianGrid horizontal={false} stroke="#f3f4f6" strokeDasharray="4 4" />
                             <XAxis type="number" domain={[0, maxMonto * 1.15]} tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(v)}`} tickCount={4} />
                             <YAxis
