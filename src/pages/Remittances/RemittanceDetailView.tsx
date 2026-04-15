@@ -93,7 +93,7 @@ export const RemittanceDetailView = () => {
   const location = useLocation();
   const fromSoporte = (location.state as any)?.from === "soporte";
   const handleBack = () => fromSoporte ? navigate("/soporte") : window.history.length > 1 ? navigate(-1) : navigate("/remesas");
-  const { pagadores } = useAppStore();
+  const { pagadores, countries } = useAppStore();
 
   const [record, setRecord]           = useState<RemittanceRecord | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -215,8 +215,14 @@ export const RemittanceDetailView = () => {
     );
   }
 
-  const beneficiary   = parseJson(record.beneficiary);
+  const beneficiary    = parseJson(record.beneficiary);
   const paymentDetails = parseJson(record.payment_details);
+
+  const originCurrency = countries.find(c => c.id === record.origin_country_id)?.currency_code ?? record.sent_currency;
+  const destCurrency   = countries.find(c => c.id === record.destination_country_id)?.currency_code ?? record.pay_currency;
+
+  const fmtLocal = (amount: number, currency: string | null) =>
+    `${amount.toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency ?? ""}`;
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
@@ -256,25 +262,29 @@ export const RemittanceDetailView = () => {
       </div>
 
       {/* Monetary summary bar */}
-      <div className="bg-papaya-orange/5 border border-papaya-orange/20 rounded-xl px-6 py-4 grid grid-cols-3 gap-4">
+      <div className="bg-papaya-orange/5 border border-papaya-orange/20 rounded-xl px-6 py-4 grid grid-cols-4 gap-4">
         <div className="text-center">
           <p className="text-xs text-gray-500 mb-1">Enviado</p>
-          <p className="text-2xl font-bold text-heading-text tabular-nums">
-            ${record.sent_amount.toFixed(2)}
-            <span className="text-sm font-normal text-gray-400 ml-1">{record.sent_currency}</span>
+          <p className="text-xl font-bold text-heading-text tabular-nums">
+            {fmtLocal(record.sent_amount, record.sent_currency)}
           </p>
         </div>
-        <div className="text-center border-x border-papaya-orange/20">
+        <div className="text-center border-l border-papaya-orange/20">
           <p className="text-xs text-gray-500 mb-1">Comisión</p>
-          <p className="text-2xl font-bold text-heading-text tabular-nums">
-            {record.fee_amount > 0 ? `$${record.fee_amount.toFixed(2)}` : "—"}
+          <p className="text-xl font-bold text-heading-text tabular-nums">
+            {record.fee_amount > 0 ? fmtLocal(record.fee_amount * record.collector_rate, originCurrency) : "—"}
           </p>
         </div>
-        <div className="text-center">
-          <p className="text-xs text-gray-500 mb-1">A pagar</p>
-          <p className="text-2xl font-bold text-papaya-orange tabular-nums">
-            {record.amount_to_pay.toFixed(2)}
-            <span className="text-sm font-normal text-gray-400 ml-1">{record.pay_currency}</span>
+        <div className="text-center border-l border-papaya-orange/20">
+          <p className="text-xs text-gray-500 mb-1">Pagado</p>
+          <p className="text-xl font-bold text-heading-text tabular-nums">
+            {fmtLocal(record.sent_amount * record.collector_rate, originCurrency)}
+          </p>
+        </div>
+        <div className="text-center border-l border-papaya-orange/20">
+          <p className="text-xs text-gray-500 mb-1">A recibir</p>
+          <p className="text-xl font-bold text-papaya-orange tabular-nums">
+            {fmtLocal(record.amount_to_pay * record.papaya_rate, destCurrency)}
           </p>
         </div>
       </div>
