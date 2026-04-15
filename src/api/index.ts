@@ -823,20 +823,43 @@ export const api = {
   getClientDocuments: (clientId: number) =>
     request<ClientDocument[]>(`/clients/${clientId}/documents`),
   uploadClientDocument: async (clientId: number, file: File, documentType?: string): Promise<ClientDocument> => {
-    const form = new FormData();
-    form.append("file", file);
-    if (documentType) form.append("document_type", documentType);
-    const res = await fetch(`${API_BASE}/api/clients/${clientId}/documents`, {
-      method: "POST",
-      headers: { "X-API-Key": API_KEY },
-      body: form,
+    // 1. Obtener URL pre-firmada de S3
+    const params = new URLSearchParams({
+      filename: file.name,
+      content_type: file.type || "application/octet-stream",
     });
-    if (!res.ok) throw new Error("Error al subir el archivo");
-    return res.json();
+    const urlRes = await fetch(`${API_BASE}/api/clients/${clientId}/documents/upload-url?${params}`, {
+      headers: { "X-API-Key": API_KEY },
+    });
+    if (!urlRes.ok) throw new Error("Error obteniendo URL de subida");
+    const { upload_url, s3_key } = await urlRes.json();
+
+    // 2. Subir el archivo directamente a S3
+    const s3Res = await fetch(upload_url, {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    if (!s3Res.ok) throw new Error("Error subiendo archivo a S3");
+
+    // 3. Confirmar en el backend y guardar metadata
+    const confirmRes = await fetch(`${API_BASE}/api/clients/${clientId}/documents`, {
+      method: "POST",
+      headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        s3_key,
+        filename: file.name,
+        content_type: file.type || "application/octet-stream",
+        document_type: documentType ?? null,
+      }),
+    });
+    if (!confirmRes.ok) throw new Error("Error registrando documento");
+    return confirmRes.json();
   },
   fetchDocumentBlob: async (clientId: number, docId: number): Promise<Blob> => {
     const res = await fetch(`${API_BASE}/api/clients/${clientId}/documents/${docId}/file`, {
       headers: { "X-API-Key": API_KEY },
+      redirect: "follow",
     });
     if (!res.ok) throw new Error("Archivo no encontrado");
     return res.blob();
