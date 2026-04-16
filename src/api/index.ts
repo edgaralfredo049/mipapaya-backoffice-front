@@ -271,11 +271,8 @@ export interface RemittanceRecord {
   client_id: string | null;
   origin_country_id: string | null;
   destination_country_id: string | null;
-  sent_amount: number;
   sent_currency: string;
-  amount_to_pay: number;
   pay_currency: string;
-  fee_amount: number;
   collector_id: string | null;
   collector_rate: number;
   payer_rate: number;
@@ -290,6 +287,12 @@ export interface RemittanceRecord {
   beneficiary: string | null;
   beneficiary_doc_id: string | null;
   payment_details: string | null;
+  sent_amount_usd: number | null;
+  sent_amount_local: number | null;
+  fee_usd: number | null;
+  delivered_usd: number | null;
+  margen_fx_usd: number | null;
+  fee_type: string | null;
   origin_country_name: string | null;
   destination_country_name: string | null;
   collector_name: string | null;

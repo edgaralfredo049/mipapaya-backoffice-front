@@ -213,7 +213,7 @@ export const RemittancesView = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Monto USD", "Pagador", "Estado", ""].map(h => (
+                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Enviado", "Pagador", "Estado", ""].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -256,8 +256,8 @@ export const RemittancesView = () => {
                       <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs">
-                    ${r.sent_amount.toFixed(2)}
+                  <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">
+                    {(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}
                   </td>
                   <td className="px-3 py-3 text-gray-700 text-xs">{r.payer_name || r.payer_id || "—"}</td>
                   <td className="px-3 py-3">

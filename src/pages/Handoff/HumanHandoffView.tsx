@@ -351,7 +351,7 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
                   {remittances.map(r => (
                     <tr key={r.id} className="hover:bg-orange-50/30 transition-colors">
                       <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fmtDateNY(r.created_at)}</td>
-                      <td className="px-4 py-2.5 font-semibold text-gray-800 whitespace-nowrap">${r.sent_amount}</td>
+                      <td className="px-4 py-2.5 font-semibold text-gray-800 whitespace-nowrap">{(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}</td>
                       <td className="px-4 py-2.5 text-gray-600">{r.destination_country_id}</td>
                       <td className="px-4 py-2.5">
                         <span className={`font-medium px-2 py-0.5 rounded-full ${

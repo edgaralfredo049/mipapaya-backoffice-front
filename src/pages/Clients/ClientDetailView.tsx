@@ -939,7 +939,7 @@ export const ClientDetailView = () => {
                               <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">${r.sent_amount.toFixed(2)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">{(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}</td>
                           <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
                           <td className="px-3 py-3">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REM_STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>

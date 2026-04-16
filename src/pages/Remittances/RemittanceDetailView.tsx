@@ -261,33 +261,41 @@ export const RemittanceDetailView = () => {
         </div>
       </div>
 
-      {/* Monetary summary bar */}
-      <div className="bg-papaya-orange/5 border border-papaya-orange/20 rounded-xl px-6 py-4 grid grid-cols-4 gap-4">
-        <div className="text-center">
-          <p className="text-xs text-gray-500 mb-1">Enviado</p>
-          <p className="text-xl font-bold text-heading-text tabular-nums">
-            {fmtLocal(record.sent_amount, record.sent_currency)}
-          </p>
-        </div>
-        <div className="text-center border-l border-papaya-orange/20">
-          <p className="text-xs text-gray-500 mb-1">Comisión</p>
-          <p className="text-xl font-bold text-heading-text tabular-nums">
-            {record.fee_amount > 0 ? fmtLocal(record.fee_amount * record.collector_rate, originCurrency) : "—"}
-          </p>
-        </div>
-        <div className="text-center border-l border-papaya-orange/20">
-          <p className="text-xs text-gray-500 mb-1">Pagado</p>
-          <p className="text-xl font-bold text-heading-text tabular-nums">
-            {fmtLocal(record.sent_amount * record.collector_rate, originCurrency)}
-          </p>
-        </div>
-        <div className="text-center border-l border-papaya-orange/20">
-          <p className="text-xs text-gray-500 mb-1">A recibir</p>
-          <p className="text-xl font-bold text-papaya-orange tabular-nums">
-            {fmtLocal(record.amount_to_pay * record.papaya_rate, destCurrency)}
-          </p>
-        </div>
-      </div>
+      {/* Monetary summary bar — amounts computed from stored USD values × exchange rates */}
+      {(() => {
+        const sentLocal   = record.sent_amount_local ?? (record.sent_amount_usd ?? 0) * record.collector_rate;
+        const feeLocal    = (record.fee_usd ?? 0) * record.collector_rate;
+        const pagadoLocal = sentLocal + feeLocal;
+        const aRecibir    = (record.delivered_usd ?? 0) * record.papaya_rate;
+        return (
+          <div className="bg-papaya-orange/5 border border-papaya-orange/20 rounded-xl px-6 py-4 grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-xs text-gray-500 mb-1">Enviado</p>
+              <p className="text-xl font-bold text-heading-text tabular-nums">
+                {fmtLocal(sentLocal, originCurrency)}
+              </p>
+            </div>
+            <div className="text-center border-l border-papaya-orange/20">
+              <p className="text-xs text-gray-500 mb-1">Comisión</p>
+              <p className="text-xl font-bold text-heading-text tabular-nums">
+                {feeLocal > 0 ? fmtLocal(feeLocal, originCurrency) : "—"}
+              </p>
+            </div>
+            <div className="text-center border-l border-papaya-orange/20">
+              <p className="text-xs text-gray-500 mb-1">Pagado</p>
+              <p className="text-xl font-bold text-heading-text tabular-nums">
+                {fmtLocal(pagadoLocal, originCurrency)}
+              </p>
+            </div>
+            <div className="text-center border-l border-papaya-orange/20">
+              <p className="text-xs text-gray-500 mb-1">A recibir</p>
+              <p className="text-xl font-bold text-papaya-orange tabular-nums">
+                {fmtLocal(aRecibir, destCurrency)}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Card 1: Client */}
       <SectionCard icon={<User size={16} />} title="Cliente">
