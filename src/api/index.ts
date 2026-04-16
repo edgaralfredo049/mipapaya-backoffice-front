@@ -1,5 +1,29 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface BackofficePermission {
+  id:        string;
+  name:      string;
+  can_write?: boolean;
+}
+
+export interface BackofficeRole {
+  id:          string;
+  name:        string;
+  description: string | null;
+  permissions: BackofficePermission[];
+}
+
+export interface BackofficeUser {
+  id:         number;
+  email:      string;
+  name:       string | null;
+  role_id:    string;
+  role_name:  string | null;
+  active:     boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Partnership {
   id: number;
   name: string;
@@ -531,19 +555,45 @@ export interface CalculateAmountResult {
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 
-const API_KEY  = import.meta.env.VITE_API_KEY ?? "";
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 const AGENT_ID = "admin@mipapaya.com";
+
+function _getAuthHeader(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem("mipapaya_auth");
+    if (raw) {
+      const state = JSON.parse(raw)?.state;
+      if (state?.token) return { "Authorization": `Bearer ${state.token}` };
+    }
+  } catch { /* ignore */ }
+  // Fallback: API key para compatibilidad durante transición
+  const apiKey = import.meta.env.VITE_API_KEY ?? "";
+  if (apiKey) return { "X-API-Key": apiKey };
+  return {};
+}
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}/api${url}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": API_KEY,
+      ..._getAuthHeader(),
       ...(options?.headers ?? {}),
     },
   });
+
+  // Token expirado → limpiar sesión y redirigir a login
+  if (res.status === 401) {
+    try {
+      localStorage.removeItem("mipapaya_auth");
+    } catch { /* ignore */ }
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    const err = await res.json().catch(() => ({ detail: "Sesión expirada" }));
+    throw new Error(err.detail || "Sesión expirada");
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Error en la solicitud");
@@ -551,6 +601,52 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+// ── Auth API ──────────────────────────────────────────────────────────────────
+
+export interface LoginResponse {
+  token:        string;
+  token_type:   string;
+  expires_in:   number;
+  user:         { id: number; email: string; name: string; role: string };
+  permissions:  Array<{ id: string; name: string; can_write: boolean }>;
+}
+
+export interface ChallengeResponse {
+  challenge:      true;
+  challenge_name: string;
+  session:        string;
+}
+
+async function requestPublic<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}/api${url}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Error en la solicitud");
+  }
+  return res.json();
+}
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    requestPublic<LoginResponse | ChallengeResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  respondChallenge: (session: string, challenge_name: string, email: string, new_password: string) =>
+    requestPublic<LoginResponse | ChallengeResponse>("/auth/respond-challenge", {
+      method: "POST",
+      body: JSON.stringify({ session, challenge_name, email, new_password }),
+    }),
+  logout: (access_token?: string) =>
+    request<{ ok: boolean }>("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ access_token }),
+    }),
+};
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
@@ -833,7 +929,7 @@ export const api = {
       content_type: file.type || "application/octet-stream",
     });
     const urlRes = await fetch(`${API_BASE}/api/clients/${clientId}/documents/upload-url?${params}`, {
-      headers: { "X-API-Key": API_KEY },
+      headers: { ..._getAuthHeader() },
     });
     if (!urlRes.ok) throw new Error("Error obteniendo URL de subida");
     const { upload_url, s3_key } = await urlRes.json();
@@ -862,7 +958,7 @@ export const api = {
   },
   fetchDocumentBlob: async (clientId: number, docId: number): Promise<Blob> => {
     const res = await fetch(`${API_BASE}/api/clients/${clientId}/documents/${docId}/file`, {
-      headers: { "X-API-Key": API_KEY },
+      headers: { ..._getAuthHeader() },
       redirect: "follow",
     });
     if (!res.ok) throw new Error("Archivo no encontrado");
@@ -870,4 +966,24 @@ export const api = {
   },
   deleteClientDocument: (clientId: number, docId: number) =>
     request<void>(`/clients/${clientId}/documents/${docId}`, { method: "DELETE" }),
+
+  // Backoffice users (superusuario only)
+  listBackofficeUsers: () =>
+    request<{ items: BackofficeUser[] }>("/users"),
+  createBackofficeUser: (data: { email: string; name: string; role_id: string }) =>
+    request<BackofficeUser>("/users", { method: "POST", body: JSON.stringify(data) }),
+  updateBackofficeUser: (id: number, data: { name?: string; role_id?: string; active?: boolean }) =>
+    request<BackofficeUser>(`/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deactivateBackofficeUser: (id: number) =>
+    request<void>(`/users/${id}`, { method: "DELETE" }),
+
+  listRoles: () =>
+    request<{ items: BackofficeRole[] }>("/roles"),
+  listPermissions: () =>
+    request<{ items: BackofficePermission[] }>("/permissions"),
+  updateRolePermissions: (roleId: string, permissions: Array<{ permission_id: string; can_write: boolean }>) =>
+    request<BackofficeRole>(`/roles/${roleId}/permissions`, {
+      method: "PUT",
+      body: JSON.stringify({ permissions }),
+    }),
 };
