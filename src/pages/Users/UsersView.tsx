@@ -73,6 +73,16 @@ export const UsersView = () => {
     }
   }
 
+  async function handleChangeRole(user: BackofficeUser, newRoleId: string) {
+    if (newRoleId === user.role_id) return;
+    try {
+      await api.updateBackofficeUser(user.id, { role_id: newRoleId });
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -144,9 +154,15 @@ export const UsersView = () => {
                     <p className="text-xs text-gray-400">{user.email}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${ROLE_COLORS[user.role_id] ?? "bg-gray-100 text-gray-600"}`}>
-                      {ROLE_LABELS[user.role_id] ?? user.role_id}
-                    </span>
+                    <select
+                      value={user.role_id}
+                      onChange={e => handleChangeRole(user, e.target.value)}
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-papaya-orange/30 ${ROLE_COLORS[user.role_id] ?? "bg-gray-100 text-gray-600"}`}
+                    >
+                      {roles.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${user.active ? "text-green-600" : "text-gray-400"}`}>
