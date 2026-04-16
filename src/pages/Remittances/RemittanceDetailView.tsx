@@ -264,7 +264,7 @@ export const RemittanceDetailView = () => {
       {/* Monetary summary bar — amounts computed from stored USD values × exchange rates */}
       {(() => {
         const sentLocal   = record.sent_amount_local ?? (record.sent_amount_usd ?? 0) * record.collector_rate;
-        const feeLocal    = (record.fee_usd ?? 0) * record.collector_rate;
+        const feeLocal    = record.fee_local ?? (record.fee_usd ?? 0) * record.collector_rate;
         const pagadoLocal = sentLocal + feeLocal;
         const aRecibir    = (record.delivered_usd ?? 0) * record.papaya_rate;
         return (

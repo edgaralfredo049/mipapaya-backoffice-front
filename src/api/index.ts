@@ -290,6 +290,7 @@ export interface RemittanceRecord {
   sent_amount_usd: number | null;
   sent_amount_local: number | null;
   fee_usd: number | null;
+  fee_local: number | null;
   delivered_usd: number | null;
   margen_fx_usd: number | null;
   fee_type: string | null;
