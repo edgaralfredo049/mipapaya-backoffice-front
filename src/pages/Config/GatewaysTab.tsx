@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, Gateway, GatewayIn } from "../../api";
 import { Table } from "../../components/ui/Table";
 import { Button } from "../../components/ui/Button";
@@ -27,6 +28,7 @@ const EMPTY_FORM: GatewayForm = {
 
 export const GatewaysTab = () => {
   const { countries, states, gateways, refreshGateways } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const usStates = states.filter((s) => s.country_id === "US");
   const sendCountries = countries.filter((c) => c.send);
 
@@ -124,9 +126,11 @@ export const GatewaysTab = () => {
   return (
     <>
       <div className="flex justify-end mb-4">
-        <Button onClick={openNew}>
-          <Plus size={16} className="mr-2" /> Nuevo Recolector
-        </Button>
+        {canWrite && (
+          <Button onClick={openNew}>
+            <Plus size={16} className="mr-2" /> Nuevo Recolector
+          </Button>
+        )}
       </div>
 
       <Table
@@ -167,7 +171,7 @@ export const GatewaysTab = () => {
           },
           {
             header: "Acciones",
-            accessor: (row) => (
+            accessor: (row) => canWrite ? (
               <div className="flex space-x-2">
                 <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
                   <Edit2 size={16} className="text-blue-500" />
@@ -176,7 +180,7 @@ export const GatewaysTab = () => {
                   <Trash2 size={16} className="text-red-500" />
                 </Button>
               </div>
-            ),
+            ) : null,
           },
         ]}
       />
@@ -306,9 +310,11 @@ export const GatewaysTab = () => {
 
           <div className="flex justify-end space-x-3 pt-2">
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando..." : "Guardar"}
-            </Button>
+            {canWrite && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
+            )}
           </div>
         </div>
       </Modal>
@@ -336,7 +342,7 @@ export const GatewaysTab = () => {
             <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteErrorMsg(null); }}>
               {deleteErrorMsg ? "Cerrar" : "Cancelar"}
             </Button>
-            {!deleteErrorMsg && (
+            {!deleteErrorMsg && canWrite && (
               <Button variant="danger" onClick={handleDelete}>Eliminar</Button>
             )}
           </div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, Country, CountryUpdateIn } from "../../api";
 import { Table } from "../../components/ui/Table";
 import { Button } from "../../components/ui/Button";
@@ -19,6 +20,7 @@ type PaisForm = {
 
 export const PaisesTab = () => {
   const { countries, currencies, refreshCountries } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const [editing, setEditing] = useState<PaisForm | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -87,11 +89,11 @@ export const PaisesTab = () => {
           },
           {
             header: "Acciones",
-            accessor: (c) => (
+            accessor: (c) => canWrite ? (
               <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>
                 <Edit2 size={16} className="text-blue-500" />
               </Button>
-            ),
+            ) : null,
           },
         ]}
       />
@@ -151,9 +153,11 @@ export const PaisesTab = () => {
             </div>
             <div className="flex justify-end space-x-3 pt-2">
               <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
-              </Button>
+              {canWrite && (
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? "Guardando..." : "Guardar"}
+                </Button>
+              )}
             </div>
           </div>
         )}

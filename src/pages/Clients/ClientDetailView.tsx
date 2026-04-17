@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuthStore } from "../../store/useAuthStore";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
@@ -94,6 +95,7 @@ function EditableField({
   editing,
   onToggleEdit,
   type = "text",
+  showEdit = true,
 }: {
   label: string;
   value: string;
@@ -101,6 +103,7 @@ function EditableField({
   editing: boolean;
   onToggleEdit: () => void;
   type?: "text" | "date";
+  showEdit?: boolean;
 }) {
   const displayValue =
     type === "date" && !editing && value
@@ -111,14 +114,16 @@ function EditableField({
     <div>
       <div className="flex items-center justify-between mb-1">
         <p className="text-xs text-gray-400">{label}</p>
-        <button
-          type="button"
-          onClick={onToggleEdit}
-          className={`p-0.5 rounded transition-colors ${editing ? "text-papaya-orange" : "text-gray-300 hover:text-gray-500"}`}
-          title={editing ? "Bloquear campo" : "Editar campo"}
-        >
-          <Pencil size={11} />
-        </button>
+        {showEdit && (
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            className={`p-0.5 rounded transition-colors ${editing ? "text-papaya-orange" : "text-gray-300 hover:text-gray-500"}`}
+            title={editing ? "Bloquear campo" : "Editar campo"}
+          >
+            <Pencil size={11} />
+          </button>
+        )}
       </div>
       <input
         type={editing && type === "date" ? "date" : "text"}
@@ -457,6 +462,7 @@ function toForm(p: ClientDetail["personal"], fallbackPhone: string): PersonalFor
 export const ClientDetailView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const canWrite = useAuthStore(s => s.hasPermission("clientes", true));
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -829,18 +835,18 @@ export const ClientDetailView = () => {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                     <Field label="N° Documento"   value={client.personal.doc_id} />
                     <Field label="Tipo Documento" value={client.personal.id_type_label} />
-                    <EditableField label="Nombre"         value={form.name}    onChange={(v) => setField("name", v)}    editing={editingFields.has("name")}    onToggleEdit={() => toggleFieldEdit("name")} />
-                    <EditableField label="Correo"         value={form.email}   onChange={(v) => setField("email", v)}   editing={editingFields.has("email")}   onToggleEdit={() => toggleFieldEdit("email")} />
-                    <EditableField label="Teléfono"       value={form.phone}   onChange={(v) => setField("phone", v)}   editing={editingFields.has("phone")}   onToggleEdit={() => toggleFieldEdit("phone")} />
-                    <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} editing={editingFields.has("country")} onToggleEdit={() => toggleFieldEdit("country")} />
-                    <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)}    editing={editingFields.has("city")}    onToggleEdit={() => toggleFieldEdit("city")} />
-                    <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)}   editing={editingFields.has("state")}   onToggleEdit={() => toggleFieldEdit("state")} />
-                    <EditableField label="Código Postal"    value={form.postal_code} onChange={(v) => setField("postal_code", v)} editing={editingFields.has("postal_code")} onToggleEdit={() => toggleFieldEdit("postal_code")} />
-                    <EditableField label="Fecha nacimiento" value={form.birth_date}  onChange={(v) => setField("birth_date", v)}  editing={editingFields.has("birth_date")}  onToggleEdit={() => toggleFieldEdit("birth_date")} type="date" />
-                    <EditableField label="Ocupación"        value={form.occupation}  onChange={(v) => setField("occupation", v)}  editing={editingFields.has("occupation")}  onToggleEdit={() => toggleFieldEdit("occupation")} />
+                    <EditableField label="Nombre"         value={form.name}    onChange={(v) => setField("name", v)}    editing={editingFields.has("name")}    onToggleEdit={() => toggleFieldEdit("name")} showEdit={canWrite} />
+                    <EditableField label="Correo"         value={form.email}   onChange={(v) => setField("email", v)}   editing={editingFields.has("email")}   onToggleEdit={() => toggleFieldEdit("email")} showEdit={canWrite} />
+                    <EditableField label="Teléfono"       value={form.phone}   onChange={(v) => setField("phone", v)}   editing={editingFields.has("phone")}   onToggleEdit={() => toggleFieldEdit("phone")} showEdit={canWrite} />
+                    <EditableField label="País"           value={form.country} onChange={(v) => setField("country", v)} editing={editingFields.has("country")} onToggleEdit={() => toggleFieldEdit("country")} showEdit={canWrite} />
+                    <EditableField label="Ciudad"         value={form.city}    onChange={(v) => setField("city", v)}    editing={editingFields.has("city")}    onToggleEdit={() => toggleFieldEdit("city")} showEdit={canWrite} />
+                    <EditableField label="Estado / Dpto." value={form.state}   onChange={(v) => setField("state", v)}   editing={editingFields.has("state")}   onToggleEdit={() => toggleFieldEdit("state")} showEdit={canWrite} />
+                    <EditableField label="Código Postal"    value={form.postal_code} onChange={(v) => setField("postal_code", v)} editing={editingFields.has("postal_code")} onToggleEdit={() => toggleFieldEdit("postal_code")} showEdit={canWrite} />
+                    <EditableField label="Fecha nacimiento" value={form.birth_date}  onChange={(v) => setField("birth_date", v)}  editing={editingFields.has("birth_date")}  onToggleEdit={() => toggleFieldEdit("birth_date")} type="date" showEdit={canWrite} />
+                    <EditableField label="Ocupación"        value={form.occupation}  onChange={(v) => setField("occupation", v)}  editing={editingFields.has("occupation")}  onToggleEdit={() => toggleFieldEdit("occupation")} showEdit={canWrite} />
                   </div>
                   <div className="border-t border-gray-50 mt-3 pt-3">
-                    <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} editing={editingFields.has("address")} onToggleEdit={() => toggleFieldEdit("address")} />
+                    <EditableField label="Dirección" value={form.address} onChange={(v) => setField("address", v)} editing={editingFields.has("address")} onToggleEdit={() => toggleFieldEdit("address")} showEdit={canWrite} />
                   </div>
                   <div className="border-t border-gray-50 mt-3 pt-3 flex items-center justify-between">
                     <Field label="Registro" value={fmtDate(client.created_at)} />
@@ -851,15 +857,17 @@ export const ClientDetailView = () => {
                           <Check size={13} /> Guardado
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={!isDirty || saving}
-                        className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg transition-all bg-papaya-orange text-white shadow-sm hover:bg-papaya-orange/90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
-                      >
-                        <Save size={14} />
-                        {saving ? "Guardando…" : "Guardar cambios"}
-                      </button>
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={!isDirty || saving}
+                          className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg transition-all bg-papaya-orange text-white shadow-sm hover:bg-papaya-orange/90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                        >
+                          <Save size={14} />
+                          {saving ? "Guardando…" : "Guardar cambios"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, AlternanciaSlot, AlternanciaSlotIn } from "../../api";
 import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
@@ -73,6 +74,7 @@ const defaultForm = () => ({
 
 export const AlternanciaView = () => {
   const { alternancia, pagadores, countries, partnerships, refreshAlternancia } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const [slots, setSlots] = useState<AlternanciaSlot[]>([]);
   const [selectedPartnershipId, setSelectedPartnershipId] = useState<number | null>(null);
   const [selectedCountryId, setSelectedCountryId] = useState<string>("");
@@ -456,9 +458,11 @@ export const AlternanciaView = () => {
                 Franjas configuradas —{" "}
                 <span className="text-papaya-orange">{getCountryName(selectedCountryId)}</span>
               </p>
-              <Button variant="outline" size="sm" onClick={openAddModal} className="flex items-center">
-                <Plus size={14} className="mr-1" /> Agregar franja
-              </Button>
+              {canWrite && (
+                <Button variant="outline" size="sm" onClick={openAddModal} className="flex items-center">
+                  <Plus size={14} className="mr-1" /> Agregar franja
+                </Button>
+              )}
             </div>
 
             {filteredSlots.length === 0 ? (
@@ -510,14 +514,16 @@ export const AlternanciaView = () => {
                           </span>
                         </div>
                       </div>
-                      <div className="flex space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEditModal(slot)}>
-                          <span className="text-xs text-blue-500">Editar</span>
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteSlot(slot.id)}>
-                          <Trash2 size={14} className="text-red-400" />
-                        </Button>
-                      </div>
+                      {canWrite && (
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEditModal(slot)}>
+                            <span className="text-xs text-blue-500">Editar</span>
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteSlot(slot.id)}>
+                            <Trash2 size={14} className="text-red-400" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -736,7 +742,7 @@ export const AlternanciaView = () => {
 
           <div className="flex justify-end space-x-3 pt-2">
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveSlot}>Guardar Franja</Button>
+            {canWrite && <Button onClick={handleSaveSlot}>Guardar Franja</Button>}
           </div>
         </div>
       </Modal>

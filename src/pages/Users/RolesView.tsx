@@ -14,6 +14,10 @@ const PERMISSION_LABELS: Record<string, string> = {
   usuarios:               "Usuarios y roles",
 };
 
+const ROLE_ORDER = ["superusuario", "operaciones", "customer_services", "cumplimiento"];
+
+const WRITE_ENABLED = new Set(["usuarios", "configuracion", "tasas", "remesas", "clientes"]);
+
 const ROLE_COLORS: Record<string, string> = {
   superusuario:      "bg-papaya-orange/10 text-papaya-orange",
   operaciones:       "bg-blue-50 text-blue-600",
@@ -57,7 +61,7 @@ export const RolesView = () => {
           perms:  buildInitialState(role, p.items),
           saving: false,
           saved:  false,
-          open:   i === 0,
+          open:   false,
         };
       });
       setRoleStates(initial);
@@ -130,7 +134,7 @@ export const RolesView = () => {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 w-[70%] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -161,7 +165,11 @@ export const RolesView = () => {
         <div className="text-center py-12 text-sm text-gray-400 animate-pulse">Cargando…</div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
-          {roles.map(role => {
+          {[...roles].sort((a, b) => {
+            const ai = ROLE_ORDER.indexOf(a.id);
+            const bi = ROLE_ORDER.indexOf(b.id);
+            return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+          }).map(role => {
             const rs = roleStates[role.id];
             if (!rs) return null;
             const activeCount = Object.values(rs.perms).filter(p => p.read).length;
@@ -226,14 +234,18 @@ export const RolesView = () => {
 
                           {/* Write toggle */}
                           <div className="flex justify-center">
-                            <button
-                              onClick={() => toggleWrite(role.id, perm.id)}
-                              disabled={!state.read}
-                              className={`w-8 h-4 rounded-full transition-colors relative disabled:opacity-30 disabled:cursor-not-allowed ${state.write ? "bg-blue-500" : "bg-gray-200"}`}
-                              aria-label="toggle editar"
-                            >
-                              <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${state.write ? "left-[18px]" : "left-0.5"}`} />
-                            </button>
+                            {WRITE_ENABLED.has(perm.id) ? (
+                              <button
+                                onClick={() => toggleWrite(role.id, perm.id)}
+                                disabled={!state.read}
+                                className={`w-8 h-4 rounded-full transition-colors relative disabled:opacity-30 disabled:cursor-not-allowed ${state.write ? "bg-blue-500" : "bg-gray-200"}`}
+                                aria-label="toggle editar"
+                              >
+                                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${state.write ? "left-[18px]" : "left-0.5"}`} />
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-gray-300">—</span>
+                            )}
                           </div>
 
                           <div className="w-24" />

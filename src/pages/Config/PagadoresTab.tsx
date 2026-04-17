@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, Pagador, PagadorIn } from "../../api";
 import { Table } from "../../components/ui/Table";
 import { Button } from "../../components/ui/Button";
@@ -25,6 +26,7 @@ const EMPTY_FORM: PagadorForm = {
 
 export const PagadoresTab = () => {
   const { countries, pagadores, refreshPagadores } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const receiveCountries = countries.filter((c) => c.receive);
 
   const [editing, setEditing] = useState<Pagador | null>(null);
@@ -154,9 +156,11 @@ export const PagadoresTab = () => {
   return (
     <>
       <div className="flex justify-end mb-4">
-        <Button onClick={openNew}>
-          <Plus size={16} className="mr-2" /> Nuevo Pagador
-        </Button>
+        {canWrite && (
+          <Button onClick={openNew}>
+            <Plus size={16} className="mr-2" /> Nuevo Pagador
+          </Button>
+        )}
       </div>
 
       <Table
@@ -189,7 +193,7 @@ export const PagadoresTab = () => {
           },
           {
             header: "Acciones",
-            accessor: (p) => (
+            accessor: (p) => canWrite ? (
               <div className="flex space-x-2">
                 <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
                   <Edit2 size={16} className="text-blue-500" />
@@ -198,7 +202,7 @@ export const PagadoresTab = () => {
                   <Trash2 size={16} className="text-red-500" />
                 </Button>
               </div>
-            ),
+            ) : null,
           },
         ]}
       />
@@ -291,9 +295,11 @@ export const PagadoresTab = () => {
 
           <div className="flex justify-end space-x-3 pt-2">
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando..." : "Guardar"}
-            </Button>
+            {canWrite && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
+            )}
           </div>
         </div>
       </Modal>
@@ -321,7 +327,7 @@ export const PagadoresTab = () => {
             <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteErrorMsg(null); }}>
               {deleteErrorMsg ? "Cerrar" : "Cancelar"}
             </Button>
-            {!deleteErrorMsg && (
+            {!deleteErrorMsg && canWrite && (
               <Button variant="danger" onClick={handleDelete}>Eliminar</Button>
             )}
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useId } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import {
   api,
   DeliveryFlow,
@@ -145,6 +146,7 @@ function fromApi(remote: DeliveryFlow[], countryId: string): CanvasFlow[] {
 
 export const DeliveryFlowsView: React.FC = () => {
   const { countries, partnerships } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const uid = useId();
 
   const [country, setCountry]       = useState("");
@@ -531,18 +533,20 @@ export const DeliveryFlowsView: React.FC = () => {
             <div className={`text-[10px] font-mono ${flow.active ? "text-white/50" : "text-gray-400"}`}>{flow.method}</div>
           </div>
           {/* Active toggle */}
-          <button
-            onClick={e => { e.stopPropagation(); toggleActive(flow.method); }}
-            onMouseDown={e => e.stopPropagation()}
-            title={flow.active ? "Desactivar" : "Activar"}
-            className={`relative w-10 h-5 rounded-full overflow-hidden flex-shrink-0 transition-colors duration-200 ${
-              flow.active ? "bg-white/30" : "bg-black/20"
-            }`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${
-              flow.active ? "bg-white translate-x-[18px]" : "bg-white/70 translate-x-0"
-            }`} />
-          </button>
+          {canWrite && (
+            <button
+              onClick={e => { e.stopPropagation(); toggleActive(flow.method); }}
+              onMouseDown={e => e.stopPropagation()}
+              title={flow.active ? "Desactivar" : "Activar"}
+              className={`relative w-10 h-5 rounded-full overflow-hidden flex-shrink-0 transition-colors duration-200 ${
+                flow.active ? "bg-white/30" : "bg-black/20"
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${
+                flow.active ? "bg-white translate-x-[18px]" : "bg-white/70 translate-x-0"
+              }`} />
+            </button>
+          )}
         </div>
       </div>
     );
@@ -562,16 +566,18 @@ export const DeliveryFlowsView: React.FC = () => {
           <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
             {meta.icon} {node.config.label || meta.label}
           </span>
-          <div className="flex items-center gap-0.5">
-            <button onClick={() => moveItem(flow.method, node.lid, -1)} disabled={itemIdx === 0}
-              className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5 text-[10px]">▲</button>
-            <button onClick={() => moveItem(flow.method, node.lid, 1)} disabled={itemIdx === flow.items.length - 1}
-              className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5 text-[10px]">▼</button>
-            <button onClick={() => removeItem(flow.method, node.lid)}
-              className="ml-1 text-red-300 hover:text-red-500">
-              <X size={13} />
-            </button>
-          </div>
+          {canWrite && (
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => moveItem(flow.method, node.lid, -1)} disabled={itemIdx === 0}
+                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5 text-[10px]">▲</button>
+              <button onClick={() => moveItem(flow.method, node.lid, 1)} disabled={itemIdx === flow.items.length - 1}
+                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5 text-[10px]">▼</button>
+              <button onClick={() => removeItem(flow.method, node.lid)}
+                className="ml-1 text-red-300 hover:text-red-500">
+                <X size={13} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Config fields */}
@@ -644,13 +650,15 @@ export const DeliveryFlowsView: React.FC = () => {
       <GripVertical size={14} className="text-gray-300 flex-shrink-0" />
       {wallet.kind === "agency" && <span className="text-[11px]">🏪</span>}
       <span className="text-xs font-medium text-gray-700 flex-1">{wallet.name}</span>
-      <button
-        onClick={() => removeItem(flow.method, wallet.lid)}
-        onMouseDown={e => e.stopPropagation()}
-        className="text-red-300 hover:text-red-500"
-      >
-        <X size={13} />
-      </button>
+      {canWrite && (
+        <button
+          onClick={() => removeItem(flow.method, wallet.lid)}
+          onMouseDown={e => e.stopPropagation()}
+          className="text-red-300 hover:text-red-500"
+        >
+          <X size={13} />
+        </button>
+      )}
     </div>
   );
 
@@ -736,22 +744,24 @@ export const DeliveryFlowsView: React.FC = () => {
           </p>
 
           {/* Add new wallet */}
-          <div className="flex gap-1">
-            <input
-              value={newWallet}
-              onChange={e => setNewWallet(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addToPalette()}
-              placeholder="Nequi, Daviplata..."
-              className="flex-1 min-w-0 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-blue-400 bg-white"
-            />
-            <button
-              onClick={addToPalette}
-              disabled={!newWallet.trim()}
-              className="px-2 py-1.5 rounded bg-blue-600 text-white disabled:opacity-40 hover:bg-blue-700 flex-shrink-0"
-            >
-              <Plus size={13} />
-            </button>
-          </div>
+          {canWrite && (
+            <div className="flex gap-1">
+              <input
+                value={newWallet}
+                onChange={e => setNewWallet(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addToPalette()}
+                placeholder="Nequi, Daviplata..."
+                className="flex-1 min-w-0 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-blue-400 bg-white"
+              />
+              <button
+                onClick={addToPalette}
+                disabled={!newWallet.trim()}
+                className="px-2 py-1.5 rounded bg-blue-600 text-white disabled:opacity-40 hover:bg-blue-700 flex-shrink-0"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          )}
 
           {/* Palette wallet list */}
           {palette.length === 0 && (
@@ -801,13 +811,15 @@ export const DeliveryFlowsView: React.FC = () => {
                   {pw.name}
                 </span>
                 {isConnected && <span className="text-[9px] text-blue-500 font-bold flex-shrink-0">✓</span>}
-                <button
-                  onClick={() => removePaletteWallet(pw.lid)}
-                  className="text-gray-300 hover:text-red-400 flex-shrink-0"
-                  onDragStart={e => e.stopPropagation()}
-                >
-                  <Trash2 size={11} />
-                </button>
+                {canWrite && (
+                  <button
+                    onClick={() => removePaletteWallet(pw.lid)}
+                    className="text-gray-300 hover:text-red-400 flex-shrink-0"
+                    onDragStart={e => e.stopPropagation()}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -821,22 +833,24 @@ export const DeliveryFlowsView: React.FC = () => {
           </p>
 
           {/* Add new agency */}
-          <div className="flex gap-1">
-            <input
-              value={newAgency}
-              onChange={e => setNewAgency(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addToAgencyPalette()}
-              placeholder="Efecty, Baloto..."
-              className="flex-1 min-w-0 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-emerald-400 bg-white"
-            />
-            <button
-              onClick={addToAgencyPalette}
-              disabled={!newAgency.trim()}
-              className="px-2 py-1.5 rounded bg-emerald-600 text-white disabled:opacity-40 hover:bg-emerald-700 flex-shrink-0"
-            >
-              <Plus size={13} />
-            </button>
-          </div>
+          {canWrite && (
+            <div className="flex gap-1">
+              <input
+                value={newAgency}
+                onChange={e => setNewAgency(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addToAgencyPalette()}
+                placeholder="Efecty, Baloto..."
+                className="flex-1 min-w-0 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-emerald-400 bg-white"
+              />
+              <button
+                onClick={addToAgencyPalette}
+                disabled={!newAgency.trim()}
+                className="px-2 py-1.5 rounded bg-emerald-600 text-white disabled:opacity-40 hover:bg-emerald-700 flex-shrink-0"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          )}
 
           {agencyPalette.length === 0 && (
             <p className="text-[10px] text-gray-300 italic text-center py-2">Sin agencias</p>
@@ -883,13 +897,15 @@ export const DeliveryFlowsView: React.FC = () => {
                   {pa.name}
                 </span>
                 {isConnected && <span className="text-[9px] text-emerald-600 font-bold flex-shrink-0">✓</span>}
-                <button
-                  onClick={() => removePaletteAgency(pa.lid)}
-                  className="text-gray-300 hover:text-red-400 flex-shrink-0"
-                  onDragStart={e => e.stopPropagation()}
-                >
-                  <Trash2 size={11} />
-                </button>
+                {canWrite && (
+                  <button
+                    onClick={() => removePaletteAgency(pa.lid)}
+                    className="text-gray-300 hover:text-red-400 flex-shrink-0"
+                    onDragStart={e => e.stopPropagation()}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -920,16 +936,18 @@ export const DeliveryFlowsView: React.FC = () => {
                 <AlertCircle size={13} /> Sin guardar
               </span>
             )}
-            <button
-              onClick={save}
-              disabled={saving || !dirty}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                dirty && !saving ? "bg-papaya-orange text-white hover:bg-orange-600 shadow-sm" : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }`}
-            >
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              Guardar
-            </button>
+            {canWrite && (
+              <button
+                onClick={save}
+                disabled={saving || !dirty}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  dirty && !saving ? "bg-papaya-orange text-white hover:bg-orange-600 shadow-sm" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Guardar
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -971,9 +989,10 @@ export const DeliveryFlowsView: React.FC = () => {
           <input
             type="text"
             value={questionLabel}
-            onChange={e => { setQuestionLabel(e.target.value); mark(); }}
+            onChange={e => { if (canWrite) { setQuestionLabel(e.target.value); mark(); } }}
+            readOnly={!canWrite}
             placeholder="ej. ¿Cómo deseas recibir el dinero?"
-            className="flex-1 max-w-sm rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-papaya-orange"
+            className={`flex-1 max-w-sm rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-papaya-orange${!canWrite ? " bg-gray-50 cursor-default" : ""}`}
           />
         </div>
       )}

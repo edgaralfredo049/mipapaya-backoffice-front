@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, GatewayAlternanciaSlot, GatewayAlternanciaSlotIn } from "../../api";
 import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
@@ -25,6 +26,7 @@ const defaultForm = (): GatewayAlternanciaSlotIn => ({
 
 export const GatewayAlternanciaView = () => {
   const { gateways, gatewayAlternancia, refreshGatewayAlternancia } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const [slots, setSlots] = useState<GatewayAlternanciaSlot[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -229,9 +231,11 @@ export const GatewayAlternanciaView = () => {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
           <p className="text-sm font-semibold text-gray-700">Slots configurados</p>
-          <Button variant="outline" size="sm" onClick={openAdd} className="flex items-center">
-            <Plus size={14} className="mr-1" /> Agregar slot
-          </Button>
+          {canWrite && (
+            <Button variant="outline" size="sm" onClick={openAdd} className="flex items-center">
+              <Plus size={14} className="mr-1" /> Agregar slot
+            </Button>
+          )}
         </div>
 
         {slots.length === 0 ? (
@@ -264,12 +268,16 @@ export const GatewayAlternanciaView = () => {
                     <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${slot.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {slot.active ? "Activo" : "Inactivo"}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(slot)}>
-                      <span className="text-xs text-blue-500">Editar</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(slot.id)}>
-                      <Trash2 size={14} className="text-red-400" />
-                    </Button>
+                    {canWrite && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(slot)}>
+                          <span className="text-xs text-blue-500">Editar</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(slot.id)}>
+                          <Trash2 size={14} className="text-red-400" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -343,7 +351,7 @@ export const GatewayAlternanciaView = () => {
 
           <div className="flex justify-end space-x-3 pt-2">
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? "Guardando…" : "Guardar Slot"}</Button>
+            {canWrite && <Button onClick={handleSave} disabled={saving}>{saving ? "Guardando…" : "Guardar Slot"}</Button>}
           </div>
         </div>
       </Modal>

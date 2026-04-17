@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, ExchangeRateIn, CalculateAmountResult, DeliveryFlow, DeliveryMethodType } from "../../api";
 import { AlertTriangle, TrendingUp, RotateCcw, Save, Calculator, ArrowRight, Loader2, Zap, Clock, DollarSign, Receipt, RefreshCw, Wifi } from "lucide-react";
 import { PAGADOR_COLORS } from "../../data/constants";
@@ -62,6 +63,7 @@ const DELIVERY_METHOD_LABEL: Record<DeliveryMethodType, string> = {
 
 export const RatesView = () => {
   const { gateways, pagadores, countries, states, exchangeRates, partnerships, refreshExchangeRates, refreshPagadores, refreshGateways } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("tasas", true));
 
   const [activeTab, setActiveTab]   = useState<Tab>("pagador");
   const [selectedId, setSelectedId] = useState<string>("");
@@ -541,25 +543,27 @@ export const RatesView = () => {
                     {" de "}
                     {entityCountries.length} tasas configuradas
                   </p>
-                  <div className="flex gap-2">
-                    {isDirty && (
+                  {canWrite && (
+                    <div className="flex gap-2">
+                      {isDirty && (
+                        <button
+                          onClick={handleReset}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <RotateCcw size={13} />
+                          Descartar
+                        </button>
+                      )}
                       <button
-                        onClick={handleReset}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg bg-papaya-orange text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
                       >
-                        <RotateCcw size={13} />
-                        Descartar
+                        <Save size={13} />
+                        Guardar
                       </button>
-                    )}
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg bg-papaya-orange text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
-                    >
-                      <Save size={13} />
-                      Guardar
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}

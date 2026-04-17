@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, Tariff, TariffIn } from "../../api";
 import { Plus, Trash2, Copy, AlertTriangle, X, Check } from "lucide-react";
 import { Pagination } from "../../components/ui/Pagination";
@@ -49,6 +50,7 @@ const cellInputErr = "w-full rounded border border-red-400 px-2 py-1 text-xs fon
 
 export const TariffsView = () => {
   const { gateways, pagadores, countries, tariffs, refreshTariffs, partnerships } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
 
   const activeGateways  = gateways.filter(g => g.status === "active");
   const activePagadores = pagadores.filter(p => p.status === "active");
@@ -265,13 +267,15 @@ export const TariffsView = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">Comisiones por combinación recolector · pagador · países · rango USD.</p>
-        <button
-          onClick={startNew}
-          disabled={!!newRow}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-40 transition-colors"
-        >
-          <Plus size={15} /> Nueva Tarifa
-        </button>
+        {canWrite && (
+          <button
+            onClick={startNew}
+            disabled={!!newRow}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-papaya-orange text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-40 transition-colors"
+          >
+            <Plus size={15} /> Nueva Tarifa
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -657,20 +661,22 @@ export const TariffsView = () => {
                     <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">{fmtDate(t.created_at)}</td>
                     <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">{fmtDate(t.updated_at)}</td>
                     <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => startEdit(t)}
-                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
-                          ✎
-                        </button>
-                        <button onClick={() => startDuplicate(t)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Duplicar">
-                          <Copy size={14} />
-                        </button>
-                        <button onClick={() => { setDeleteId(t.id); setDeleteError(null); setEditingId(null); }}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      {canWrite && (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => startEdit(t)}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                            ✎
+                          </button>
+                          <button onClick={() => startDuplicate(t)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Duplicar">
+                            <Copy size={14} />
+                          </button>
+                          <button onClick={() => { setDeleteId(t.id); setDeleteError(null); setEditingId(null); }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

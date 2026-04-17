@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X, CheckCircle2 } from "lucide-react";
 import { api, RemittanceRecord, RemittanceAuditEntry, Pagador, ChatLogMessage } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 
 const STATUS_LABELS: Record<string, string> = {
   pending:    "Pendiente",
@@ -94,6 +95,7 @@ export const RemittanceDetailView = () => {
   const fromSoporte = (location.state as any)?.from === "soporte";
   const handleBack = () => fromSoporte ? navigate("/soporte") : window.history.length > 1 ? navigate(-1) : navigate("/remesas");
   const { pagadores, countries } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("remesas", true));
 
   const [record, setRecord]           = useState<RemittanceRecord | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -383,10 +385,12 @@ export const RemittanceDetailView = () => {
               )}
             </div>
             <div className="p-6">
-              {locked ? (
+              {(locked || !canWrite) ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-500">
                   <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : "text-blue-500 shrink-0"} />
-                  La remesa está en estado <span className="font-semibold mx-1">{STATUS_LABELS[record.status]}</span> y no puede modificarse.
+                  {locked
+                    ? <>La remesa está en estado <span className="font-semibold mx-1">{STATUS_LABELS[record.status]}</span> y no puede modificarse.</>
+                    : "No tienes permisos para modificar remesas."}
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-6">

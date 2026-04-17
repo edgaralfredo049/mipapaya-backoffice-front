@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, Partnership } from "../../api";
 import { Plus, Check, X, Trash2, AlertTriangle } from "lucide-react";
 
@@ -8,6 +9,7 @@ const cellInput =
 
 export const AlianzasTab = () => {
   const { partnerships, refreshPartnerships } = useAppStore();
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
 
   const [editingId,   setEditingId]   = useState<number | null>(null);
   const [editName,    setEditName]    = useState("");
@@ -81,12 +83,14 @@ export const AlianzasTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button
-          onClick={() => { setShowNew(true); setEditingId(null); setNewName(""); setNewError(null); }}
-          className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg bg-papaya-orange text-white hover:bg-papaya-orange/90 shadow-sm transition-all"
-        >
-          <Plus size={14} /> Nueva alianza
-        </button>
+        {canWrite && (
+          <button
+            onClick={() => { setShowNew(true); setEditingId(null); setNewName(""); setNewError(null); }}
+            className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg bg-papaya-orange text-white hover:bg-papaya-orange/90 shadow-sm transition-all"
+          >
+            <Plus size={14} /> Nueva alianza
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -222,16 +226,18 @@ export const AlianzasTab = () => {
                   <td className="px-4 py-3 text-xs font-mono text-gray-400">{p.id}</td>
                   <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => startEdit(p)}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
-                        ✎
-                      </button>
-                      <button onClick={() => { setDeleteId(p.id); setDeleteError(null); setEditingId(null); }}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    {canWrite && (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => startEdit(p)}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                          ✎
+                        </button>
+                        <button onClick={() => { setDeleteId(p.id); setDeleteError(null); setEditingId(null); }}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Eliminar">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

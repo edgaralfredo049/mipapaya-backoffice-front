@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuthStore } from "../../store/useAuthStore";
 import { api, ClientRule, ClientRuleIn } from "../../api";
 import { Plus, Trash2, X, Check } from "lucide-react";
 import { Pagination } from "../../components/ui/Pagination";
@@ -29,6 +30,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const ClientRulesTab = () => {
+  const canWrite = useAuthStore(s => s.hasPermission("configuracion", true));
   const [rules,   setRules]   = useState<ClientRule[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -211,13 +213,15 @@ export const ClientRulesTab = () => {
         <p className="text-sm text-gray-500">
           {rules.length} {rules.length === 1 ? "regla" : "reglas"} configurada{rules.length !== 1 ? "s" : ""}
         </p>
-        <button
-          onClick={startNew}
-          disabled={!!newRow}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Plus size={13} /> Nueva regla
-        </button>
+        {canWrite && (
+          <button
+            onClick={startNew}
+            disabled={!!newRow}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus size={13} /> Nueva regla
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -394,33 +398,39 @@ export const ClientRulesTab = () => {
                 return (
                   <tr
                     key={rule.id}
-                    onClick={() => startEdit(rule)}
-                    className="hover:bg-gray-50/60 transition-colors cursor-pointer"
+                    onClick={() => canWrite && startEdit(rule)}
+                    className={`hover:bg-gray-50/60 transition-colors ${canWrite ? "cursor-pointer" : ""}`}
                   >
                     <td className="px-4 py-3 text-xs font-mono text-gray-800 font-medium">
                       ${rule.max_amount_usd.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-700">{rule.document_description}</td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={e => openActiveModal(e, rule)}
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium transition-opacity hover:opacity-75 ${
-                          rule.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {rule.active ? "Activa" : "Inactiva"}
-                      </button>
+                      {canWrite ? (
+                        <button
+                          onClick={e => openActiveModal(e, rule)}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium transition-opacity hover:opacity-75 ${
+                            rule.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {rule.active ? "Activa" : "Inactiva"}
+                        </button>
+                      ) : (
+                        <ActiveBadge active={rule.active} />
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtDate(rule.created_at)}</td>
                     <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtDate(rule.updated_at)}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditingId(null); setNewRow(null); setDeleteId(rule.id); setDeleteError(null); }}
-                        className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {canWrite && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditingId(null); setNewRow(null); setDeleteId(rule.id); setDeleteError(null); }}
+                          className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -438,7 +448,7 @@ export const ClientRulesTab = () => {
       </div>
 
       {/* Active toggle confirmation modal */}
-      {activeModal && (
+      {activeModal && canWrite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
             <h3 className="text-sm font-semibold text-gray-900">
