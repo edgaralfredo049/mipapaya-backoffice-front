@@ -976,6 +976,8 @@ export const api = {
     request<BackofficeUser>(`/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deactivateBackofficeUser: (id: number) =>
     request<void>(`/users/${id}`, { method: "DELETE" }),
+  resetUserPassword: (id: number) =>
+    request<void>(`/users/${id}/reset-password`, { method: "POST" }),
 
   listRoles: () =>
     request<{ items: BackofficeRole[] }>("/roles"),

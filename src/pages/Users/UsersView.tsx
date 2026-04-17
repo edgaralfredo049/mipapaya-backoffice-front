@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { UserPlus, UserCheck, UserX, Settings2, RefreshCw } from "lucide-react";
+import { UserPlus, UserCheck, UserX, Settings2, RefreshCw, KeyRound } from "lucide-react";
 import { api, BackofficeUser, BackofficeRole } from "../../api";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -78,6 +78,15 @@ export const UsersView = () => {
     try {
       await api.updateBackofficeUser(user.id, { role_id: newRoleId });
       await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function handleResetPassword(user: BackofficeUser) {
+    try {
+      await api.resetUserPassword(user.id);
+      setSuccess(`Se reenvió el email de acceso a ${user.email}.`);
     } catch (e: any) {
       setError(e.message);
     }
@@ -174,16 +183,25 @@ export const UsersView = () => {
                     {new Date(user.created_at).toLocaleDateString("es")}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleToggleActive(user)}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                        user.active
-                          ? "border-red-200 text-red-500 hover:bg-red-50"
-                          : "border-green-200 text-green-600 hover:bg-green-50"
-                      }`}
-                    >
-                      {user.active ? <><UserX size={13} /> Desactivar</> : <><UserCheck size={13} /> Activar</>}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleResetPassword(user)}
+                        className="inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                        title="Reenviar email con contraseña temporal"
+                      >
+                        <KeyRound size={13} /> Reset
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(user)}
+                        className={`inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                          user.active
+                            ? "border-red-200 text-red-500 hover:bg-red-50"
+                            : "border-green-200 text-green-600 hover:bg-green-50"
+                        }`}
+                      >
+                        {user.active ? <><UserX size={13} /> Desactivar</> : <><UserCheck size={13} /> Activar</>}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
