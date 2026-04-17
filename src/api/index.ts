@@ -945,7 +945,7 @@ export const api = {
     // 3. Confirmar en el backend y guardar metadata
     const confirmRes = await fetch(`${API_BASE}/api/clients/${clientId}/documents`, {
       method: "POST",
-      headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
+      headers: { ..._getAuthHeader(), "Content-Type": "application/json" },
       body: JSON.stringify({
         s3_key,
         filename: file.name,

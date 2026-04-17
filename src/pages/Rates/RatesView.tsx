@@ -62,8 +62,13 @@ const DELIVERY_METHOD_LABEL: Record<DeliveryMethodType, string> = {
 };
 
 export const RatesView = () => {
-  const { gateways, pagadores, countries, states, exchangeRates, partnerships, refreshExchangeRates, refreshPagadores, refreshGateways } = useAppStore();
+  const { gateways, pagadores, countries, states, exchangeRates, partnerships, refreshExchangeRates, refreshPagadores, refreshGateways, refreshRates } = useAppStore();
   const canWrite = useAuthStore(s => s.hasPermission("tasas", true));
+
+  useEffect(() => {
+    refreshRates();
+    refreshExchangeRates();
+  }, []);
 
   const [activeTab, setActiveTab]   = useState<Tab>("pagador");
   const [selectedId, setSelectedId] = useState<string>("");

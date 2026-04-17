@@ -32,7 +32,13 @@ function getTabFromHash(): Tab {
 }
 
 export const Config = () => {
-  const { isLoaded } = useAppStore();
+  const { isLoaded, refreshAlternancia, refreshGatewayAlternancia, refreshTariffs } = useAppStore();
+
+  useEffect(() => {
+    refreshAlternancia();
+    refreshGatewayAlternancia();
+    refreshTariffs();
+  }, []);
   const [activeTab, setActiveTab] = useState<Tab>(getTabFromHash);
 
   // Sync tab with URL hash

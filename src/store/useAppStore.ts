@@ -45,20 +45,16 @@ export const useAppStore = create<AppState>()((set) => ({
     const safe = <T>(p: Promise<T>, fallback: T): Promise<T> =>
       p.catch((e) => { console.error(e); return fallback; });
 
-    const [partnerships, countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs] = await Promise.all([
+    // Only load data needed across multiple pages — page-specific data loads lazily
+    const [partnerships, countries, currencies, states, gateways, pagadores] = await Promise.all([
       safe(api.getPartnerships(), []),
       safe(api.getCountries(), []),
       safe(api.getCurrencies(), []),
       safe(api.getStates(), []),
       safe(api.getGateways(), []),
       safe(api.getPagadores(), []),
-      safe(api.getRates(), []),
-      safe(api.getAlternancia(), []),
-      safe(api.getGatewayAlternancia(), []),
-      safe(api.getExchangeRates(), []),
-      safe(api.getTariffs(), []),
     ]);
-    set({ partnerships, countries, currencies, states, gateways, pagadores, rates, alternancia, gatewayAlternancia, exchangeRates, tariffs, isLoaded: true });
+    set({ partnerships, countries, currencies, states, gateways, pagadores, isLoaded: true });
   },
 
   refreshPartnerships: async () => {
