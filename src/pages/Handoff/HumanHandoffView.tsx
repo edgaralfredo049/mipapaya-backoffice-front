@@ -106,7 +106,12 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
     try {
       const res = await api.getHandoffMessages(request.id, lastIdRef.current);
       if (res.messages.length > 0) {
-        setMessages(p => [...p, ...res.messages]);
+        setMessages(p => {
+          const existingIds = new Set(p.map(m => m.id));
+          const newMsgs = res.messages.filter(m => !existingIds.has(m.id));
+          if (newMsgs.length === 0) return p;
+          return [...p, ...newMsgs];
+        });
         lastIdRef.current = res.messages[res.messages.length - 1].id;
         scrollToBottom();
       }
