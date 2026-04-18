@@ -301,8 +301,8 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
               <div className="px-4 pt-2 flex gap-1.5 flex-wrap flex-shrink-0">
                 {QUICK_REPLIES.map((q, i) => (
                   <button key={i} onClick={() => send(q)}
-                    className="text-[11px] px-2.5 py-1 rounded-full border border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors whitespace-nowrap">
-                    {q.length > 30 ? q.slice(0, 30) + "…" : q}
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors text-left">
+                    {q}
                   </button>
                 ))}
               </div>
