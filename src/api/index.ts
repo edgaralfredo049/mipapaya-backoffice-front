@@ -907,6 +907,9 @@ export const api = {
   setHandoffTyping: (id: string, sender = "agent") =>
     request<{ ok: boolean }>(`/handoff/${id}/typing?sender=${sender}`, { method: "POST" }),
 
+  generateHandoffReport: (id: string) =>
+    request<{ report_url: string }>(`/handoff/${id}/generate-report`, { method: "POST" }),
+
   // Client interactions
   getClientInteractions: (clientId: number) =>
     request<ClientInteraction[]>(`/clients/${clientId}/interactions`),

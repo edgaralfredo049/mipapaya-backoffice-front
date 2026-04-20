@@ -86,6 +86,7 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
   const [text, setText]               = useState("");
   const [sending, setSending]         = useState(false);
   const [closing, setClosing]         = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [userTyping, setUserTyping]   = useState(false);
   const [tab, setTab]                 = useState<ModalTab>("chat");
   const [notes, setNotes]             = useState<HandoffNote[]>([]);
@@ -192,6 +193,18 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
       setNoteText("");
     } finally {
       setSavingNote(false);
+    }
+  };
+
+  const sendReport = async () => {
+    setGeneratingReport(true);
+    try {
+      const res = await api.generateHandoffReport(request.id);
+      await send(`📊 Aquí está tu resumen de movimientos. Descárgalo aquí 👉 ${res.report_url}`);
+    } catch {
+      // silently fail — agent sees nothing changed
+    } finally {
+      setGeneratingReport(false);
     }
   };
 
@@ -305,6 +318,10 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
                     {q}
                   </button>
                 ))}
+                <button onClick={sendReport} disabled={generatingReport}
+                  className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1">
+                  {generatingReport ? "Generando…" : "📊 Reporte movimientos"}
+                </button>
               </div>
             )}
 
