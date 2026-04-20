@@ -319,7 +319,7 @@ function AgentChatModal({ request, onClose, onRefresh }: ChatModalProps) {
                   </button>
                 ))}
                 <button onClick={sendReport} disabled={generatingReport}
-                  className="text-[11px] px-2.5 py-1 rounded-full border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1">
+                  className="text-[11px] px-2.5 py-1 rounded-full bg-papaya-orange text-white hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-1">
                   {generatingReport ? "Generando…" : "📊 Reporte movimientos"}
                 </button>
               </div>
