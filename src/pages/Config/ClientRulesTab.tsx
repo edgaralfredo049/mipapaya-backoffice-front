@@ -27,6 +27,34 @@ function ActiveBadge({ active }: { active: boolean }) {
   );
 }
 
+function ValidateChips({ doc, name, address }: { doc: boolean; name: boolean; address: boolean }) {
+  const chip = (label: string, on: boolean) => (
+    <span key={label} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${on ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-400"}`}>
+      {label}
+    </span>
+  );
+  return <div className="flex gap-1 flex-wrap justify-center">{chip("Cédula", doc)}{chip("Nombre", name)}{chip("Dirección", address)}</div>;
+}
+
+function ValidateCheckboxes({ doc, name, address, onChange }: {
+  doc: boolean; name: boolean; address: boolean;
+  onChange: (field: "validate_doc_number" | "validate_name" | "validate_address", val: boolean) => void;
+}) {
+  const cb = (label: string, field: "validate_doc_number" | "validate_name" | "validate_address", val: boolean) => (
+    <label key={field} className="flex items-center gap-1 text-[10px] text-gray-600 cursor-pointer whitespace-nowrap">
+      <input type="checkbox" checked={val} onChange={e => onChange(field, e.target.checked)} className="accent-papaya-orange w-3 h-3" />
+      {label}
+    </label>
+  );
+  return (
+    <div className="flex flex-col gap-1">
+      {cb("Cédula", "validate_doc_number", doc)}
+      {cb("Nombre", "validate_name", name)}
+      {cb("Dirección", "validate_address", address)}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const ClientRulesTab = () => {
@@ -72,7 +100,7 @@ export const ClientRulesTab = () => {
   function startNew() {
     setEditingId(null);
     setDeleteId(null);
-    setNewRow({ max_amount_usd: undefined, document_description: "", active: true });
+    setNewRow({ max_amount_usd: undefined, document_description: "", active: true, validate_doc_number: true, validate_name: true, validate_address: false });
     setNewError(null);
   }
 
@@ -93,6 +121,9 @@ export const ClientRulesTab = () => {
         max_amount_usd: amt,
         document_description: newRow.document_description.trim(),
         active: newRow.active ?? true,
+        validate_doc_number: newRow.validate_doc_number ?? true,
+        validate_name: newRow.validate_name ?? true,
+        validate_address: newRow.validate_address ?? false,
       });
       setRules(prev => [...prev, created].sort((a, b) => a.max_amount_usd - b.max_amount_usd));
       setNewRow(null);
@@ -114,7 +145,7 @@ export const ClientRulesTab = () => {
     setNewRow(null);
     setDeleteId(null);
     setEditingId(rule.id);
-    setEditForm({ max_amount_usd: rule.max_amount_usd, document_description: rule.document_description, active: rule.active });
+    setEditForm({ max_amount_usd: rule.max_amount_usd, document_description: rule.document_description, active: rule.active, validate_doc_number: rule.validate_doc_number, validate_name: rule.validate_name, validate_address: rule.validate_address });
     setEditError(null);
   }
 
@@ -135,6 +166,9 @@ export const ClientRulesTab = () => {
         max_amount_usd: amt,
         document_description: editForm.document_description.trim(),
         active: editForm.active ?? true,
+        validate_doc_number: editForm.validate_doc_number ?? true,
+        validate_name: editForm.validate_name ?? true,
+        validate_address: editForm.validate_address ?? false,
       });
       setRules(prev => prev.map(r => r.id === editingId ? updated : r).sort((a, b) => a.max_amount_usd - b.max_amount_usd));
       setEditingId(null);
@@ -184,6 +218,9 @@ export const ClientRulesTab = () => {
         max_amount_usd: activeModal.rule.max_amount_usd,
         document_description: activeModal.rule.document_description,
         active: activeModal.next,
+        validate_doc_number: activeModal.rule.validate_doc_number,
+        validate_name: activeModal.rule.validate_name,
+        validate_address: activeModal.rule.validate_address,
       });
       setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
       setActiveModal(null);
@@ -236,6 +273,9 @@ export const ClientRulesTab = () => {
                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   Documento requerido
                 </th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap text-center">
+                  Validar
+                </th>
                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap w-24 text-center">
                   Estado
                 </th>
@@ -272,6 +312,14 @@ export const ClientRulesTab = () => {
                         value={newRow.document_description ?? ""}
                         onChange={e => setN("document_description", e.target.value)}
                         className={newError && !newRow.document_description?.trim() ? cellTextErr : cellText}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <ValidateCheckboxes
+                        doc={newRow?.validate_doc_number ?? true}
+                        name={newRow?.validate_name ?? true}
+                        address={newRow?.validate_address ?? false}
+                        onChange={(f, v) => setN(f, v as any)}
                       />
                     </td>
                     <td className="px-4 py-2 text-center">
@@ -327,7 +375,7 @@ export const ClientRulesTab = () => {
                       <tr className="bg-red-50/60">
                         <td className="px-4 py-3 text-xs font-mono text-gray-700">${rule.max_amount_usd.toFixed(2)}</td>
                         <td className="px-4 py-3 text-xs text-gray-700">{rule.document_description}</td>
-                        <td colSpan={3} className="px-4 py-3 text-xs text-red-600 font-medium">¿Eliminar esta regla?</td>
+                        <td colSpan={4} className="px-4 py-3 text-xs text-red-600 font-medium">¿Eliminar esta regla?</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5 justify-end">
                             <button onClick={confirmDelete} disabled={deleteSaving} className="p-1 rounded hover:bg-red-100 text-red-600 transition-colors disabled:opacity-40" title="Confirmar">
@@ -370,6 +418,14 @@ export const ClientRulesTab = () => {
                             className={editError && !editForm.document_description?.trim() ? cellTextErr : cellText}
                           />
                         </td>
+                        <td className="px-4 py-2">
+                          <ValidateCheckboxes
+                            doc={editForm.validate_doc_number ?? true}
+                            name={editForm.validate_name ?? true}
+                            address={editForm.validate_address ?? false}
+                            onChange={(f, v) => setE(f, v as any)}
+                          />
+                        </td>
                         <td className="px-4 py-2 text-center">
                           <ActiveBadge active={editForm.active ?? true} />
                         </td>
@@ -405,6 +461,9 @@ export const ClientRulesTab = () => {
                       ${rule.max_amount_usd.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-700">{rule.document_description}</td>
+                    <td className="px-4 py-3 text-center">
+                      <ValidateChips doc={rule.validate_doc_number} name={rule.validate_name} address={rule.validate_address} />
+                    </td>
                     <td className="px-4 py-3 text-center">
                       {canWrite ? (
                         <button

@@ -279,6 +279,9 @@ export interface ClientRule {
   max_amount_usd: number;
   document_description: string;
   active: boolean;
+  validate_doc_number: boolean;
+  validate_name: boolean;
+  validate_address: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -287,6 +290,9 @@ export interface ClientRuleIn {
   max_amount_usd: number;
   document_description: string;
   active: boolean;
+  validate_doc_number: boolean;
+  validate_name: boolean;
+  validate_address: boolean;
 }
 
 export interface RemittanceRecord {
