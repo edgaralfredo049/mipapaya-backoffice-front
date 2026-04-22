@@ -193,11 +193,14 @@ const DOC_STATUS_STYLES: Record<string, { bg: string; text: string; label: strin
   REJECTED: { bg: "bg-red-100",   text: "text-red-600",   label: "Rechazado" },
 };
 
-function DocValidationModal({ clientId, doc, onClose }: { clientId: number; doc: ClientDocument; onClose: () => void }) {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const status = doc.validation_status ?? "APPROVED";
+function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { clientId: number; doc: ClientDocument; onClose: () => void; onStatusChange?: (updated: ClientDocument) => void }) {
+  const { user } = useAuthStore();
+  const [blobUrl, setBlobUrl]       = useState<string | null>(null);
+  const [saving, setSaving]         = useState<"APPROVED" | "REJECTED" | null>(null);
+  const [current, setCurrent]       = useState<ClientDocument>(doc);
+  const status = current.validation_status ?? "APPROVED";
   const style  = DOC_STATUS_STYLES[status] ?? DOC_STATUS_STYLES.APPROVED;
-  const summaryParts = doc.validation_summary
+  const summaryParts = current.validation_summary
     ? doc.validation_summary.split(" | ").map((p) => {
         const [label, ...rest] = p.split(": ");
         let value = rest.join(": ");
@@ -210,10 +213,23 @@ function DocValidationModal({ clientId, doc, onClose }: { clientId: number; doc:
     : [];
 
   useEffect(() => {
-    if (doc.mime_type.startsWith("image/")) {
-      getBlobUrl(clientId, doc.id).then(setBlobUrl).catch(() => {});
+    if (current.mime_type.startsWith("image/")) {
+      getBlobUrl(clientId, current.id).then(setBlobUrl).catch(() => {});
     }
-  }, [clientId, doc.id, doc.mime_type]);
+  }, [clientId, current.id, current.mime_type]);
+
+  async function changeStatus(newStatus: "APPROVED" | "REJECTED") {
+    setSaving(newStatus);
+    try {
+      const updated = await api.updateDocumentStatus(clientId, current.id, newStatus, user?.email ?? "admin@mipapaya.com");
+      setCurrent(updated);
+      onStatusChange?.(updated);
+    } catch {
+      // noop
+    } finally {
+      setSaving(null);
+    }
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
@@ -228,21 +244,43 @@ function DocValidationModal({ clientId, doc, onClose }: { clientId: number; doc:
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {/* Status badge */}
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>
-              {style.label}
-            </span>
-            <span className="text-xs text-gray-400">{new Date(doc.created_at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}</span>
+          {/* Status badge + actions */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>
+                {style.label}
+              </span>
+              <span className="text-xs text-gray-400">{new Date(current.created_at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}</span>
+            </div>
+            {status === "PENDING" && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => changeStatus("APPROVED")}
+                  disabled={!!saving}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                >
+                  <CheckCircle2 size={12} />
+                  {saving === "APPROVED" ? "..." : "Aprobar"}
+                </button>
+                <button
+                  onClick={() => changeStatus("REJECTED")}
+                  disabled={!!saving}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                >
+                  <X size={12} />
+                  {saving === "REJECTED" ? "..." : "Rechazar"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Document preview */}
           {blobUrl ? (
-            <img src={blobUrl} alt={doc.name} className="w-full max-h-52 object-contain rounded-xl border border-gray-100 bg-gray-50" />
+            <img src={blobUrl} alt={current.name} className="w-full max-h-52 object-contain rounded-xl border border-gray-100 bg-gray-50" />
           ) : (
             <div className="w-full h-32 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center gap-2 text-gray-300">
               <FileText size={22} />
-              <span className="text-xs">{doc.name}</span>
+              <span className="text-xs">{current.name}</span>
             </div>
           )}
 
@@ -406,7 +444,14 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
       )}
 
       {/* Detail modal with image + summary */}
-      {detailDoc && <DocValidationModal clientId={clientId} doc={detailDoc} onClose={() => setDetailDoc(null)} />}
+      {detailDoc && (
+        <DocValidationModal
+          clientId={clientId}
+          doc={detailDoc}
+          onClose={() => setDetailDoc(null)}
+          onStatusChange={(updated) => setDocs((prev) => prev.map((d) => d.id === updated.id ? updated : d))}
+        />
+      )}
 
       {/* Document type selection modal */}
       {showTypeModal && createPortal(

@@ -977,6 +977,11 @@ export const api = {
   },
   deleteClientDocument: (clientId: number, docId: number) =>
     request<void>(`/clients/${clientId}/documents/${docId}`, { method: "DELETE" }),
+  updateDocumentStatus: (clientId: number, docId: number, status: "APPROVED" | "PENDING" | "REJECTED", user: string) =>
+    request<ClientDocument>(`/clients/${clientId}/documents/${docId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, user }),
+    }),
 
   // Backoffice users (superusuario only)
   listBackofficeUsers: () =>
