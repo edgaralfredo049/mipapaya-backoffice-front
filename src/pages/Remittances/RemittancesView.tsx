@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, X, ArrowLeftRight, Send, ShieldAlert, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, X, ArrowLeftRight, Send, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 
 type AlertDetail = { name: string; triggered: boolean; reason: string };
 
@@ -308,6 +308,25 @@ export const RemittancesView = () => {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* Table toolbar */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            {items.some(r => r.status === "ureview") && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block" />
+                Validación en curso…
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => load(page, getFilters())}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+            Recargar
+          </button>
+        </div>
         {error && (
           <div className="px-4 py-3 text-sm text-red-600 bg-red-50 border-b border-red-100">{error}</div>
         )}
