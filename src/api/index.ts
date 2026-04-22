@@ -336,6 +336,8 @@ export interface RemittanceRecord {
   client_address: string | null;
   client_city: string | null;
   client_state: string | null;
+  card_number_masked: string | null;
+  sender_ip: string | null;
 }
 
 export interface Client {

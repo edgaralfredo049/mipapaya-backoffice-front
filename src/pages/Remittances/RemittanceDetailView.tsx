@@ -362,6 +362,10 @@ export const RemittanceDetailView = () => {
                 value={DISBURSEMENT_LABELS[record.disbursement_method ?? ""] || record.disbursement_method}
               />
               <Field label="Pagador" value={record.payer_name || record.payer_id} />
+              {(record.sender_payment_method === "creditCard" || record.sender_payment_method === "debitCard") && (
+                <Field label="Tarjeta" value={record.card_number_masked ?? "No disponible"} />
+              )}
+              <Field label="IP del remitente" value={record.sender_ip ?? "No disponible"} />
               {Object.entries(paymentDetails).map(([k, v]) => (
                 <Field key={k} label={k} value={String(v)} />
               ))}
