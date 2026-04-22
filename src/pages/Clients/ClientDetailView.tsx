@@ -268,14 +268,14 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
                   <CheckCircle2 size={12} />
                   {saving === "APPROVED" ? "..." : "Aprobar"}
                 </button>
-                {status === "PENDING" && (
+                {(status === "PENDING" || status === "REJECTED") && (
                   <button
                     onClick={() => setShowRejectInput(true)}
                     disabled={!!saving}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
                   >
                     <X size={12} />
-                    Rechazar
+                    {status === "REJECTED" ? "Editar motivo" : "Rechazar"}
                   </button>
                 )}
               </div>
@@ -313,10 +313,10 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
           )}
 
           {/* Rejection reason display */}
-          {current.rejection_reason && status === "REJECTED" && (
+          {status === "REJECTED" && !showRejectInput && (
             <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2">
               <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest mb-0.5">Motivo del rechazo</p>
-              <p className="text-xs text-red-700">{current.rejection_reason}</p>
+              <p className="text-xs text-red-700">{current.rejection_reason ?? "Sin motivo especificado"}</p>
             </div>
           )}
 
