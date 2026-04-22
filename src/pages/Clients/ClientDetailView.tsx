@@ -320,6 +320,7 @@ function ClientDocumentsSection({ clientId, onAuditRefresh }: { clientId: number
   const [docs, setDocs]               = useState<ClientDocument[]>([]);
   const [uploading, setUploading]     = useState(false);
   const [reloading, setReloading]     = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<ClientDocument | null>(null);
   const [rules, setRules]             = useState<ClientRule[]>([]);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [selectedType, setSelectedType]   = useState<string>("");
@@ -369,11 +370,11 @@ function ClientDocumentsSection({ clientId, onAuditRefresh }: { clientId: number
     }
   }
 
-  async function handleDelete(e: React.MouseEvent, doc: ClientDocument) {
-    e.stopPropagation();
+  async function handleDelete(doc: ClientDocument) {
     await api.deleteClientDocument(clientId, doc.id).catch(() => {});
     _blobCache.delete(doc.id);
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    setConfirmDelete(null);
   }
 
   async function reloadDocs() {
@@ -451,7 +452,7 @@ function ClientDocumentsSection({ clientId, onAuditRefresh }: { clientId: number
                 <p className="mt-0.5 text-[10px] text-gray-400 truncate text-center leading-tight">{doc.name}</p>
                 <button
                   type="button"
-                  onClick={(e) => handleDelete(e, doc)}
+                  onClick={(e) => { e.stopPropagation(); setConfirmDelete(doc); }}
                   className="absolute top-1 right-1 p-0.5 rounded-md bg-white/80 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
                 >
                   <Trash2 size={11} />
@@ -463,6 +464,32 @@ function ClientDocumentsSection({ clientId, onAuditRefresh }: { clientId: number
       )}
 
       {/* Detail modal with image + summary */}
+      {confirmDelete && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmDelete(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-50 shrink-0">
+                <Trash2 size={16} className="text-red-500" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-heading-text">Eliminar documento</p>
+                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{confirmDelete.document_type || confirmDelete.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmDelete(null)} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={() => handleDelete(confirmDelete)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors">
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {detailDoc && (
         <DocValidationModal
           clientId={clientId}
