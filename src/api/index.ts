@@ -295,6 +295,21 @@ export interface ClientRuleIn {
   validate_address: boolean;
 }
 
+export interface ComplianceAlert {
+  id: number;
+  name: string;
+  description: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComplianceAlertIn {
+  name: string;
+  description: string;
+  active: boolean;
+}
+
 export interface RemittanceRecord {
   id: string;
   created_at: string;
@@ -763,6 +778,15 @@ export const api = {
     request<void>(`/tariffs/${id}`, { method: "DELETE" }),
   duplicateTariff: (id: number) =>
     request<Tariff>(`/tariffs/${id}/duplicate`, { method: "POST" }),
+
+  // Compliance Alerts
+  getComplianceAlerts: () => request<ComplianceAlert[]>("/compliance/alerts"),
+  createComplianceAlert: (data: ComplianceAlertIn) =>
+    request<ComplianceAlert>("/compliance/alerts", { method: "POST", body: JSON.stringify(data) }),
+  updateComplianceAlert: (id: number, data: ComplianceAlertIn) =>
+    request<ComplianceAlert>(`/compliance/alerts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteComplianceAlert: (id: number) =>
+    request<void>(`/compliance/alerts/${id}`, { method: "DELETE" }),
 
   // Client Rules
   getClientRules: () => request<ClientRule[]>("/client-rules"),
