@@ -1,6 +1,103 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Search, X, ArrowLeftRight, Send } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Search, X, ArrowLeftRight, Send, ShieldAlert, CheckCircle2, AlertCircle } from "lucide-react";
+
+type AlertDetail = { name: string; triggered: boolean; reason: string };
+
+const _NEG_PHRASES = [
+  "no se dispara", "no aplica", "no supera", "no indica", "no se detecta",
+  "no se encontr", "no hay ", "sin indicios", "no genera", "no trigger",
+  "does not trigger", "not triggered",
+];
+
+function _isTriggered(text: string): boolean {
+  const lower = text.toLowerCase();
+  return !_NEG_PHRASES.some(p => lower.includes(p));
+}
+
+// Matches: phone (+573203783976 or (+573203783976)) and remittance IDs (COVEW17176270178)
+const _TOKEN_RE = /(\(\+\d{10,15}\)|\+\d{10,15}|[A-Z]{3,6}W\d{8,16})/g;
+
+function ReasonText({ text, onClose }: { text: string; onClose: () => void }) {
+  const navigate = useNavigate();
+
+  async function handlePhone(phone: string) {
+    onClose();
+    try {
+      const res = await api.getClients(1, { phone });
+      if (res.items.length > 0) {
+        navigate(`/clientes/${res.items[0].id}`);
+      }
+    } catch { /* silent */ }
+  }
+
+  function handleRemittance(id: string) {
+    onClose();
+    navigate(`/remesas/${id}`);
+  }
+
+  const parts = text.split(_TOKEN_RE);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const clean = part.replace(/^\(|\)$/g, "");
+        if (/^\+\d{10,15}$/.test(clean)) {
+          return (
+            <button
+              key={i}
+              onClick={() => handlePhone(clean)}
+              className="font-mono text-papaya-orange underline hover:text-orange-600 cursor-pointer"
+              title="Ver perfil del cliente"
+            >
+              {part}
+            </button>
+          );
+        }
+        if (/^[A-Z]{3,6}W\d{8,16}$/.test(clean)) {
+          return (
+            <button
+              key={i}
+              onClick={() => handleRemittance(clean)}
+              className="font-mono text-papaya-orange underline hover:text-orange-600 cursor-pointer"
+              title="Ver remesa"
+            >
+              {part}
+            </button>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+function parseAlertSummary(raw: string | null): AlertDetail[] | null {
+  if (!raw) return null;
+
+  // Try structured JSON first
+  try {
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.details) && data.details.length > 0) return data.details;
+  } catch {}
+
+  // Parse plain text [Rule Name]: description format
+  const pattern = /\[([^\]]+)\]:\s*/g;
+  const names: string[] = [];
+  const indices: number[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(raw)) !== null) {
+    names.push(m[1]);
+    indices.push(m.index + m[0].length);
+  }
+  if (names.length === 0) return null;
+
+  return names.map((name, i) => {
+    const start = indices[i];
+    const end   = i + 1 < indices.length ? raw.lastIndexOf("[", indices[i + 1] - 1) : raw.length;
+    const reason = raw.slice(start, end).trim().replace(/\.$/, "");
+    return { name, triggered: _isTriggered(reason), reason };
+  });
+}
 import { api, RemittanceRecord, Pagador } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
 import { Pagination } from "../../components/ui/Pagination";
@@ -30,6 +127,7 @@ function fmtDateNY(utcStr: string) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  ureview:    "En revisión",
   pending:    "Pendiente",
   transmited: "Transmitida",
   unpayed:    "No Pagada",
@@ -38,6 +136,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
+  ureview:    "bg-purple-50 text-purple-700",
   pending:    "bg-yellow-50 text-yellow-700",
   transmited: "bg-blue-50 text-blue-700",
   unpayed:    "bg-red-50 text-red-600",
@@ -54,6 +153,7 @@ const inp = "rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700
 
 export const RemittancesView = () => {
   const { pagadores } = useAppStore();
+  const { search: locationSearch } = useLocation();
 
   const [items, setItems]           = useState<RemittanceRecord[]>([]);
   const [total, setTotal]           = useState(0);
@@ -64,13 +164,15 @@ export const RemittancesView = () => {
   const [sendingId, setSendingId]   = useState<string | null>(null);
   const [confirmId, setConfirmId]   = useState<string | null>(null);
   const [payingId,  setPayingId]    = useState<string | null>(null);
+  const [alertModal, setAlertModal] = useState<{ id: string; summary: string } | null>(null);
 
   const today = todayNY();
-  const [fClient,   setFClient]   = useState("");
+  const _qp = new URLSearchParams(locationSearch);
+  const [fClient,   setFClient]   = useState(_qp.get("client") ?? "");
   const [fPayer,    setFPayer]    = useState("");
   const [fStatus,   setFStatus]   = useState("");
-  const [fDateFrom, setFDateFrom] = useState(today);
-  const [fDateTo,   setFDateTo]   = useState(today);
+  const [fDateFrom, setFDateFrom] = useState(_qp.get("client") ? "" : today);
+  const [fDateTo,   setFDateTo]   = useState(_qp.get("client") ? "" : today);
 
   const load = useCallback(async (p: number, filters: {
     client_id?: string; payer_id?: string; status?: string; date_from?: string; date_to?: string;
@@ -213,7 +315,7 @@ export const RemittancesView = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Enviado", "Pagador", "Estado", ""].map(h => (
+                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Enviado", "Pagador", "Estado", "Alertas", ""].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -223,11 +325,11 @@ export const RemittancesView = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
                     {hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}
                   </td>
                 </tr>
@@ -265,6 +367,17 @@ export const RemittancesView = () => {
                       {STATUS_LABELS[r.status] ?? r.status}
                     </span>
                   </td>
+                  <td className="px-3 py-3 text-center">
+                    {(r.alert_count ?? 0) > 0 ? (
+                      <button
+                        onClick={() => setAlertModal({ id: r.id, summary: r.alert_summary ?? "" })}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition-colors"
+                        title="Ver alertas de cumplimiento"
+                      >
+                        <ShieldAlert size={11} /> {r.alert_count}
+                      </button>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
                   <td className="px-3 py-3">
                     {payingId === r.id ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-600 font-medium animate-pulse">
@@ -293,6 +406,70 @@ export const RemittancesView = () => {
           pageSize={PAGE_SIZE}
         />
       </div>
+
+      {/* Alert summary modal */}
+      {alertModal && (() => {
+        const details = parseAlertSummary(alertModal.summary);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert size={17} className="text-red-500" />
+                  <span className="text-sm font-semibold text-gray-800">Análisis de cumplimiento</span>
+                </div>
+                <button onClick={() => setAlertModal(null)} className="text-gray-400 hover:text-gray-600">
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Remittance ID */}
+              <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs text-gray-500">Remesa </span>
+                <span className="text-xs font-mono text-papaya-orange">{alertModal.id}</span>
+              </div>
+
+              {/* Alert cards */}
+              <div className="px-5 py-4 space-y-3 max-h-96 overflow-y-auto">
+                {details ? details.map((d, i) => (
+                  <div key={i} className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {d.triggered
+                        ? <AlertCircle size={13} className="text-red-500 shrink-0" />
+                        : <CheckCircle2 size={13} className="text-green-500 shrink-0" />
+                      }
+                      <span className="text-xs font-semibold text-gray-800">{d.name}</span>
+                      <span className={`ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                        d.triggered
+                          ? "bg-red-100 text-red-600"
+                          : "bg-green-100 text-green-700"
+                      }`}>
+                        {d.triggered ? "Genera alerta" : "No genera alerta"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 leading-relaxed pl-[19px]"><ReasonText text={d.reason} onClose={() => setAlertModal(null)} /></p>
+                  </div>
+                )) : (
+                  <div className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
+                    {alertModal.summary || "Sin detalle disponible."}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end px-5 py-3 border-t border-gray-100">
+                <button
+                  onClick={() => setAlertModal(null)}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Confirm Send dialog */}
       {confirmId && (

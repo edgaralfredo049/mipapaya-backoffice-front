@@ -353,6 +353,8 @@ export interface RemittanceRecord {
   client_state: string | null;
   card_number_masked: string | null;
   sender_ip: string | null;
+  alert_count: number;
+  alert_summary: string | null;
 }
 
 export interface Client {
