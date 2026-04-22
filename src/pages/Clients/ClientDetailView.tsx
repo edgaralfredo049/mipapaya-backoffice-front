@@ -200,7 +200,12 @@ function DocValidationModal({ clientId, doc, onClose }: { clientId: number; doc:
   const summaryParts = doc.validation_summary
     ? doc.validation_summary.split(" | ").map((p) => {
         const [label, ...rest] = p.split(": ");
-        return { label, value: rest.join(": ") };
+        let value = rest.join(": ");
+        let valid: boolean | null = null;
+        if (value.endsWith(":ok"))   { valid = true;  value = value.slice(0, -3); }
+        else if (value.endsWith(":fail")) { valid = false; value = value.slice(0, -5); }
+        else if (status === "APPROVED")   { valid = true; }
+        return { label, value, valid };
       })
     : [];
 
@@ -246,10 +251,14 @@ function DocValidationModal({ clientId, doc, onClose }: { clientId: number; doc:
             <div className="space-y-2">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Resultado del análisis</p>
               <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100 overflow-hidden">
-                {summaryParts.map(({ label, value }) => (
-                  <div key={label} className="flex items-baseline justify-between px-3 py-2 gap-3">
+                {summaryParts.map(({ label, value, valid }) => (
+                  <div key={label} className="flex items-center justify-between px-3 py-2 gap-3">
                     <span className="text-xs text-gray-400 shrink-0">{label}</span>
-                    <span className="text-xs font-medium text-gray-800 text-right">{value}</span>
+                    <div className="flex items-center gap-1.5 ml-auto min-w-0">
+                      <span className="text-xs font-medium text-gray-800 text-right">{value}</span>
+                      {valid === true  && <CheckCircle2 size={13} className="text-green-500 shrink-0" />}
+                      {valid === false && <X            size={13} className="text-red-500   shrink-0" />}
+                    </div>
                   </div>
                 ))}
               </div>
