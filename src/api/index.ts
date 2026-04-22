@@ -459,6 +459,8 @@ export interface ClientDocument {
   mime_type: string;
   uploaded_by: string;
   document_type: string | null;
+  validation_status: "APPROVED" | "PENDING" | "REJECTED" | null;
+  validation_summary: string | null;
   created_at: string;
 }
 

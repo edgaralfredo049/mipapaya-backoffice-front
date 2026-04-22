@@ -187,15 +187,94 @@ function DocThumb({ clientId, doc }: { clientId: number; doc: ClientDocument }) 
     : <FileText  size={28} className="text-gray-300" />;
 }
 
+const DOC_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  APPROVED: { bg: "bg-green-100", text: "text-green-700", label: "Aprobado" },
+  PENDING:  { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pendiente" },
+  REJECTED: { bg: "bg-red-100",   text: "text-red-600",   label: "Rechazado" },
+};
+
+function DocValidationModal({ clientId, doc, onClose }: { clientId: number; doc: ClientDocument; onClose: () => void }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const status = doc.validation_status ?? "APPROVED";
+  const style  = DOC_STATUS_STYLES[status] ?? DOC_STATUS_STYLES.APPROVED;
+  const summaryParts = doc.validation_summary
+    ? doc.validation_summary.split(" | ").map((p) => {
+        const [label, ...rest] = p.split(": ");
+        return { label, value: rest.join(": ") };
+      })
+    : [];
+
+  useEffect(() => {
+    if (doc.mime_type.startsWith("image/")) {
+      getBlobUrl(clientId, doc.id).then(setBlobUrl).catch(() => {});
+    }
+  }, [clientId, doc.id, doc.mime_type]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <FileText size={16} className="text-papaya-orange" />
+            <span className="text-sm font-semibold text-heading-text truncate max-w-[220px]">{doc.document_type || doc.name}</span>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"><X size={16} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Status badge */}
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text}`}>
+              {style.label}
+            </span>
+            <span className="text-xs text-gray-400">{new Date(doc.created_at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}</span>
+          </div>
+
+          {/* Document preview */}
+          {blobUrl ? (
+            <img src={blobUrl} alt={doc.name} className="w-full max-h-52 object-contain rounded-xl border border-gray-100 bg-gray-50" />
+          ) : (
+            <div className="w-full h-32 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center gap-2 text-gray-300">
+              <FileText size={22} />
+              <span className="text-xs">{doc.name}</span>
+            </div>
+          )}
+
+          {/* Summary */}
+          {summaryParts.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Resultado del análisis</p>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100 overflow-hidden">
+                {summaryParts.map(({ label, value }) => (
+                  <div key={label} className="flex items-baseline justify-between px-3 py-2 gap-3">
+                    <span className="text-xs text-gray-400 shrink-0">{label}</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!summaryParts.length && (
+            <p className="text-xs text-gray-400 text-center py-2">Sin resumen de análisis disponible</p>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── Client Documents Upload ─────────────────────────────────────────────────
 
 function ClientDocumentsSection({ clientId }: { clientId: number }) {
   const [docs, setDocs]               = useState<ClientDocument[]>([]);
   const [uploading, setUploading]     = useState(false);
-  const [lightboxSrc, setLightbox]    = useState<{ src: string; name: string } | null>(null);
   const [rules, setRules]             = useState<ClientRule[]>([]);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [selectedType, setSelectedType]   = useState<string>("");
+  const [detailDoc, setDetailDoc]         = useState<ClientDocument | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -241,17 +320,6 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
     }
   }
 
-  async function openDoc(doc: ClientDocument) {
-    try {
-      const blobUrl = await getBlobUrl(clientId, doc.id);
-      if (doc.mime_type.startsWith("image/")) {
-        setLightbox({ src: blobUrl, name: doc.name });
-      } else {
-        window.open(blobUrl, "_blank", "noopener,noreferrer");
-      }
-    } catch {}
-  }
-
   async function handleDelete(e: React.MouseEvent, doc: ClientDocument) {
     e.stopPropagation();
     await api.deleteClientDocument(clientId, doc.id).catch(() => {});
@@ -293,36 +361,43 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
         </button>
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1">
-          {docs.map((doc) => (
-            <div key={doc.id} className="relative group shrink-0 w-20">
-              <button
-                type="button"
-                onClick={() => openDoc(doc)}
-                className="w-20 h-20 rounded-lg border border-gray-100 overflow-hidden bg-gray-50 hover:border-papaya-orange/40 transition-colors cursor-zoom-in flex items-center justify-center"
-              >
-                <DocThumb clientId={clientId} doc={doc} />
-              </button>
-              {doc.document_type && (
-                <p className="mt-0.5 text-[9px] font-semibold text-papaya-orange truncate text-center leading-tight px-0.5">
-                  {doc.document_type}
-                </p>
-              )}
-              <p className="mt-0.5 text-[10px] text-gray-400 truncate text-center leading-tight">{doc.name}</p>
-              <button
-                type="button"
-                onClick={(e) => handleDelete(e, doc)}
-                className="absolute top-1 right-1 p-0.5 rounded-md bg-white/80 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-          ))}
+          {docs.map((doc) => {
+            const status = doc.validation_status ?? "APPROVED";
+            const style  = DOC_STATUS_STYLES[status] ?? DOC_STATUS_STYLES.APPROVED;
+            return (
+              <div key={doc.id} className="relative group shrink-0 w-20">
+                <button
+                  type="button"
+                  onClick={() => setDetailDoc(doc)}
+                  className="w-20 h-20 rounded-lg border border-gray-100 overflow-hidden bg-gray-50 hover:border-papaya-orange/40 transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  <DocThumb clientId={clientId} doc={doc} />
+                </button>
+                {/* Validation status badge */}
+                <span className={`absolute top-1 left-1 text-[8px] font-bold px-1 py-0.5 rounded ${style.bg} ${style.text} leading-none`}>
+                  {style.label}
+                </span>
+                {doc.document_type && (
+                  <p className="mt-0.5 text-[9px] font-semibold text-papaya-orange truncate text-center leading-tight px-0.5">
+                    {doc.document_type}
+                  </p>
+                )}
+                <p className="mt-0.5 text-[10px] text-gray-400 truncate text-center leading-tight">{doc.name}</p>
+                <button
+                  type="button"
+                  onClick={(e) => handleDelete(e, doc)}
+                  className="absolute top-1 right-1 p-0.5 rounded-md bg-white/80 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc.src} alt={lightboxSrc.name} onClose={() => setLightbox(null)} />
-      )}
+      {/* Detail modal with image + summary */}
+      {detailDoc && <DocValidationModal clientId={clientId} doc={detailDoc} onClose={() => setDetailDoc(null)} />}
 
       {/* Document type selection modal */}
       {showTypeModal && createPortal(
