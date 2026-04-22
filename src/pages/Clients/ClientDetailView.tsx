@@ -268,14 +268,14 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
                   <CheckCircle2 size={12} />
                   {saving === "APPROVED" ? "..." : "Aprobar"}
                 </button>
-                {(status === "PENDING" || status === "REJECTED") && (
+                {status === "PENDING" && (
                   <button
                     onClick={() => setShowRejectInput(true)}
                     disabled={!!saving}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
                   >
                     <X size={12} />
-                    {status === "REJECTED" ? "Editar motivo" : "Rechazar"}
+                    Rechazar
                   </button>
                 )}
               </div>
