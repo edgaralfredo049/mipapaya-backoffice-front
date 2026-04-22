@@ -313,10 +313,14 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
           )}
 
           {/* Rejection reason display */}
-          {status === "REJECTED" && !showRejectInput && (
-            <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2">
-              <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest mb-0.5">Motivo del rechazo</p>
-              <p className="text-xs text-red-700">{current.rejection_reason ?? "Sin motivo especificado"}</p>
+          {(status === "REJECTED" || status === "PENDING") && !showRejectInput && (
+            <div className={`rounded-lg border px-3 py-2 ${status === "REJECTED" ? "border-red-100 bg-red-50" : "border-yellow-100 bg-yellow-50"}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-widest mb-0.5 ${status === "REJECTED" ? "text-red-400" : "text-yellow-600"}`}>
+                {status === "REJECTED" ? "Motivo del rechazo" : "Motivo de revisión"}
+              </p>
+              <p className={`text-xs ${status === "REJECTED" ? "text-red-700" : "text-yellow-800"}`}>
+                {current.rejection_reason ?? "Sin motivo especificado"}
+              </p>
             </div>
           )}
 
