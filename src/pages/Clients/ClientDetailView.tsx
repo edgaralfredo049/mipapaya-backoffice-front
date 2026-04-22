@@ -30,6 +30,7 @@ import {
   Trash2,
   FilePlus,
   FileImage,
+  RefreshCw,
 } from "lucide-react";
 import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage, ClientDocument, ClientRule } from "../../api";
 import { InteractionsSection } from "../../components/InteractionsSection";
@@ -315,9 +316,10 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
 
 // ─── Client Documents Upload ─────────────────────────────────────────────────
 
-function ClientDocumentsSection({ clientId }: { clientId: number }) {
+function ClientDocumentsSection({ clientId, onAuditRefresh }: { clientId: number; onAuditRefresh?: () => void }) {
   const [docs, setDocs]               = useState<ClientDocument[]>([]);
   const [uploading, setUploading]     = useState(false);
+  const [reloading, setReloading]     = useState(false);
   const [rules, setRules]             = useState<ClientRule[]>([]);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [selectedType, setSelectedType]   = useState<string>("");
@@ -374,19 +376,36 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
   }
 
+  async function reloadDocs() {
+    setReloading(true);
+    try { setDocs(await api.getClientDocuments(clientId)); } catch { /* noop */ }
+    finally { setReloading(false); }
+  }
+
   return (
     <div className="mt-3 border-t border-gray-50 pt-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Documentos requeridos en reglas</p>
-        <button
-          type="button"
-          onClick={requestUpload}
-          disabled={uploading}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-papaya-orange text-white hover:bg-papaya-orange/90 disabled:opacity-40 transition-colors"
-        >
-          <Upload size={11} />
-          {uploading ? "Cargando…" : "Subir"}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={reloadDocs}
+            disabled={reloading}
+            className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 transition-colors"
+            title="Recargar documentos"
+          >
+            <RefreshCw size={12} className={reloading ? "animate-spin" : ""} />
+          </button>
+          <button
+            type="button"
+            onClick={requestUpload}
+            disabled={uploading}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-papaya-orange text-white hover:bg-papaya-orange/90 disabled:opacity-40 transition-colors"
+          >
+            <Upload size={11} />
+            {uploading ? "Cargando…" : "Subir"}
+          </button>
+        </div>
         <input
           ref={inputRef}
           type="file"
@@ -449,7 +468,10 @@ function ClientDocumentsSection({ clientId }: { clientId: number }) {
           clientId={clientId}
           doc={detailDoc}
           onClose={() => setDetailDoc(null)}
-          onStatusChange={(updated) => setDocs((prev) => prev.map((d) => d.id === updated.id ? updated : d))}
+          onStatusChange={(updated) => {
+            setDocs((prev) => prev.map((d) => d.id === updated.id ? updated : d));
+            onAuditRefresh?.();
+          }}
         />
       )}
 
@@ -954,7 +976,7 @@ export const ClientDetailView = () => {
                       </div>
                     );
                   })()}
-                  <ClientDocumentsSection clientId={client.id} />
+                  <ClientDocumentsSection clientId={client.id} onAuditRefresh={refreshAuditLog} />
                 </>
               )}
 
