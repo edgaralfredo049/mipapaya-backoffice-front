@@ -461,6 +461,7 @@ export interface ClientDocument {
   document_type: string | null;
   validation_status: "APPROVED" | "PENDING" | "REJECTED" | null;
   validation_summary: string | null;
+  rejection_reason: string | null;
   created_at: string;
 }
 
@@ -977,10 +978,10 @@ export const api = {
   },
   deleteClientDocument: (clientId: number, docId: number) =>
     request<void>(`/clients/${clientId}/documents/${docId}`, { method: "DELETE" }),
-  updateDocumentStatus: (clientId: number, docId: number, status: "APPROVED" | "PENDING" | "REJECTED", user: string) =>
+  updateDocumentStatus: (clientId: number, docId: number, status: "APPROVED" | "PENDING" | "REJECTED", user: string, rejection_reason?: string | null) =>
     request<ClientDocument>(`/clients/${clientId}/documents/${docId}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status, user }),
+      body: JSON.stringify({ status, user, rejection_reason }),
     }),
 
   // Backoffice users (superusuario only)

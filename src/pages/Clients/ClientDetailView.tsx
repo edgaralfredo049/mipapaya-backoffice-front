@@ -199,6 +199,8 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
   const [blobUrl, setBlobUrl]       = useState<string | null>(null);
   const [saving, setSaving]         = useState<"APPROVED" | "REJECTED" | null>(null);
   const [current, setCurrent]       = useState<ClientDocument>(doc);
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectReason, setRejectReason]       = useState("");
   const status = current.validation_status ?? "APPROVED";
   const style  = DOC_STATUS_STYLES[status] ?? DOC_STATUS_STYLES.APPROVED;
   const summaryParts = current.validation_summary
@@ -222,8 +224,11 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
   async function changeStatus(newStatus: "APPROVED" | "REJECTED") {
     setSaving(newStatus);
     try {
-      const updated = await api.updateDocumentStatus(clientId, current.id, newStatus, user?.email ?? "admin@mipapaya.com");
+      const reason = newStatus === "REJECTED" ? rejectReason.trim() || null : null;
+      const updated = await api.updateDocumentStatus(clientId, current.id, newStatus, user?.email ?? "admin@mipapaya.com", reason);
       setCurrent(updated);
+      setShowRejectInput(false);
+      setRejectReason("");
       onStatusChange?.(updated);
     } catch {
       // noop
@@ -253,7 +258,7 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
               </span>
               <span className="text-xs text-gray-400">{new Date(current.created_at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}</span>
             </div>
-            {status === "PENDING" && (
+            {(status === "PENDING" || status === "REJECTED") && (
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => changeStatus("APPROVED")}
@@ -263,17 +268,57 @@ function DocValidationModal({ clientId, doc, onClose, onStatusChange }: { client
                   <CheckCircle2 size={12} />
                   {saving === "APPROVED" ? "..." : "Aprobar"}
                 </button>
+                {status === "PENDING" && (
+                  <button
+                    onClick={() => setShowRejectInput(true)}
+                    disabled={!!saving}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    <X size={12} />
+                    Rechazar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reject reason input */}
+          {showRejectInput && (
+            <div className="space-y-2">
+              <textarea
+                autoFocus
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Motivo del rechazo (opcional)"
+                rows={2}
+                className="w-full text-xs rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-red-300 resize-none"
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => { setShowRejectInput(false); setRejectReason(""); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Cancelar
+                </button>
                 <button
                   onClick={() => changeStatus("REJECTED")}
                   disabled={!!saving}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
                 >
                   <X size={12} />
-                  {saving === "REJECTED" ? "..." : "Rechazar"}
+                  {saving === "REJECTED" ? "..." : "Confirmar rechazo"}
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Rejection reason display */}
+          {current.rejection_reason && status === "REJECTED" && (
+            <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+              <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest mb-0.5">Motivo del rechazo</p>
+              <p className="text-xs text-red-700">{current.rejection_reason}</p>
+            </div>
+          )}
 
           {/* Document preview */}
           {blobUrl ? (
