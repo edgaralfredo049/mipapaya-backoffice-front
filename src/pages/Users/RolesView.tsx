@@ -18,6 +18,14 @@ const ROLE_ORDER = ["superusuario", "operaciones", "customer_services", "cumplim
 
 const WRITE_ENABLED = new Set(["usuarios", "configuracion", "tasas", "remesas", "clientes"]);
 
+// customer_services: remesas write siempre bloqueado; clientes sin opción de editar
+const WRITE_LOCKED: Record<string, Set<string>> = {
+  customer_services: new Set(["remesas"]),
+};
+const WRITE_HIDDEN: Record<string, Set<string>> = {
+  customer_services: new Set(["clientes"]),
+};
+
 const ROLE_COLORS: Record<string, string> = {
   superusuario:      "bg-papaya-orange/10 text-papaya-orange",
   operaciones:       "bg-blue-50 text-blue-600",
@@ -36,7 +44,12 @@ function buildInitialState(role: BackofficeRole, allPerms: BackofficePermission[
   const map: RoleState["perms"] = {};
   for (const p of allPerms) {
     const assigned = role.permissions.find(rp => rp.id === p.id);
-    map[p.id] = { read: !!assigned, write: !!assigned?.can_write };
+    const writeLocked  = WRITE_LOCKED[role.id]?.has(p.id);
+    const writeHidden  = WRITE_HIDDEN[role.id]?.has(p.id);
+    map[p.id] = {
+      read:  !!assigned,
+      write: (writeLocked || writeHidden) ? false : !!assigned?.can_write,
+    };
   }
   return map;
 }
@@ -234,17 +247,18 @@ export const RolesView = () => {
 
                           {/* Write toggle */}
                           <div className="flex justify-center">
-                            {WRITE_ENABLED.has(perm.id) ? (
+                            {WRITE_HIDDEN[role.id]?.has(perm.id) || !WRITE_ENABLED.has(perm.id) ? (
+                              <span className="text-[10px] text-gray-300">—</span>
+                            ) : (
                               <button
                                 onClick={() => toggleWrite(role.id, perm.id)}
-                                disabled={!state.read}
+                                disabled={!state.read || !!WRITE_LOCKED[role.id]?.has(perm.id)}
+                                title={WRITE_LOCKED[role.id]?.has(perm.id) ? "Este rol solo puede visualizar" : undefined}
                                 className={`w-8 h-4 rounded-full transition-colors relative disabled:opacity-30 disabled:cursor-not-allowed ${state.write ? "bg-blue-500" : "bg-gray-200"}`}
                                 aria-label="toggle editar"
                               >
                                 <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${state.write ? "left-[18px]" : "left-0.5"}`} />
                               </button>
-                            ) : (
-                              <span className="text-[10px] text-gray-300">—</span>
                             )}
                           </div>
 
