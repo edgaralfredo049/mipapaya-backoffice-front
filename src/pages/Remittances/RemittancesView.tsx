@@ -167,7 +167,9 @@ export const RemittancesView = () => {
   const [confirmId, setConfirmId]   = useState<string | null>(null);
   const [payingId,  setPayingId]    = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<{ id: string; summary: string } | null>(null);
-  const [vaultingId, setVaultingId] = useState<string | null>(null);
+  const [vaultingId,       setVaultingId]       = useState<string | null>(null);
+  const [confirmCancelId,  setConfirmCancelId]  = useState<string | null>(null);
+  const [cancelingId,      setCancelingId]      = useState<string | null>(null);
 
   const today = todayNY();
   const _qp = new URLSearchParams(locationSearch);
@@ -445,6 +447,16 @@ export const RemittancesView = () => {
                           <Send size={10} /> Transmitir
                         </button>
                       ) : null}
+                      {/* Cancelar */}
+                      {r.status === "pending" && (
+                        <button
+                          onClick={() => setConfirmCancelId(r.id)}
+                          disabled={cancelingId === r.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          {cancelingId === r.id ? "…" : "Cancelar"}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -524,6 +536,40 @@ export const RemittancesView = () => {
           </div>
         );
       })()}
+
+      {/* Confirm Cancel dialog */}
+      {confirmCancelId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
+            <h3 className="text-sm font-semibold text-heading-text">Cancelar remesa</h3>
+            <p className="text-sm text-gray-600">
+              ¿Desea cancelar la remesa <span className="font-mono text-papaya-orange">{confirmCancelId}</span>? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmCancelId(null)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Volver
+              </button>
+              <button
+                onClick={async () => {
+                  const id = confirmCancelId;
+                  setConfirmCancelId(null);
+                  setCancelingId(id);
+                  try {
+                    const updated = await api.updateRemittanceStatus(id, "canceled");
+                    setItems(prev => prev.map(r => r.id === updated.id ? updated : r));
+                  } catch { /* silent */ } finally { setCancelingId(null); }
+                }}
+                className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
+              >
+                Sí, cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Send dialog */}
       {confirmId && (
