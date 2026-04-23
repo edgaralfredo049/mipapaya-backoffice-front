@@ -168,6 +168,7 @@ export const RemittancesView = () => {
   const [payingId,  setPayingId]    = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<{ id: string; summary: string } | null>(null);
   const [vaultingId,       setVaultingId]       = useState<string | null>(null);
+  const [confirmVault,     setConfirmVault]     = useState<{ id: string; toVault: string; label: string } | null>(null);
   const [confirmCancelId,  setConfirmCancelId]  = useState<string | null>(null);
   const [cancelingId,      setCancelingId]      = useState<string | null>(null);
 
@@ -438,13 +439,7 @@ export const RemittancesView = () => {
                         return (
                           <div className="relative group">
                             <button
-                              onClick={async () => {
-                                setVaultingId(r.id);
-                                try {
-                                  const updated = await api.updateRemittanceVault(r.id, toVault);
-                                  setItems(prev => prev.map(x => x.id === r.id ? updated : x));
-                                } catch { /* silent */ } finally { setVaultingId(null); }
-                              }}
+                              onClick={() => setConfirmVault({ id: r.id, toVault, label: tip })}
                               disabled={vaultingId === r.id}
                               className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
@@ -546,6 +541,41 @@ export const RemittancesView = () => {
           </div>
         );
       })()}
+
+      {/* Confirm Vault dialog */}
+      {confirmVault && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
+            <h3 className="text-sm font-semibold text-heading-text">{confirmVault.label}</h3>
+            <p className="text-sm text-gray-600">
+              ¿Desea mover la remesa <span className="font-mono text-papaya-orange">{confirmVault.id}</span> a{" "}
+              <span className="font-semibold">{confirmVault.toVault === "compliance" ? "Cumplimiento" : "Operaciones"}</span>?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmVault(null)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  const { id, toVault } = confirmVault;
+                  setConfirmVault(null);
+                  setVaultingId(id);
+                  try {
+                    const updated = await api.updateRemittanceVault(id, toVault);
+                    setItems(prev => prev.map(x => x.id === id ? updated : x));
+                  } catch { /* silent */ } finally { setVaultingId(null); }
+                }}
+                className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Cancel dialog */}
       {confirmCancelId && (
