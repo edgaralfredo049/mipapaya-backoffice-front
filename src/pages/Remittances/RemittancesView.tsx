@@ -413,7 +413,7 @@ export const RemittancesView = () => {
                         disabled={r.status !== "pending" || sendingId === r.id}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <Send size={11} /> Enviar
+                        <Send size={11} /> Transmitir
                       </button>
                     )}
                   </td>
