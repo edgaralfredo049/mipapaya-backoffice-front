@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   Settings, TrendingUp, Users, ArrowLeftRight,
   LayoutDashboard, ChevronLeft, ChevronRight, HelpCircle,
-  UserCog, LogOut, ShieldAlert,
+  UserCog, LogOut,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import logo from "../../../assets/Full logo Orange con espacio.avif";
@@ -29,7 +29,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/tasas",         label: "Tasas de Cambio", Icon: TrendingUp,      permission: "tasas"         },
   { to: "/clientes",      label: "Clientes",        Icon: Users,           permission: "clientes"      },
   { to: "/remesas",       label: "Remesas",         Icon: ArrowLeftRight,  permission: "remesas"       },
-  { to: "/vault-report",  label: "Reporte Bóveda",  Icon: ShieldAlert,     permission: "dashboard_cumplimiento" },
   { to: "/soporte",       label: "Soporte",         Icon: HelpCircle,      permission: "soporte"       },
   { to: "/usuarios",      label: "Usuarios",        Icon: UserCog,         permission: "usuarios"      },
 ];
