@@ -19,11 +19,9 @@ const ROLE_ORDER = ["superusuario", "operaciones", "customer_services", "cumplim
 const WRITE_ENABLED = new Set(["usuarios", "configuracion", "tasas", "remesas", "clientes"]);
 
 // customer_services: remesas write siempre bloqueado; clientes sin opción de editar
-const WRITE_LOCKED: Record<string, Set<string>> = {
-  customer_services: new Set(["remesas"]),
-};
+const WRITE_LOCKED: Record<string, Set<string>> = {};
 const WRITE_HIDDEN: Record<string, Set<string>> = {
-  customer_services: new Set(["clientes"]),
+  customer_services: new Set(["remesas", "clientes"]),
 };
 
 const ROLE_COLORS: Record<string, string> = {
