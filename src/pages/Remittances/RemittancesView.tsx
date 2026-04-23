@@ -415,7 +415,7 @@ export const RemittancesView = () => {
                         </span>
                       )}
                       {/* Escalar / Aprobar / Rechazar */}
-                      {r.vault === "operations" && r.status === "pending" && userRole === "operaciones" && (
+                      {r.vault === "operations" && (r.status === "pending" || r.status === "ureview") && (userRole === "operaciones" || userRole === "superusuario") && (
                         <button
                           onClick={async () => {
                             setVaultingId(r.id);
@@ -430,7 +430,7 @@ export const RemittancesView = () => {
                           {vaultingId === r.id ? "…" : "Escalar a Cumplimiento"}
                         </button>
                       )}
-                      {r.vault === "compliance" && r.status === "pending" && (userRole === "cumplimiento" || userRole === "superusuario") && (
+                      {r.vault === "compliance" && (r.status === "pending" || r.status === "ureview") && (userRole === "cumplimiento" || userRole === "superusuario") && (
                         <div className="flex gap-2">
                           <button
                             onClick={async () => {
