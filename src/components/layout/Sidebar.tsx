@@ -20,11 +20,12 @@ interface NavItem {
   to:           string;
   label:        string;
   Icon:         React.ElementType;
-  permission:   string;
+  permission?:  string;
+  anyPermission?: string[];
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/dashboards",    label: "Dashboards",      Icon: LayoutDashboard, permission: "dashboard_ops" },
+  { to: "/dashboards",    label: "Dashboards",      Icon: LayoutDashboard, anyPermission: ["dashboard_admin", "dashboard_ops", "dashboard_cumplimiento"] },
   { to: "/configuracion", label: "Configuración",   Icon: Settings,        permission: "configuracion" },
   { to: "/tasas",         label: "Tasas de Cambio", Icon: TrendingUp,      permission: "tasas"         },
   { to: "/clientes",      label: "Clientes",        Icon: Users,           permission: "clientes"      },
@@ -47,7 +48,11 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     return () => clearInterval(id);
   }, []);
 
-  const visibleItems = NAV_ITEMS.filter(item => hasPermission(item.permission));
+  const visibleItems = NAV_ITEMS.filter(item =>
+    item.anyPermission
+      ? item.anyPermission.some(p => hasPermission(p))
+      : hasPermission(item.permission!)
+  );
 
   function handleLogout() {
     logout();

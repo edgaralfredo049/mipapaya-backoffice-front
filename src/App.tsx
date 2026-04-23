@@ -25,15 +25,20 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 /** Redirige a la primera ruta permitida si el usuario no tiene permiso. */
 function RequirePermission({
   id,
+  anyOf,
   write = false,
   children,
 }: {
-  id: string;
+  id?: string;
+  anyOf?: string[];
   write?: boolean;
   children: React.ReactNode;
 }) {
   const hasPermission = useAuthStore(s => s.hasPermission);
-  if (!hasPermission(id, write)) return <Navigate to="/" replace />;
+  const allowed = anyOf
+    ? anyOf.some(p => hasPermission(p, write))
+    : hasPermission(id!, write);
+  if (!allowed) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -71,7 +76,7 @@ export default function App() {
           <Route
             path="dashboards"
             element={
-              <RequirePermission id="dashboard_ops">
+              <RequirePermission anyOf={["dashboard_admin", "dashboard_ops", "dashboard_cumplimiento"]}>
                 <Dashboards />
               </RequirePermission>
             }

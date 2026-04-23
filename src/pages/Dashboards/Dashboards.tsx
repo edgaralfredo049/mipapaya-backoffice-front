@@ -1,35 +1,48 @@
 import React, { useState, useEffect } from "react";
+import { useAuthStore } from "../../store/useAuthStore";
 import { AdministrativoTab } from "./AdministrativoTab";
 import { CumplimientoTab } from "./CumplimientoTab";
 import { OperacionesTab } from "./OperacionesTab";
 
 type Tab = "administrativo" | "cumplimiento" | "operaciones";
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "administrativo", label: "Administrativo" },
-  { key: "cumplimiento",   label: "Cumplimiento"   },
-  { key: "operaciones",    label: "Operaciones"    },
+const ALL_TABS: { key: Tab; label: string; permission: string }[] = [
+  { key: "administrativo", label: "Administrativo",  permission: "dashboard_admin"          },
+  { key: "operaciones",    label: "Operaciones",     permission: "dashboard_ops"            },
+  { key: "cumplimiento",   label: "Cumplimiento",    permission: "dashboard_cumplimiento"   },
 ];
 
-const VALID_TABS = TABS.map((t) => t.key);
-
-function getTabFromHash(): Tab {
-  const hash = window.location.hash.replace("#tab=", "");
-  return VALID_TABS.includes(hash as Tab) ? (hash as Tab) : "administrativo";
-}
-
 export const Dashboards = () => {
-  const [activeTab, setActiveTab] = useState<Tab>(getTabFromHash);
+  const hasPermission = useAuthStore(s => s.hasPermission);
+  const visibleTabs   = ALL_TABS.filter(t => hasPermission(t.permission));
+
+  const getInitialTab = (): Tab => {
+    const hash = window.location.hash.replace("#tab=", "") as Tab;
+    if (visibleTabs.some(t => t.key === hash)) return hash;
+    return visibleTabs[0]?.key ?? "administrativo";
+  };
+
+  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
 
   useEffect(() => {
     window.location.hash = `tab=${activeTab}`;
   }, [activeTab]);
 
   useEffect(() => {
-    const onHashChange = () => setActiveTab(getTabFromHash());
+    const onHashChange = () => {
+      const hash = window.location.hash.replace("#tab=", "") as Tab;
+      if (visibleTabs.some(t => t.key === hash)) setActiveTab(hash);
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+  }, [visibleTabs]);
+
+  // If active tab lost permission, switch to first visible
+  useEffect(() => {
+    if (!visibleTabs.some(t => t.key === activeTab) && visibleTabs.length > 0) {
+      setActiveTab(visibleTabs[0].key);
+    }
+  }, [visibleTabs, activeTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -39,14 +52,19 @@ export const Dashboards = () => {
     }
   };
 
+  if (visibleTabs.length === 0) {
+    return (
+      <div className="p-6 text-sm text-gray-400">Sin acceso a ningún dashboard.</div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboards</h1>
 
-      {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex gap-1">
-          {TABS.map(({ key, label }) => (
+          {visibleTabs.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -62,7 +80,6 @@ export const Dashboards = () => {
         </nav>
       </div>
 
-      {/* Content */}
       <div>{renderContent()}</div>
     </div>
   );

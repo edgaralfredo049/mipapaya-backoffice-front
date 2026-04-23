@@ -25,8 +25,8 @@ const ROLE_COLORS: Record<string, string> = {
 
 // Escritura fija por rol — la edición real estará controlada por el vault system
 const ROLE_WRITE_PERMS: Record<string, Set<string>> = {
-  superusuario:      new Set(["dashboard_ops", "dashboard_cumplimiento", "configuracion", "tasas", "clientes", "remesas", "soporte", "usuarios"]),
-  operaciones:       new Set(["remesas", "clientes", "usuarios"]),
+  superusuario:      new Set(["dashboard_admin", "dashboard_ops", "dashboard_cumplimiento", "configuracion", "tasas", "clientes", "remesas", "soporte", "usuarios"]),
+  operaciones:       new Set(["dashboard_admin", "dashboard_ops", "remesas", "clientes", "usuarios"]),
   cumplimiento:      new Set(["remesas", "clientes", "usuarios"]),
   customer_services: new Set(),
 };
