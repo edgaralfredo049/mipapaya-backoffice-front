@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Save, RefreshCw, ChevronDown, Check, Users } from "lucide-react";
+import { ArrowLeft, Save, RefreshCw, ChevronDown, Check } from "lucide-react";
 import { api, BackofficeRole, BackofficePermission } from "../../api";
 
 const PERMISSION_LABELS: Record<string, string> = {
@@ -14,15 +14,7 @@ const PERMISSION_LABELS: Record<string, string> = {
   usuarios:               "Usuarios y roles",
 };
 
-const ROLE_ORDER = ["superusuario", "operaciones", "customer_services", "cumplimiento"];
-
-const WRITE_ENABLED = new Set(["usuarios", "configuracion", "tasas", "remesas", "clientes"]);
-
-// customer_services: remesas write siempre bloqueado; clientes sin opción de editar
-const WRITE_LOCKED: Record<string, Set<string>> = {};
-const WRITE_HIDDEN: Record<string, Set<string>> = {
-  customer_services: new Set(["remesas", "clientes"]),
-};
+const ROLE_ORDER = ["superusuario", "operaciones", "cumplimiento", "customer_services"];
 
 const ROLE_COLORS: Record<string, string> = {
   superusuario:      "bg-papaya-orange/10 text-papaya-orange",
@@ -31,8 +23,16 @@ const ROLE_COLORS: Record<string, string> = {
   cumplimiento:      "bg-purple-50 text-purple-600",
 };
 
+// Escritura fija por rol — la edición real estará controlada por el vault system
+const ROLE_WRITE_PERMS: Record<string, Set<string>> = {
+  superusuario:      new Set(["dashboard_ops", "dashboard_cumplimiento", "configuracion", "tasas", "clientes", "remesas", "soporte", "usuarios"]),
+  operaciones:       new Set(["remesas", "clientes", "usuarios"]),
+  cumplimiento:      new Set(["remesas", "clientes", "usuarios"]),
+  customer_services: new Set(),
+};
+
 interface RoleState {
-  perms:  Record<string, { read: boolean; write: boolean }>;
+  perms:  Record<string, { read: boolean }>;
   saving: boolean;
   saved:  boolean;
   open:   boolean;
@@ -42,12 +42,7 @@ function buildInitialState(role: BackofficeRole, allPerms: BackofficePermission[
   const map: RoleState["perms"] = {};
   for (const p of allPerms) {
     const assigned = role.permissions.find(rp => rp.id === p.id);
-    const writeLocked  = WRITE_LOCKED[role.id]?.has(p.id);
-    const writeHidden  = WRITE_HIDDEN[role.id]?.has(p.id);
-    map[p.id] = {
-      read:  !!assigned,
-      write: (writeLocked || writeHidden) ? false : !!assigned?.can_write,
-    };
+    map[p.id] = { read: !!assigned };
   }
   return map;
 }
@@ -67,7 +62,7 @@ export const RolesView = () => {
       setRoles(r.items);
       setAllPerms(p.items);
       const initial: Record<string, RoleState> = {};
-      r.items.forEach((role, i) => {
+      r.items.forEach(role => {
         initial[role.id] = {
           perms:  buildInitialState(role, p.items),
           saving: false,
@@ -95,31 +90,12 @@ export const RolesView = () => {
   function toggleRead(roleId: string, permId: string) {
     setRoleStates(prev => {
       const cur = prev[roleId].perms[permId];
-      const newRead = !cur.read;
       return {
         ...prev,
         [roleId]: {
           ...prev[roleId],
           saved: false,
-          perms: {
-            ...prev[roleId].perms,
-            [permId]: { read: newRead, write: newRead ? cur.write : false },
-          },
-        },
-      };
-    });
-  }
-
-  function toggleWrite(roleId: string, permId: string) {
-    setRoleStates(prev => {
-      const cur = prev[roleId].perms[permId];
-      if (!cur.read) return prev;
-      return {
-        ...prev,
-        [roleId]: {
-          ...prev[roleId],
-          saved: false,
-          perms: { ...prev[roleId].perms, [permId]: { ...cur, write: !cur.write } },
+          perms: { ...prev[roleId].perms, [permId]: { read: !cur.read } },
         },
       };
     });
@@ -130,9 +106,10 @@ export const RolesView = () => {
     setError(null);
     try {
       const perms = roleStates[roleId].perms;
+      const writePerms = ROLE_WRITE_PERMS[roleId] ?? new Set();
       const payload = Object.entries(perms)
         .filter(([, v]) => v.read)
-        .map(([permId, v]) => ({ permission_id: permId, can_write: v.write }));
+        .map(([permId]) => ({ permission_id: permId, can_write: writePerms.has(permId) }));
       await api.updateRolePermissions(roleId, payload);
       setRoleStates(prev => ({ ...prev, [roleId]: { ...prev[roleId], saving: false, saved: true } }));
       setTimeout(() => {
@@ -157,7 +134,7 @@ export const RolesView = () => {
           </Link>
           <div>
             <h1 className="text-xl font-bold text-heading-text">Permisos por rol</h1>
-            <p className="text-xs text-body-text mt-0.5">Configura qué puede ver y hacer cada rol</p>
+            <p className="text-xs text-body-text mt-0.5">Configura qué módulos puede ver cada rol</p>
           </div>
         </div>
         <button onClick={load} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -201,7 +178,7 @@ export const RolesView = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400">{activeCount}/{allPerms.length} permisos</span>
+                    <span className="text-xs text-gray-400">{activeCount}/{allPerms.length} módulos</span>
                     <ChevronDown
                       size={14}
                       className={`text-gray-400 transition-transform duration-200 ${rs.open ? "rotate-180" : ""}`}
@@ -213,20 +190,19 @@ export const RolesView = () => {
                 {rs.open && (
                   <div className="border-t border-gray-50">
                     {/* Column headers */}
-                    <div className="grid grid-cols-[1fr_64px_64px_auto] items-center px-5 py-2 bg-gray-50/80">
+                    <div className="grid grid-cols-[1fr_64px_auto] items-center px-5 py-2 bg-gray-50/80">
                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Módulo</span>
                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-center">Ver</span>
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-center">Editar</span>
                       <span className="w-24" />
                     </div>
 
                     {/* Permission rows */}
                     {allPerms.map(perm => {
-                      const state = rs.perms[perm.id] ?? { read: false, write: false };
+                      const state = rs.perms[perm.id] ?? { read: false };
                       return (
                         <div
                           key={perm.id}
-                          className="grid grid-cols-[1fr_64px_64px_auto] items-center px-5 py-2 hover:bg-gray-50/40 transition-colors"
+                          className="grid grid-cols-[1fr_64px_auto] items-center px-5 py-2 hover:bg-gray-50/40 transition-colors"
                         >
                           <span className="text-xs text-gray-700">
                             {PERMISSION_LABELS[perm.id] ?? perm.name}
@@ -241,23 +217,6 @@ export const RolesView = () => {
                             >
                               <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${state.read ? "left-[18px]" : "left-0.5"}`} />
                             </button>
-                          </div>
-
-                          {/* Write toggle */}
-                          <div className="flex justify-center">
-                            {WRITE_HIDDEN[role.id]?.has(perm.id) || !WRITE_ENABLED.has(perm.id) ? (
-                              <span className="text-[10px] text-gray-300">—</span>
-                            ) : (
-                              <button
-                                onClick={() => toggleWrite(role.id, perm.id)}
-                                disabled={!state.read || !!WRITE_LOCKED[role.id]?.has(perm.id)}
-                                title={WRITE_LOCKED[role.id]?.has(perm.id) ? "Este rol solo puede visualizar" : undefined}
-                                className={`w-8 h-4 rounded-full transition-colors relative disabled:opacity-30 disabled:cursor-not-allowed ${state.write ? "bg-blue-500" : "bg-gray-200"}`}
-                                aria-label="toggle editar"
-                              >
-                                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${state.write ? "left-[18px]" : "left-0.5"}`} />
-                              </button>
-                            )}
                           </div>
 
                           <div className="w-24" />
