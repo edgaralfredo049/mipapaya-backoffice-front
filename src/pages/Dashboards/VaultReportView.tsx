@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../api";
-import { ShieldAlert, Users, ArrowUpRight, RefreshCw, Loader2 } from "lucide-react";
+import { Users, ShieldAlert, CheckCircle2, XCircle, RefreshCw, Loader2 } from "lucide-react";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -11,10 +11,12 @@ function firstDayOfMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+type Summary = { new_clients: number; escalated: number; approved: number; rejected: number };
+
 export const VaultReportView: React.FC = () => {
   const [dateFrom, setDateFrom] = useState(firstDayOfMonth());
   const [dateTo,   setDateTo]   = useState(todayStr());
-  const [data,     setData]     = useState<{ new_client: number; alerts: number; manual: number } | null>(null);
+  const [data,     setData]     = useState<Summary | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
 
@@ -35,14 +37,12 @@ export const VaultReportView: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
-  const total = (data?.new_client ?? 0) + (data?.alerts ?? 0) + (data?.manual ?? 0);
-
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-800">Reporte de Bóveda</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Escalaciones a Cumplimiento por tipo en el período seleccionado
+          Actividad de cumplimiento en el período seleccionado
         </p>
       </div>
 
@@ -77,64 +77,54 @@ export const VaultReportView: React.FC = () => {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           icon={<Users size={20} className="text-purple-500" />}
-          label="Clientes nuevos → Cumplimiento"
-          value={data?.new_client ?? 0}
-          total={total}
+          label="Nuevos clientes registrados"
+          value={data?.new_clients ?? 0}
           color="purple"
-          description="Primera remesa de un cliente, evaluada por cumplimiento antes de liberar"
+          description="Clientes registrados en el período"
         />
         <StatCard
           icon={<ShieldAlert size={20} className="text-amber-500" />}
-          label="Escaladas por Operaciones (alertas)"
-          value={data?.alerts ?? 0}
-          total={total}
+          label="Escaladas a Cumplimiento"
+          value={data?.escalated ?? 0}
           color="amber"
-          description="Operaciones escaló una remesa con alertas a cumplimiento"
+          description="Remesas enviadas a bóveda de Cumplimiento"
         />
         <StatCard
-          icon={<ArrowUpRight size={20} className="text-blue-500" />}
-          label="Movimientos manuales"
-          value={data?.manual ?? 0}
-          total={total}
-          color="blue"
-          description="Cambios de bóveda realizados manualmente"
+          icon={<CheckCircle2 size={20} className="text-green-500" />}
+          label="Aprobadas"
+          value={data?.approved ?? 0}
+          color="green"
+          description="Remesas aprobadas y devueltas a Operaciones"
+        />
+        <StatCard
+          icon={<XCircle size={20} className="text-red-500" />}
+          label="Rechazadas"
+          value={data?.rejected ?? 0}
+          color="red"
+          description="Remesas canceladas desde Cumplimiento"
         />
       </div>
-
-      {/* Total */}
-      {data && (
-        <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between">
-          <span className="text-sm text-gray-600 font-medium">Total escalaciones en el período</span>
-          <span className="text-2xl font-bold text-gray-900">{total}</span>
-        </div>
-      )}
     </div>
   );
 };
 
 function StatCard({
-  icon, label, value, total, color, description,
+  icon, label, value, color, description,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
-  total: number;
-  color: "purple" | "amber" | "blue";
+  color: "purple" | "amber" | "green" | "red";
   description: string;
 }) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  const barColor = {
-    purple: "bg-purple-400",
-    amber:  "bg-amber-400",
-    blue:   "bg-blue-400",
-  }[color];
   const bgColor = {
     purple: "bg-purple-50 border-purple-100",
     amber:  "bg-amber-50 border-amber-100",
-    blue:   "bg-blue-50 border-blue-100",
+    green:  "bg-green-50 border-green-100",
+    red:    "bg-red-50 border-red-100",
   }[color];
 
   return (
@@ -144,15 +134,7 @@ function StatCard({
         <span className="text-xs font-semibold text-gray-600 leading-tight">{label}</span>
       </div>
       <div className="text-3xl font-bold text-gray-900">{value}</div>
-      <div className="space-y-1">
-        <div className="flex justify-between text-[10px] text-gray-500">
-          <span>{description}</span>
-          <span>{pct}%</span>
-        </div>
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-        </div>
-      </div>
+      <p className="text-[11px] text-gray-500">{description}</p>
     </div>
   );
 }

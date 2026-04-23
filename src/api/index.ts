@@ -916,7 +916,7 @@ export const api = {
     const p = new URLSearchParams();
     if (date_from) p.set("date_from", date_from);
     if (date_to)   p.set("date_to",   date_to);
-    return request<{ new_client: number; alerts: number; manual: number }>(`/vault-log/summary?${p.toString()}`);
+    return request<{ new_clients: number; escalated: number; approved: number; rejected: number }>(`/vault-log/summary?${p.toString()}`);
   },
   getRemittanceVaultLog: (id: string) =>
     request<{ id: string; vault_from: string | null; vault_to: string; escalation_type: string | null; changed_by: string | null; notes: string | null; created_at: string }[]>(`/remittances/${id}/vault-log`),
