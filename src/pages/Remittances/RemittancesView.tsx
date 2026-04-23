@@ -335,11 +335,11 @@ export const RemittancesView = () => {
           <div className="px-4 py-3 text-sm text-red-600 bg-red-50 border-b border-red-100">{error}</div>
         )}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Enviado", "Pagador", "Estado", "Alertas", "Bóveda", ""].map(h => (
-                  <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                {["ID Remesa", "Fecha (NY)", "Cliente", "Ruta", "Enviado", "Pagador", "Estado", "Alertas", "Acciones"].map(h => (
+                  <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -348,103 +348,104 @@ export const RemittancesView = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
                     {hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}
                   </td>
                 </tr>
               ) : items.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-3 py-3 font-mono text-xs whitespace-nowrap">
+                  <td className="px-2 py-1.5 font-mono whitespace-nowrap">
                     <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">
                       {r.id}
                     </Link>
                   </td>
-                  <td className="px-3 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtDateNY(r.created_at)}</td>
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5">
+                  <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap">{fmtDateNY(r.created_at)}</td>
+                  <td className="px-2 py-1.5 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
                       {r.client_db_id ? (
-                        <Link to={`/clientes/${r.client_db_id}`} className="font-mono text-papaya-orange hover:underline text-xs">
+                        <Link to={`/clientes/${r.client_db_id}`} className="font-mono text-papaya-orange hover:underline">
                           #{r.client_db_id}
                         </Link>
-                      ) : <span className="text-gray-400 text-xs">—</span>}
-                      {r.client_name && <span className="text-gray-600 text-xs">{r.client_name}</span>}
+                      ) : <span className="text-gray-400">—</span>}
+                      {r.client_name && <span className="text-gray-600">{r.client_name}</span>}
                     </span>
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-gray-700 text-xs">
+                  <td className="px-2 py-1.5 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 text-gray-700">
                       <span className="font-medium">{r.origin_country_name || r.origin_country_id || "—"}</span>
-                      <ArrowLeftRight size={11} className="text-gray-400" />
+                      <ArrowLeftRight size={10} className="text-gray-400" />
                       <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-800 text-xs whitespace-nowrap">
+                  <td className="px-2 py-1.5 text-right tabular-nums font-medium text-gray-800 whitespace-nowrap">
                     {(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}
                   </td>
-                  <td className="px-3 py-3 text-gray-700 text-xs">{r.payer_name || r.payer_id || "—"}</td>
-                  <td className="px-3 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
+                  <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
+                  <td className="px-2 py-1.5">
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
                       {STATUS_LABELS[r.status] ?? r.status}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="px-2 py-1.5 text-center">
                     {(r.alert_count ?? 0) > 0 ? (
                       <button
                         onClick={() => setAlertModal({ id: r.id, summary: r.alert_summary ?? "" })}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition-colors"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-semibold hover:bg-red-200 transition-colors"
                         title="Ver alertas de cumplimiento"
                       >
-                        <ShieldAlert size={11} /> {r.alert_count}
+                        <ShieldAlert size={10} /> {r.alert_count}
                       </button>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
-                  {/* Vault action */}
-                  <td className="px-3 py-3">
-                    {(r.status === "pending" || r.status === "ureview") && (() => {
-                      const canEscalar  = r.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
-                      const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
-                      if (!canEscalar && !canRetornar) return null;
-                      const toVault = canEscalar ? "compliance" : "operations";
-                      const label   = canEscalar ? "Escalar a Cumplimiento" : "Enviar a Operaciones";
-                      return (
+                  {/* Acciones: vault + transmitir */}
+                  <td className="px-2 py-1.5">
+                    <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      {/* Vault button */}
+                      {(r.status === "pending" || r.status === "ureview") && (() => {
+                        const canEscalar  = r.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
+                        const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
+                        if (!canEscalar && !canRetornar) return null;
+                        const toVault = canEscalar ? "compliance" : "operations";
+                        const label   = canEscalar ? "Escalar" : "A Operaciones";
+                        return (
+                          <button
+                            onClick={async () => {
+                              setVaultingId(r.id);
+                              try {
+                                const updated = await api.updateRemittanceVault(r.id, toVault);
+                                setItems(prev => prev.map(x => x.id === r.id ? updated : x));
+                              } catch { /* silent */ } finally { setVaultingId(null); }
+                            }}
+                            disabled={vaultingId === r.id}
+                            className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {vaultingId === r.id ? "…" : label}
+                          </button>
+                        );
+                      })()}
+                      {/* Transmitir */}
+                      {r.status === "ureview" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
+                          <ShieldAlert size={10} /> Validando…
+                        </span>
+                      ) : payingId === r.id ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 font-medium animate-pulse">
+                          ⏳ Procesando…
+                        </span>
+                      ) : (
                         <button
-                          onClick={async () => {
-                            setVaultingId(r.id);
-                            try {
-                              const updated = await api.updateRemittanceVault(r.id, toVault);
-                              setItems(prev => prev.map(x => x.id === r.id ? updated : x));
-                            } catch { /* silent */ } finally { setVaultingId(null); }
-                          }}
-                          disabled={vaultingId === r.id}
-                          className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+                          onClick={() => setConfirmId(r.id)}
+                          disabled={r.status !== "pending" || r.vault !== "operations" || sendingId === r.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          {vaultingId === r.id ? "…" : label}
+                          <Send size={10} /> Transmitir
                         </button>
-                      );
-                    })()}
-                  </td>
-                  {/* Transmitir */}
-                  <td className="px-3 py-3">
-                    {r.status === "ureview" ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-purple-600 font-medium animate-pulse">
-                        <ShieldAlert size={11} /> Validando…
-                      </span>
-                    ) : payingId === r.id ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-600 font-medium animate-pulse">
-                        ⏳ Procesando…
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmId(r.id)}
-                        disabled={r.status !== "pending" || r.vault !== "operations" || sendingId === r.id}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Send size={11} /> Transmitir
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
