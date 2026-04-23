@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, X, ArrowLeftRight, Send, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { Search, X, ArrowLeftRight, Send, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw, ArrowUpRight, Undo2, XCircle } from "lucide-react";
 
 type AlertDetail = { name: string; triggered: boolean; reason: string };
 
@@ -412,7 +412,8 @@ export const RemittancesView = () => {
                         const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
                         if (!canEscalar && !canRetornar) return null;
                         const toVault = canEscalar ? "compliance" : "operations";
-                        const label   = canEscalar ? "Escalar" : "A Operaciones";
+                        const tooltip = canEscalar ? "Escalar a Cumplimiento" : "Enviar a Operaciones";
+                        const Icon    = canEscalar ? ArrowUpRight : Undo2;
                         return (
                           <button
                             onClick={async () => {
@@ -423,9 +424,10 @@ export const RemittancesView = () => {
                               } catch { /* silent */ } finally { setVaultingId(null); }
                             }}
                             disabled={vaultingId === r.id}
-                            className="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={tooltip}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
-                            {vaultingId === r.id ? "…" : label}
+                            {vaultingId === r.id ? "…" : <Icon size={13} />}
                           </button>
                         );
                       })()}
@@ -442,9 +444,10 @@ export const RemittancesView = () => {
                         <button
                           onClick={() => setConfirmId(r.id)}
                           disabled={r.vault !== "operations" || sendingId === r.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Transmitir"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          <Send size={10} /> Transmitir
+                          <Send size={13} />
                         </button>
                       ) : null}
                       {/* Cancelar */}
@@ -452,9 +455,10 @@ export const RemittancesView = () => {
                         <button
                           onClick={() => setConfirmCancelId(r.id)}
                           disabled={cancelingId === r.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Cancelar remesa"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          {cancelingId === r.id ? "…" : "Cancelar"}
+                          {cancelingId === r.id ? "…" : <XCircle size={13} />}
                         </button>
                       )}
                     </div>
