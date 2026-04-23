@@ -203,6 +203,13 @@ export const RemittancesView = () => {
 
   useEffect(() => { load(page, getFilters()); }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-poll every 5 s while any remittance is still under compliance review
+  useEffect(() => {
+    if (!items.some(r => r.status === "ureview")) return;
+    const timer = setInterval(() => load(page, getFilters()), 5000);
+    return () => clearInterval(timer);
+  }, [items, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSearch = () => { setPage(1); load(1, getFilters()); };
 
   const handleClear = () => {
