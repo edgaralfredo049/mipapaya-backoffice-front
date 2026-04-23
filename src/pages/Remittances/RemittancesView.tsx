@@ -401,67 +401,30 @@ export const RemittancesView = () => {
                       </button>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
-                  {/* Vault badge + actions */}
+                  {/* Vault action */}
                   <td className="px-3 py-3">
-                    <div className="flex flex-col gap-1 items-start">
-                      {/* Badge */}
-                      {r.vault === "compliance" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-semibold">
-                          🔒 Cumplimiento
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-semibold">
-                          ⚙️ Operaciones
-                        </span>
-                      )}
-                      {/* Escalar / Aprobar / Rechazar */}
-                      {r.vault === "operations" && (r.status === "pending" || r.status === "ureview") && (userRole === "operaciones" || userRole === "superusuario") && (
+                    {(r.status === "pending" || r.status === "ureview") && (() => {
+                      const canEscalar  = r.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
+                      const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
+                      if (!canEscalar && !canRetornar) return null;
+                      const toVault = canEscalar ? "compliance" : "operations";
+                      const label   = canEscalar ? "Escalar a Cumplimiento" : "Enviar a Operaciones";
+                      return (
                         <button
                           onClick={async () => {
                             setVaultingId(r.id);
                             try {
-                              const updated = await api.updateRemittanceVault(r.id, "compliance", "Escalada por operaciones");
+                              const updated = await api.updateRemittanceVault(r.id, toVault);
                               setItems(prev => prev.map(x => x.id === r.id ? updated : x));
                             } catch { /* silent */ } finally { setVaultingId(null); }
                           }}
                           disabled={vaultingId === r.id}
-                          className="text-[10px] text-purple-600 hover:text-purple-800 underline disabled:opacity-40"
+                          className="text-[10px] text-purple-600 hover:text-purple-800 underline disabled:opacity-40 whitespace-nowrap"
                         >
-                          {vaultingId === r.id ? "…" : "Escalar a Cumplimiento"}
+                          {vaultingId === r.id ? "…" : label}
                         </button>
-                      )}
-                      {r.vault === "compliance" && (r.status === "pending" || r.status === "ureview") && (userRole === "cumplimiento" || userRole === "superusuario") && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={async () => {
-                              setVaultingId(r.id);
-                              try {
-                                const updated = await api.complianceApprove(r.id);
-                                setItems(prev => prev.map(x => x.id === r.id ? updated : x));
-                              } catch { /* silent */ } finally { setVaultingId(null); }
-                            }}
-                            disabled={vaultingId === r.id}
-                            className="text-[10px] text-green-600 hover:text-green-800 underline disabled:opacity-40"
-                          >
-                            Aprobar
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (!confirm("¿Rechazar remesa y deshabilitar cliente?")) return;
-                              setVaultingId(r.id);
-                              try {
-                                const updated = await api.complianceReject(r.id);
-                                setItems(prev => prev.map(x => x.id === r.id ? updated : x));
-                              } catch { /* silent */ } finally { setVaultingId(null); }
-                            }}
-                            disabled={vaultingId === r.id}
-                            className="text-[10px] text-red-500 hover:text-red-700 underline disabled:opacity-40"
-                          >
-                            Rechazar
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </td>
                   {/* Transmitir */}
                   <td className="px-3 py-3">
