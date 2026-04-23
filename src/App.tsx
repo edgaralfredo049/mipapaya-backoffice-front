@@ -11,6 +11,7 @@ import { ClientDetailView } from "./pages/Clients/ClientDetailView";
 import { RemittancesView } from "./pages/Remittances/RemittancesView";
 import { RemittanceDetailView } from "./pages/Remittances/RemittanceDetailView";
 import { Dashboards } from "./pages/Dashboards/Dashboards";
+import { VaultReportView } from "./pages/Dashboards/VaultReportView";
 import { HumanHandoffView } from "./pages/Handoff/HumanHandoffView";
 import { UsersView } from "./pages/Users/UsersView";
 import { RolesView } from "./pages/Users/RolesView";
@@ -145,6 +146,14 @@ export default function App() {
             element={
               <RequirePermission id="usuarios">
                 <RolesView />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="vault-report"
+            element={
+              <RequirePermission id="dashboard_cumplimiento">
+                <VaultReportView />
               </RequirePermission>
             }
           />
