@@ -406,6 +406,27 @@ export const RemittancesView = () => {
                   {/* Acciones: vault + transmitir */}
                   <td className="px-2 py-1.5">
                     <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      {/* Transmitir */}
+                      {r.status === "ureview" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
+                          <ShieldAlert size={10} /> Validando…
+                        </span>
+                      ) : payingId === r.id ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 font-medium animate-pulse">
+                          ⏳ Procesando…
+                        </span>
+                      ) : r.status === "pending" ? (
+                        <div className="relative group">
+                          <button
+                            onClick={() => setConfirmId(r.id)}
+                            disabled={r.vault !== "operations" || sendingId === r.id}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Send size={13} />
+                          </button>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Transmitir</span>
+                        </div>
+                      ) : null}
                       {/* Vault button */}
                       {r.status === "pending" && (() => {
                         const canEscalar  = r.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
@@ -433,34 +454,13 @@ export const RemittancesView = () => {
                           </div>
                         );
                       })()}
-                      {/* Transmitir */}
-                      {r.status === "ureview" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
-                          <ShieldAlert size={10} /> Validando…
-                        </span>
-                      ) : payingId === r.id ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 font-medium animate-pulse">
-                          ⏳ Procesando…
-                        </span>
-                      ) : r.status === "pending" ? (
-                        <div className="relative group">
-                          <button
-                            onClick={() => setConfirmId(r.id)}
-                            disabled={r.vault !== "operations" || sendingId === r.id}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Send size={13} />
-                          </button>
-                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Transmitir</span>
-                        </div>
-                      ) : null}
                       {/* Cancelar */}
                       {r.status === "pending" && (
                         <div className="relative group">
                           <button
                             onClick={() => setConfirmCancelId(r.id)}
                             disabled={cancelingId === r.id}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             {cancelingId === r.id ? "…" : <XCircle size={13} />}
                           </button>
