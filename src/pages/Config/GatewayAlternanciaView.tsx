@@ -10,7 +10,7 @@ import { PAGADOR_COLORS } from "../../data/constants";
 const AMOUNT_MIN = 20;
 const AMOUNT_MAX = 500;
 
-const formatUSD = (n: number) => `$${Math.round(n)}`;
+const formatUSD = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 const getColorForGateway = (gatewayId: string, gateways: { id: string }[]) => {
   const idx = gateways.findIndex((g) => g.id === gatewayId);
@@ -317,7 +317,7 @@ export const GatewayAlternanciaView = () => {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                   <input
-                    type="number" min={0} step={1}
+                    type="number" min={0} step={0.01}
                     value={form.amount_min}
                     onChange={(e) => setForm({ ...form, amount_min: parseFloat(e.target.value) || 0 })}
                     className="block w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-sm focus:border-papaya-orange focus:ring-papaya-orange"
@@ -329,7 +329,7 @@ export const GatewayAlternanciaView = () => {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                   <input
-                    type="number" min={0} step={1}
+                    type="number" min={0} step={0.01}
                     value={form.amount_max}
                     onChange={(e) => setForm({ ...form, amount_max: parseFloat(e.target.value) || 0 })}
                     className="block w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-sm focus:border-papaya-orange focus:ring-papaya-orange"

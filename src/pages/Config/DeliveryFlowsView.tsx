@@ -11,7 +11,7 @@ import {
   CountryWallet,
   CountryAgency,
 } from "../../api";
-import { Plus, X, Save, Loader2, AlertCircle, GripVertical, Trash2 } from "lucide-react";
+import { Plus, X, Save, Loader2, AlertCircle, GripVertical, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 
 // ── Layout constants ───────────────────────────────────────────────────────────
 
@@ -23,9 +23,9 @@ const DROP_ZONE_H = 36;    // px – drop target height
 
 /** Approximate height per node type for layout calculations */
 const NODE_H: Record<DeliveryNodeType, number> = {
-  phone:          120,
-  account_number: 132,
-  bank_list:      220,
+  phone:          132,
+  account_number: 152,
+  bank_list:      264,
 };
 
 // ── Domain constants ───────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ const NODE_META: Record<DeliveryNodeType, { label: string; icon: string; desc: s
 
 const ALLOWED_NODES: Record<DeliveryMethodType, DeliveryNodeType[]> = {
   cash_pickup:   [],
-  mobile_wallet: ["phone", "account_number"],
+  mobile_wallet: ["phone", "account_number", "bank_list"],
   bank_deposit:  ["phone", "account_number", "bank_list"],
 };
 
@@ -569,9 +569,13 @@ export const DeliveryFlowsView: React.FC = () => {
           {canWrite && (
             <div className="flex items-center gap-0.5">
               <button onClick={() => moveItem(flow.method, node.lid, -1)} disabled={itemIdx === 0}
-                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5 text-[10px]">▲</button>
+                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5">
+                <ChevronUp size={13} />
+              </button>
               <button onClick={() => moveItem(flow.method, node.lid, 1)} disabled={itemIdx === flow.items.length - 1}
-                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5 text-[10px]">▼</button>
+                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 p-0.5">
+                <ChevronDown size={13} />
+              </button>
               <button onClick={() => removeItem(flow.method, node.lid)}
                 className="ml-1 text-red-300 hover:text-red-500">
                 <X size={13} />
