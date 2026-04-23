@@ -171,6 +171,8 @@ export const RemittancesView = () => {
   const [confirmVault,     setConfirmVault]     = useState<{ id: string; toVault: string; label: string } | null>(null);
   const [confirmCancelId,  setConfirmCancelId]  = useState<string | null>(null);
   const [cancelingId,      setCancelingId]      = useState<string | null>(null);
+  const [disableClient,    setDisableClient]    = useState<{ clientDbId: number; clientName: string | null } | null>(null);
+  const [disablingClient,  setDisablingClient]  = useState(false);
 
   const today = todayNY();
   const _qp = new URLSearchParams(locationSearch);
@@ -595,16 +597,57 @@ export const RemittancesView = () => {
               <button
                 onClick={async () => {
                   const id = confirmCancelId;
+                  const rem = items.find(r => r.id === id);
                   setConfirmCancelId(null);
                   setCancelingId(id);
                   try {
                     const updated = await api.updateRemittanceStatus(id, "canceled");
                     setItems(prev => prev.map(r => r.id === updated.id ? updated : r));
+                    if (rem?.client_db_id) {
+                      setDisableClient({ clientDbId: rem.client_db_id, clientName: rem.client_name ?? null });
+                    }
                   } catch { /* silent */ } finally { setCancelingId(null); }
                 }}
                 className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
               >
                 Sí, cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disable client dialog (post-cancel) */}
+      {disableClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
+            <h3 className="text-sm font-semibold text-heading-text">¿Inhabilitar cliente?</h3>
+            <p className="text-sm text-gray-600">
+              ¿Desea también inhabilitar al cliente{" "}
+              <span className="font-semibold">{disableClient.clientName ?? `#${disableClient.clientDbId}`}</span>?
+              Quedará registrado en su historial.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDisableClient(null)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                No, mantener activo
+              </button>
+              <button
+                disabled={disablingClient}
+                onClick={async () => {
+                  setDisablingClient(true);
+                  try {
+                    await api.setClientActive(disableClient.clientDbId, false);
+                  } catch { /* silent */ } finally {
+                    setDisablingClient(false);
+                    setDisableClient(null);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-40"
+              >
+                {disablingClient ? "Inhabilitando…" : "Sí, inhabilitar"}
               </button>
             </div>
           </div>
