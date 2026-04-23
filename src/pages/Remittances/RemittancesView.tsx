@@ -419,7 +419,7 @@ export const RemittancesView = () => {
                             } catch { /* silent */ } finally { setVaultingId(null); }
                           }}
                           disabled={vaultingId === r.id}
-                          className="text-[10px] text-purple-600 hover:text-purple-800 underline disabled:opacity-40 whitespace-nowrap"
+                          className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
                         >
                           {vaultingId === r.id ? "…" : label}
                         </button>
