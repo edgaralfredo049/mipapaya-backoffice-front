@@ -100,6 +100,7 @@ function parseAlertSummary(raw: string | null): AlertDetail[] | null {
 }
 import { api, RemittanceRecord, Pagador } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { Pagination } from "../../components/ui/Pagination";
 
 const PAGE_SIZE = 10;
@@ -154,6 +155,7 @@ const inp = "rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700
 export const RemittancesView = () => {
   const { pagadores } = useAppStore();
   const { search: locationSearch } = useLocation();
+  const userRole = useAuthStore(s => s.user?.role ?? "");
 
   const [items, setItems]           = useState<RemittanceRecord[]>([]);
   const [total, setTotal]           = useState(0);
@@ -165,6 +167,7 @@ export const RemittancesView = () => {
   const [confirmId, setConfirmId]   = useState<string | null>(null);
   const [payingId,  setPayingId]    = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<{ id: string; summary: string } | null>(null);
+  const [vaultingId, setVaultingId] = useState<string | null>(null);
 
   const today = todayNY();
   const _qp = new URLSearchParams(locationSearch);
@@ -335,7 +338,7 @@ export const RemittancesView = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Enviado", "Pagador", "Estado", "Alertas", ""].map(h => (
+                {["ID Remesa", "Fecha / Hora (NY)", "Cliente", "Origen → Destino", "Enviado", "Pagador", "Estado", "Alertas", "Bóveda", ""].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -345,11 +348,11 @@ export const RemittancesView = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">
                     {hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}
                   </td>
                 </tr>
@@ -398,6 +401,69 @@ export const RemittancesView = () => {
                       </button>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
+                  {/* Vault badge + actions */}
+                  <td className="px-3 py-3">
+                    <div className="flex flex-col gap-1 items-start">
+                      {/* Badge */}
+                      {r.vault === "compliance" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-semibold">
+                          🔒 Cumplimiento
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-semibold">
+                          ⚙️ Operaciones
+                        </span>
+                      )}
+                      {/* Escalar / Aprobar / Rechazar */}
+                      {r.vault === "operations" && r.status === "pending" && userRole === "operaciones" && (
+                        <button
+                          onClick={async () => {
+                            setVaultingId(r.id);
+                            try {
+                              const updated = await api.updateRemittanceVault(r.id, "compliance", "Escalada por operaciones");
+                              setItems(prev => prev.map(x => x.id === r.id ? updated : x));
+                            } catch { /* silent */ } finally { setVaultingId(null); }
+                          }}
+                          disabled={vaultingId === r.id}
+                          className="text-[10px] text-purple-600 hover:text-purple-800 underline disabled:opacity-40"
+                        >
+                          {vaultingId === r.id ? "…" : "Escalar a Cumplimiento"}
+                        </button>
+                      )}
+                      {r.vault === "compliance" && r.status === "pending" && (userRole === "cumplimiento" || userRole === "superusuario") && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              setVaultingId(r.id);
+                              try {
+                                const updated = await api.complianceApprove(r.id);
+                                setItems(prev => prev.map(x => x.id === r.id ? updated : x));
+                              } catch { /* silent */ } finally { setVaultingId(null); }
+                            }}
+                            disabled={vaultingId === r.id}
+                            className="text-[10px] text-green-600 hover:text-green-800 underline disabled:opacity-40"
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm("¿Rechazar remesa y deshabilitar cliente?")) return;
+                              setVaultingId(r.id);
+                              try {
+                                const updated = await api.complianceReject(r.id);
+                                setItems(prev => prev.map(x => x.id === r.id ? updated : x));
+                              } catch { /* silent */ } finally { setVaultingId(null); }
+                            }}
+                            disabled={vaultingId === r.id}
+                            className="text-[10px] text-red-500 hover:text-red-700 underline disabled:opacity-40"
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  {/* Transmitir */}
                   <td className="px-3 py-3">
                     {r.status === "ureview" ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-purple-600 font-medium animate-pulse">
@@ -410,7 +476,7 @@ export const RemittancesView = () => {
                     ) : (
                       <button
                         onClick={() => setConfirmId(r.id)}
-                        disabled={r.status !== "pending" || sendingId === r.id}
+                        disabled={r.status !== "pending" || r.vault !== "operations" || sendingId === r.id}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Send size={11} /> Transmitir

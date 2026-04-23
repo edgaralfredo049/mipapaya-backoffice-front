@@ -355,6 +355,7 @@ export interface RemittanceRecord {
   sender_ip: string | null;
   alert_count: number;
   alert_summary: string | null;
+  vault: "operations" | "compliance";
 }
 
 export interface Client {
@@ -899,6 +900,26 @@ export const api = {
     request<RemittanceRecord>(`/remittances/${id}/payer`, {
       method: "PATCH", body: JSON.stringify({ payer_id }),
     }),
+  updateRemittanceVault: (id: string, vault: "operations" | "compliance", notes?: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/vault`, {
+      method: "PATCH", body: JSON.stringify({ vault, notes }),
+    }),
+  complianceApprove: (id: string, notes?: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/compliance/approve`, {
+      method: "POST", body: JSON.stringify({ notes }),
+    }),
+  complianceReject: (id: string, notes?: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/compliance/reject`, {
+      method: "POST", body: JSON.stringify({ notes }),
+    }),
+  getVaultLogSummary: (date_from?: string, date_to?: string) => {
+    const p = new URLSearchParams();
+    if (date_from) p.set("date_from", date_from);
+    if (date_to)   p.set("date_to",   date_to);
+    return request<{ new_client: number; alerts: number; manual: number }>(`/vault-log/summary?${p.toString()}`);
+  },
+  getRemittanceVaultLog: (id: string) =>
+    request<{ id: string; vault_from: string | null; vault_to: string; escalation_type: string | null; changed_by: string | null; notes: string | null; created_at: string }[]>(`/remittances/${id}/vault-log`),
   getRemittanceAuditLog: (id: string) =>
     request<RemittanceAuditEntry[]>(`/remittances/${id}/audit-log`),
   getRemittanceChatLog: (id: string) =>
