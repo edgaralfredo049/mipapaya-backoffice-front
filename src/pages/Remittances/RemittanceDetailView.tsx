@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, User, Package, FileText, MessageSquare, X, CheckCircle2, XCircle } from "lucide-react";
 import { api, RemittanceRecord, RemittanceAuditEntry, Pagador, ChatLogMessage } from "../../api";
 import { useAppStore } from "../../store/useAppStore";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -66,13 +66,16 @@ function parseJson(raw: string | null | undefined): Record<string, string> {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  status_change: "Cambio de estado",
-  payer_change:  "Cambio de pagador",
+  status_change:      "Cambio de estado",
+  payer_change:       "Cambio de pagador",
+  vault_change:       "Cambio de bóveda",
+  compliance_reject:  "Rechazo Cumplimiento",
 };
 
 const FIELD_LABELS: Record<string, string> = {
   status: "Estado",
   payer:  "Pagador",
+  vault:  "Bóveda",
 };
 
 const DISBURSEMENT_LABELS: Record<string, string> = {
@@ -113,6 +116,11 @@ export const RemittanceDetailView = () => {
   const [confirmStatus, setConfirmStatus] = useState(false);
   const [savingStatus, setSavingStatus]   = useState(false);
   const [statusError, setStatusError]     = useState<string | null>(null);
+
+  // Cancel remittance
+  const [confirmCancel, setConfirmCancel]   = useState(false);
+  const [canceling, setCanceling]           = useState(false);
+  const [cancelError, setCancelError]       = useState<string | null>(null);
 
   const [showChat, setShowChat]       = useState(false);
   const [chatLog, setChatLog]         = useState<ChatLogMessage[]>([]);
@@ -175,6 +183,23 @@ export const RemittanceDetailView = () => {
       setPayerError("Error al actualizar el pagador.");
     } finally {
       setSavingPayer(false);
+    }
+  };
+
+  const handleCancelRemittance = async () => {
+    if (!record) return;
+    setCanceling(true);
+    setCancelError(null);
+    setConfirmCancel(false);
+    try {
+      const updated = await api.updateRemittanceStatus(record.id, "canceled");
+      setRecord(updated);
+      setNewStatus(updated.status ?? "");
+      await refreshAuditLog(record.id);
+    } catch {
+      setCancelError("Error al cancelar la remesa.");
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -376,22 +401,35 @@ export const RemittanceDetailView = () => {
 
       {/* Estado update section */}
       {(() => {
-        const locked = record.status === "payed" || record.status === "transmited";
+        const locked = record.status === "payed" || record.status === "transmited" || record.status === "canceled";
+        const canCancel = canWrite && !locked;
+        const SELECTABLE_STATUSES = Object.entries(STATUS_LABELS).filter(([v]) => v !== "canceled");
         return (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
               <h2 className="text-sm font-semibold text-heading-text">Actualización de estados</h2>
-              {locked && (
-                <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                  <CheckCircle2 size={12} className={record.status === "payed" ? "text-green-500" : "text-blue-500"} />
-                  {record.status === "payed" ? "Pagada — bloqueado" : "Transmitida — bloqueado"}
-                </span>
-              )}
+              <div className="flex items-center gap-3">
+                {locked && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                    <CheckCircle2 size={12} className={record.status === "payed" ? "text-green-500" : record.status === "canceled" ? "text-gray-400" : "text-blue-500"} />
+                    {STATUS_LABELS[record.status]} — bloqueado
+                  </span>
+                )}
+                {canCancel && (
+                  <button
+                    onClick={() => setConfirmCancel(true)}
+                    disabled={canceling}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                  >
+                    <XCircle size={13} /> {canceling ? "Cancelando…" : "Cancelar remesa"}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="p-6">
               {(locked || !canWrite) ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-500">
-                  <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : "text-blue-500 shrink-0"} />
+                  <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : record.status === "canceled" ? "text-gray-400 shrink-0" : "text-blue-500 shrink-0"} />
                   {locked
                     ? <>La remesa está en estado <span className="font-semibold mx-1">{STATUS_LABELS[record.status]}</span> y no puede modificarse.</>
                     : "No tienes permisos para modificar remesas."}
@@ -407,7 +445,7 @@ export const RemittanceDetailView = () => {
                         onChange={e => setNewStatus(e.target.value)}
                         className="h-9 flex-1 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white"
                       >
-                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                        {SELECTABLE_STATUSES.map(([val, label]) => (
                           <option key={val} value={val}>{label}</option>
                         ))}
                       </select>
@@ -448,6 +486,7 @@ export const RemittanceDetailView = () => {
                   </div>
                 </div>
               )}
+              {cancelError && <p className="mt-3 text-xs text-red-500">{cancelError}</p>}
             </div>
           </div>
         );
@@ -538,6 +577,37 @@ export const RemittanceDetailView = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm cancel dialog */}
+      {confirmCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-96 space-y-4">
+            <div className="flex items-center gap-2">
+              <XCircle size={18} className="text-red-500" />
+              <h3 className="text-sm font-semibold text-heading-text">Cancelar remesa</h3>
+            </div>
+            <p className="text-sm text-body-text">
+              ¿Está seguro que desea cancelar la remesa{" "}
+              <span className="font-mono text-papaya-orange">{record.id}</span>?
+              Esta acción no se puede deshacer y quedará registrada en el historial.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmCancel(false)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Volver
+              </button>
+              <button
+                onClick={handleCancelRemittance}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors"
+              >
+                Sí, cancelar remesa
+              </button>
             </div>
           </div>
         </div>
