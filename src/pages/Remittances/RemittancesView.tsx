@@ -412,23 +412,25 @@ export const RemittancesView = () => {
                         const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
                         if (!canEscalar && !canRetornar) return null;
                         const toVault = canEscalar ? "compliance" : "operations";
-                        const tooltip = canEscalar ? "Escalar a Cumplimiento" : "Enviar a Operaciones";
-                        const Icon    = canEscalar ? ArrowUpRight : Undo2;
+                        const tip  = canEscalar ? "Escalar a Cumplimiento" : "Enviar a Operaciones";
+                        const Icon = canEscalar ? ArrowUpRight : Undo2;
                         return (
-                          <button
-                            onClick={async () => {
-                              setVaultingId(r.id);
-                              try {
-                                const updated = await api.updateRemittanceVault(r.id, toVault);
-                                setItems(prev => prev.map(x => x.id === r.id ? updated : x));
-                              } catch { /* silent */ } finally { setVaultingId(null); }
-                            }}
-                            disabled={vaultingId === r.id}
-                            title={tooltip}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            {vaultingId === r.id ? "…" : <Icon size={13} />}
-                          </button>
+                          <div className="relative group">
+                            <button
+                              onClick={async () => {
+                                setVaultingId(r.id);
+                                try {
+                                  const updated = await api.updateRemittanceVault(r.id, toVault);
+                                  setItems(prev => prev.map(x => x.id === r.id ? updated : x));
+                                } catch { /* silent */ } finally { setVaultingId(null); }
+                              }}
+                              disabled={vaultingId === r.id}
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              {vaultingId === r.id ? "…" : <Icon size={13} />}
+                            </button>
+                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">{tip}</span>
+                          </div>
                         );
                       })()}
                       {/* Transmitir */}
@@ -441,25 +443,29 @@ export const RemittancesView = () => {
                           ⏳ Procesando…
                         </span>
                       ) : r.status === "pending" ? (
-                        <button
-                          onClick={() => setConfirmId(r.id)}
-                          disabled={r.vault !== "operations" || sendingId === r.id}
-                          title="Transmitir"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Send size={13} />
-                        </button>
+                        <div className="relative group">
+                          <button
+                            onClick={() => setConfirmId(r.id)}
+                            disabled={r.vault !== "operations" || sendingId === r.id}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Send size={13} />
+                          </button>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Transmitir</span>
+                        </div>
                       ) : null}
                       {/* Cancelar */}
                       {r.status === "pending" && (
-                        <button
-                          onClick={() => setConfirmCancelId(r.id)}
-                          disabled={cancelingId === r.id}
-                          title="Cancelar remesa"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          {cancelingId === r.id ? "…" : <XCircle size={13} />}
-                        </button>
+                        <div className="relative group">
+                          <button
+                            onClick={() => setConfirmCancelId(r.id)}
+                            disabled={cancelingId === r.id}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {cancelingId === r.id ? "…" : <XCircle size={13} />}
+                          </button>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Cancelar remesa</span>
+                        </div>
                       )}
                     </div>
                   </td>
