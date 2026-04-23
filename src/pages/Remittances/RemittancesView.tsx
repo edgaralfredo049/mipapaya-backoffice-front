@@ -405,7 +405,11 @@ export const RemittancesView = () => {
                     ) : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-3 py-3">
-                    {payingId === r.id ? (
+                    {r.status === "ureview" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-purple-600 font-medium animate-pulse">
+                        <ShieldAlert size={11} /> Validando…
+                      </span>
+                    ) : payingId === r.id ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-600 font-medium animate-pulse">
                         ⏳ Procesando…
                       </span>
