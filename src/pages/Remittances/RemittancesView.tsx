@@ -405,7 +405,7 @@ export const RemittancesView = () => {
                   <td className="px-2 py-1.5">
                     <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       {/* Vault button */}
-                      {(r.status === "pending" || r.status === "ureview") && (() => {
+                      {r.status === "pending" && (() => {
                         const canEscalar  = r.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
                         const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
                         if (!canEscalar && !canRetornar) return null;
@@ -436,15 +436,15 @@ export const RemittancesView = () => {
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 font-medium animate-pulse">
                           ⏳ Procesando…
                         </span>
-                      ) : (
+                      ) : r.status === "pending" ? (
                         <button
                           onClick={() => setConfirmId(r.id)}
-                          disabled={r.status !== "pending" || r.vault !== "operations" || sendingId === r.id}
+                          disabled={r.vault !== "operations" || sendingId === r.id}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Send size={10} /> Transmitir
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </td>
                 </tr>

@@ -402,7 +402,7 @@ export const RemittanceDetailView = () => {
       {/* Estado update section */}
       {(() => {
         const locked = record.status === "payed" || record.status === "transmited" || record.status === "canceled";
-        const canCancel = canWrite && !locked;
+        const canCancel = canWrite && record.status === "pending";
         const SELECTABLE_STATUSES = Object.entries(STATUS_LABELS).filter(([v]) => v !== "canceled");
         return (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
