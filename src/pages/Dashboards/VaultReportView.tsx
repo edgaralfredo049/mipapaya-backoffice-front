@@ -53,7 +53,7 @@ function fmtUSD(n: number) {
 }
 
 /* ── types ──────────────────────────────────────────────── */
-type Summary = { new_clients: number; high_risk_clients: number; escalated: number; pending_compliance: number; approved: number; rejected: number };
+type Summary = { new_clients: number; high_risk_clients: number; escalated: number; pending_compliance: number; approved: number; rejected: number; canceled_other_areas: number };
 type Client  = { id: number; name: string; phone: string; email: string | null; country: string | null; country_name: string | null; active: boolean; created_at: string };
 type EscRem  = { id: string; escalated_at: string; client_name: string | null; client_phone: string | null; origin_country_id: string | null; origin_country: string | null; destination_country: string | null; sent_amount_usd: number | null; status: string; vault: string };
 type ChartItem = { country_id: string; country_name: string; count?: number; amount_usd?: number };
@@ -133,15 +133,16 @@ export const VaultReportView: React.FC = () => {
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>
       )}
 
-      {/* Stat cards — 6 cols */}
-      <div className="grid grid-cols-3 xl:grid-cols-6 gap-2">
+      {/* Stat cards — 7 cols */}
+      <div className="grid grid-cols-3 lg:grid-cols-7 gap-2">
         {[
-          { icon: <Users size={14} className="text-purple-500" />,     label: "Nuevos clientes",  value: summary?.new_clients ?? 0,        color: "bg-purple-50 border-purple-100", desc: "Registrados en el período" },
-          { icon: <UserX size={14} className="text-rose-500" />,       label: "Alto riesgo",      value: summary?.high_risk_clients ?? 0,  color: "bg-rose-50 border-rose-100",    desc: "Cancelados por riesgo" },
-          { icon: <ShieldAlert size={14} className="text-amber-500" />, label: "Escaladas",        value: summary?.escalated ?? 0,          color: "bg-amber-50 border-amber-100",  desc: "Enviadas a Cumplimiento" },
-          { icon: <Clock size={14} className="text-blue-500" />,       label: "Pendientes",       value: summary?.pending_compliance ?? 0, color: "bg-blue-50 border-blue-100",    desc: "En espera de decisión" },
-          { icon: <CheckCircle2 size={14} className="text-green-500" />, label: "Aprobadas",      value: summary?.approved ?? 0,           color: "bg-green-50 border-green-100",  desc: "Devueltas a Operaciones" },
-          { icon: <XCircle size={14} className="text-red-500" />,      label: "Rechazadas",       value: summary?.rejected ?? 0,           color: "bg-red-50 border-red-100",      desc: "Canceladas desde Cumplimiento" },
+          { icon: <Users size={14} className="text-purple-500" />,      label: "Nuevos clientes",    value: summary?.new_clients ?? 0,           color: "bg-purple-50 border-purple-100", desc: "Registrados en el período" },
+          { icon: <UserX size={14} className="text-rose-500" />,        label: "Alto riesgo",        value: summary?.high_risk_clients ?? 0,     color: "bg-rose-50 border-rose-100",    desc: "Clientes con remesa cancelada" },
+          { icon: <ShieldAlert size={14} className="text-amber-500" />, label: "Escaladas",          value: summary?.escalated ?? 0,             color: "bg-amber-50 border-amber-100",  desc: "Enviadas a Cumplimiento" },
+          { icon: <Clock size={14} className="text-blue-500" />,        label: "Pendientes",         value: summary?.pending_compliance ?? 0,    color: "bg-blue-50 border-blue-100",    desc: "En espera de decisión" },
+          { icon: <CheckCircle2 size={14} className="text-green-500" />, label: "Aprobadas",         value: summary?.approved ?? 0,              color: "bg-green-50 border-green-100",  desc: "Devueltas a Operaciones" },
+          { icon: <XCircle size={14} className="text-red-500" />,       label: "Rechazadas",         value: summary?.rejected ?? 0,              color: "bg-red-50 border-red-100",      desc: "Canceladas por Cumplimiento" },
+          { icon: <XCircle size={14} className="text-orange-500" />,    label: "Cancel. otras áreas", value: summary?.canceled_other_areas ?? 0, color: "bg-orange-50 border-orange-100", desc: "Ops / Customer Service" },
         ].map(c => (
           <div key={c.label} className={`rounded-xl border px-3 py-2.5 space-y-1.5 ${c.color}`}>
             <div className="flex items-center gap-1.5">{c.icon}<span className="text-[10px] font-semibold text-gray-600 leading-tight">{c.label}</span></div>

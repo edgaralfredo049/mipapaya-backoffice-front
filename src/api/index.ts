@@ -916,7 +916,7 @@ export const api = {
     const p = new URLSearchParams();
     if (date_from) p.set("date_from", date_from);
     if (date_to)   p.set("date_to",   date_to);
-    return request<{ new_clients: number; high_risk_clients: number; escalated: number; pending_compliance: number; approved: number; rejected: number }>(`/vault-log/summary?${p.toString()}`);
+    return request<{ new_clients: number; high_risk_clients: number; escalated: number; pending_compliance: number; approved: number; rejected: number; canceled_other_areas: number }>(`/vault-log/summary?${p.toString()}`);
   },
   getVaultNewClients: (date_from?: string, date_to?: string) => {
     const p = new URLSearchParams();
