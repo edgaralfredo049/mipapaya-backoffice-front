@@ -136,13 +136,13 @@ export const VaultReportView: React.FC = () => {
       {/* Stat cards — 7 cols */}
       <div className="grid grid-cols-3 lg:grid-cols-7 gap-2">
         {[
-          { icon: <Users size={14} className="text-purple-500" />,      label: "Nuevos clientes",    value: summary?.new_clients ?? 0,           color: "bg-purple-50 border-purple-100", desc: "Registrados en el período" },
-          { icon: <UserX size={14} className="text-rose-500" />,        label: "Alto riesgo",        value: summary?.high_risk_clients ?? 0,     color: "bg-rose-50 border-rose-100",    desc: "Clientes con remesa cancelada" },
-          { icon: <ShieldAlert size={14} className="text-amber-500" />, label: "Escaladas",          value: summary?.escalated ?? 0,             color: "bg-amber-50 border-amber-100",  desc: "Enviadas a Cumplimiento" },
-          { icon: <Clock size={14} className="text-blue-500" />,        label: "Pendientes",         value: summary?.pending_compliance ?? 0,    color: "bg-blue-50 border-blue-100",    desc: "En espera de decisión" },
+          { icon: <Users size={14} className="text-purple-500" />,      label: "Nuevos clientes",    value: summary?.new_clients ?? 0,           color: "bg-purple-50 border-purple-100", desc: "Total nuevos Clientes" },
+          { icon: <UserX size={14} className="text-rose-500" />,        label: "Alto riesgo",        value: summary?.high_risk_clients ?? 0,     color: "bg-rose-50 border-rose-100",    desc: "Cuentas Canceladas" },
+          { icon: <ShieldAlert size={14} className="text-amber-500" />, label: "Escaladas",          value: summary?.escalated ?? 0,             color: "bg-amber-50 border-amber-100",  desc: "Enviadas a revision de cumplimiento" },
+          { icon: <Clock size={14} className="text-blue-500" />,        label: "Pendientes",         value: summary?.pending_compliance ?? 0,    color: "bg-blue-50 border-blue-100",    desc: "Pendientes Revision Cumplimiento" },
           { icon: <CheckCircle2 size={14} className="text-green-500" />, label: "Aprobadas",         value: summary?.approved ?? 0,              color: "bg-green-50 border-green-100",  desc: "Devueltas a Operaciones" },
-          { icon: <XCircle size={14} className="text-red-500" />,       label: "Rechazadas",         value: summary?.rejected ?? 0,              color: "bg-red-50 border-red-100",      desc: "Canceladas por Cumplimiento" },
-          { icon: <XCircle size={14} className="text-orange-500" />,    label: "Cancel. otras áreas", value: summary?.canceled_other_areas ?? 0, color: "bg-orange-50 border-orange-100", desc: "Ops / Customer Service" },
+          { icon: <XCircle size={14} className="text-red-500" />,       label: "Canceladas",         value: summary?.rejected ?? 0,              color: "bg-red-50 border-red-100",      desc: "Canceladas" },
+          { icon: <XCircle size={14} className="text-orange-500" />,    label: "Cancel. otras áreas", value: summary?.canceled_other_areas ?? 0, color: "bg-orange-50 border-orange-100", desc: "Remesas canceladas por otras areas" },
         ].map(c => (
           <div key={c.label} className={`rounded-xl border px-3 py-2.5 space-y-1.5 ${c.color}`}>
             <div className="flex items-center gap-1.5">{c.icon}<span className="text-[10px] font-semibold text-gray-600 leading-tight">{c.label}</span></div>
