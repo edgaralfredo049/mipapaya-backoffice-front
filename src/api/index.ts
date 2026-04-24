@@ -534,6 +534,20 @@ export interface ClientTxStatRow {
   average: number;
 }
 
+export interface RiskFactor {
+  key:         string;
+  title:       string;
+  status:      "ok" | "warning" | "alert";
+  description: string;
+}
+
+export interface RiskAnalysis {
+  score:          number;
+  level:          "bajo" | "medio" | "alto" | "error";
+  factors:        RiskFactor[];
+  recommendation: string;
+}
+
 // ── Dashboard types ───────────────────────────────────────────────────────────
 
 export interface DashboardKpis {
@@ -864,6 +878,8 @@ export const api = {
     request<AuditLogEntry[]>(`/clients/${id}/audit-log`),
   getClientTxStats: (id: number) =>
     request<{ items: ClientTxStatRow[] }>(`/clients/${id}/tx-stats`),
+  getRiskAnalysis: (id: number) =>
+    request<RiskAnalysis>(`/clients/${id}/risk-analysis`),
   setClientActive: (id: number, active: boolean) =>
     request<{ ok: boolean; active: boolean }>(`/clients/${id}/active`, {
       method: "PATCH",

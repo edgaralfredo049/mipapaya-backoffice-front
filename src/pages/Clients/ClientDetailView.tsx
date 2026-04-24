@@ -32,7 +32,7 @@ import {
   FileImage,
   RefreshCw,
 } from "lucide-react";
-import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage, ClientDocument, ClientRule } from "../../api";
+import { api, ClientDetail, Beneficiary, ClientPersonalUpdate, BeneficiaryUpdateIn, AuditLogEntry, ClientTxStatRow, RemittanceRecord, HandoffRequest, HandoffMessage, ClientDocument, ClientRule, RiskAnalysis, RiskFactor } from "../../api";
 import { InteractionsSection } from "../../components/InteractionsSection";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Pagination } from "../../components/ui/Pagination";
@@ -724,7 +724,10 @@ export const ClientDetailView = () => {
   const [activeStatus, setActiveStatus] = useState<boolean>(true);
   const [togglingActive, setTogglingActive] = useState(false);
   const [showActiveModal, setShowActiveModal] = useState(false);
-  const [showRiskModal, setShowRiskModal] = useState(false);
+  const [showRiskModal,  setShowRiskModal]  = useState(false);
+  const [riskAnalysis,   setRiskAnalysis]   = useState<RiskAnalysis | null>(null);
+  const [riskLoading,    setRiskLoading]    = useState(false);
+  const [riskError,      setRiskError]      = useState<string | null>(null);
   const [dataTab, setDataTab] = useState<"remesas" | "beneficiarios" | "soporte" | "historial" | "interacciones">("remesas");
   const [leftTab, setLeftTab] = useState<"kyc" | "personal">("kyc");
 
@@ -932,7 +935,16 @@ export const ClientDetailView = () => {
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => setShowRiskModal(true)}
+            onClick={() => {
+              setShowRiskModal(true);
+              setRiskAnalysis(null);
+              setRiskError(null);
+              setRiskLoading(true);
+              api.getRiskAnalysis(client!.id)
+                .then(r => setRiskAnalysis(r))
+                .catch(e => setRiskError(e.message ?? "Error al analizar"))
+                .finally(() => setRiskLoading(false));
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-papaya-orange text-white hover:bg-papaya-orange/90 transition-colors"
           >
             <AlertOctagon size={12} /> Nivel de riesgo
@@ -1421,63 +1433,85 @@ export const ClientDetailView = () => {
 
             {/* Content */}
             <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[75vh]">
-              {/* Overall score */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-yellow-50 border border-yellow-100">
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Puntuación de riesgo</p>
-                  <p className="text-2xl font-bold text-yellow-600">Medio</p>
+              {riskLoading && (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <RefreshCw size={24} className="text-papaya-orange animate-spin" />
+                  <p className="text-sm text-gray-500">Analizando perfil del cliente…</p>
+                  <p className="text-xs text-gray-400">Esto puede tomar unos segundos</p>
                 </div>
-                <div className="w-14 h-14 rounded-full bg-yellow-100 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-yellow-600">54</span>
+              )}
+
+              {riskError && (
+                <div className="flex items-center gap-2 p-4 rounded-xl bg-red-50 border border-red-100">
+                  <AlertTriangle size={15} className="text-red-icon shrink-0" />
+                  <p className="text-sm text-red-700">{riskError}</p>
                 </div>
-              </div>
+              )}
 
-              {/* Factors */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Factores evaluados</p>
+              {riskAnalysis && !riskLoading && (() => {
+                const levelColors: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+                  bajo:  { bg: "bg-green-50",  border: "border-green-100",  text: "text-green-700",  dot: "bg-green-100"  },
+                  medio: { bg: "bg-yellow-50", border: "border-yellow-100", text: "text-yellow-600", dot: "bg-yellow-100" },
+                  alto:  { bg: "bg-red-50",    border: "border-red-100",    text: "text-red-600",    dot: "bg-red-100"    },
+                  error: { bg: "bg-gray-50",   border: "border-gray-100",   text: "text-gray-500",   dot: "bg-gray-100"   },
+                };
+                const levelLabels: Record<string, string> = { bajo: "Bajo", medio: "Medio", alto: "Alto", error: "—" };
+                const c = levelColors[riskAnalysis.level] ?? levelColors.medio;
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
-                  <CheckCircle2 size={15} className="text-green-icon mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Identidad verificada</p>
-                    <p className="text-xs text-gray-500 mt-0.5">KYC aprobado. Documentos válidos y selfie coincidente.</p>
-                  </div>
-                </div>
+                const factorIcon = (status: RiskFactor["status"]) => {
+                  if (status === "ok")      return <CheckCircle2 size={15} className="text-green-icon mt-0.5 shrink-0" />;
+                  if (status === "warning") return <TrendingUp   size={15} className="text-yellow-600 mt-0.5 shrink-0" />;
+                  return                          <AlertTriangle size={15} className="text-red-icon mt-0.5 shrink-0" />;
+                };
+                const factorStyle = (status: RiskFactor["status"]) => {
+                  if (status === "ok")      return "bg-green-50 border-green-100";
+                  if (status === "warning") return "bg-yellow-50 border-yellow-100";
+                  return                          "bg-red-50 border-red-100";
+                };
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
-                  <CheckCircle2 size={15} className="text-green-icon mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Historial de transacciones</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Volumen consistente con el perfil declarado. Sin patrones inusuales.</p>
-                  </div>
-                </div>
+                return (
+                  <>
+                    {/* Score */}
+                    <div className={`flex items-center justify-between p-4 rounded-xl ${c.bg} border ${c.border}`}>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-0.5">Puntuación de riesgo</p>
+                        <p className={`text-2xl font-bold ${c.text}`}>{levelLabels[riskAnalysis.level]}</p>
+                      </div>
+                      <div className={`w-14 h-14 rounded-full ${c.dot} flex items-center justify-center`}>
+                        <span className={`text-2xl font-bold ${c.text}`}>{riskAnalysis.score}</span>
+                      </div>
+                    </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100">
-                  <TrendingUp size={15} className="text-yellow-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Frecuencia de envíos</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Ligero incremento en los últimos 30 días. Requiere monitoreo.</p>
-                  </div>
-                </div>
+                    {/* Factors */}
+                    {riskAnalysis.factors.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Factores evaluados</p>
+                        {riskAnalysis.factors.map((f) => (
+                          <div key={f.key} className={`flex items-start gap-3 p-3 rounded-lg border ${factorStyle(f.status)}`}>
+                            {factorIcon(f.status)}
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{f.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{f.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100">
-                  <Info size={15} className="text-yellow-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">País de destino</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Destino clasificado en categoría de vigilancia moderada.</p>
-                  </div>
-                </div>
-              </div>
+                    {/* Recommendation */}
+                    {riskAnalysis.recommendation && (
+                      <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recomendación</p>
+                        <p className="text-sm text-gray-700">{riskAnalysis.recommendation}</p>
+                      </div>
+                    )}
 
-              {/* Recommendation */}
-              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recomendación</p>
-                <p className="text-sm text-gray-700">Continuar operaciones con seguimiento mensual. Solicitar documentación de origen de fondos si el volumen supera $2,000 USD en el próximo periodo.</p>
-              </div>
-
-              <p className="text-[11px] text-gray-400 text-center">
-                Este análisis es generado de forma simulada. Próximamente será procesado por inteligencia artificial.
-              </p>
+                    <p className="text-[11px] text-gray-400 text-center">
+                      Análisis generado por IA con datos reales del cliente.
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
