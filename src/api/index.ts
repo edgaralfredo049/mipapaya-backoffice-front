@@ -581,6 +581,31 @@ export interface DashboardAdmin {
   canales: { chatbot_landing: number; whatsapp: number };
 }
 
+export interface DashboardOpsKpis {
+  total_interactions: number;
+  notas: number;
+  emails: number;
+  sms: number;
+  total_survey: number;
+  survey_bueno: number;
+  survey_regular: number;
+  survey_malo: number;
+}
+export interface DashboardOpsInteractionDay { fecha: string; notas: number; emails: number; sms: number; }
+export interface DashboardOpsSurveyDay      { fecha: string; bueno: number; regular: number; malo: number; }
+export interface DashboardOpsAgentRow       { agente: string; total: number; notas: number; emails: number; sms: number; }
+export interface DashboardOps {
+  date_from: string;
+  date_to: string;
+  kpis: DashboardOpsKpis;
+  interactions_by_day: DashboardOpsInteractionDay[];
+  interactions_by_type: DashboardPieSlice[];
+  interactions_by_agent: DashboardOpsAgentRow[];
+  survey_distribution: DashboardPieSlice[];
+  survey_by_day: DashboardOpsSurveyDay[];
+  remittances_by_status: DashboardPieSlice[];
+}
+
 export interface CalculateAmountResult {
   payerId: string;
   payerRate: number;
@@ -701,6 +726,13 @@ export const api = {
     if (dateTo)   params.set("date_to",   dateTo);
     const qs = params.toString();
     return request<DashboardAdmin>(`/dashboard/admin${qs ? `?${qs}` : ""}`);
+  },
+  getDashboardOps: (dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo)   params.set("date_to",   dateTo);
+    const qs = params.toString();
+    return request<DashboardOps>(`/dashboard/ops${qs ? `?${qs}` : ""}`);
   },
 
   // Partnerships
