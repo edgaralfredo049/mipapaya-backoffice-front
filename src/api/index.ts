@@ -590,10 +590,16 @@ export interface DashboardOpsKpis {
   survey_bueno: number;
   survey_regular: number;
   survey_malo: number;
+  transmitidas_auto: number;
+  transmitidas_manuales: number;
+  elevadas_cumplimiento: number;
 }
 export interface DashboardOpsInteractionDay { fecha: string; notas: number; emails: number; sms: number; }
 export interface DashboardOpsSurveyDay      { fecha: string; bueno: number; regular: number; malo: number; }
-export interface DashboardOpsAgentRow       { agente: string; total: number; notas: number; emails: number; sms: number; }
+export interface DashboardOpsAgentRow       {
+  agente: string; total: number; notas: number; emails: number; sms: number;
+  elevadas_cumplimiento: number; transmitidas_manuales: number;
+}
 export interface DashboardOps {
   date_from: string;
   date_to: string;

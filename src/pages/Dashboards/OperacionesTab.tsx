@@ -194,6 +194,17 @@ export const OperacionesTab = () => {
         </Block>
       </div>
 
+      {/* ── Operaciones de remesas ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 pt-1">
+        <div className="w-1 h-5 rounded-full bg-orange-500" />
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Operaciones de remesas</h2>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard label="Transmitidas automáticas" value={kpis?.transmitidas_auto ?? "—"} color="green"  />
+        <StatCard label="Transmitidas manuales"    value={kpis?.transmitidas_manuales ?? "—"} color="blue" />
+        <StatCard label="Elevadas a cumplimiento"  value={kpis?.elevadas_cumplimiento ?? "—"} color="orange" />
+      </div>
+
       {/* ── Actividad por agente ─────────────────────────────────────────────── */}
       {(data?.interactions_by_agent?.length ?? 0) > 0 && (
         <Block title="Actividad por agente">
@@ -202,10 +213,12 @@ export const OperacionesTab = () => {
               <thead>
                 <tr>
                   <TH c="Agente" />
-                  <TH c="Total" right />
+                  <TH c="Interacciones" right />
                   <TH c="Notas" right />
                   <TH c="Correos" right />
                   <TH c="SMS" right />
+                  <TH c="Elevadas cumplimiento" right />
+                  <TH c="Transmitidas manuales" right />
                 </tr>
               </thead>
               <tbody>
@@ -216,6 +229,12 @@ export const OperacionesTab = () => {
                     <TD c={row.notas}  right />
                     <TD c={row.emails} right />
                     <TD c={row.sms}    right />
+                    <TD c={row.elevadas_cumplimiento > 0
+                      ? <span className="text-orange-600 font-semibold">{row.elevadas_cumplimiento}</span>
+                      : <span className="text-gray-300">—</span>} right />
+                    <TD c={row.transmitidas_manuales > 0
+                      ? <span className="text-blue-600 font-semibold">{row.transmitidas_manuales}</span>
+                      : <span className="text-gray-300">—</span>} right />
                   </tr>
                 ))}
               </tbody>
@@ -278,40 +297,36 @@ export const OperacionesTab = () => {
       </div>
 
       {/* ── Estado de remesas ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        <div className="xl:col-span-1">
-          <Block title="Remesas por estado">
+      <Block title="Remesas por estado">
+        <div className="flex flex-wrap gap-6 items-start">
+          <div className="flex-shrink-0">
             <MiniDonut data={data?.remittances_by_status ?? []} title="" colorMap={PIE_COLORS_STATUS} />
-          </Block>
-        </div>
-        <div className="xl:col-span-2">
-          <Block title="Detalle de estados">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <TH c="Estado" />
-                    <TH c="% del total" right />
+          </div>
+          <div className="flex-1 min-w-[200px] overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <TH c="Estado" />
+                  <TH c="% del total" right />
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.remittances_by_status ?? []).sort((a, b) => b.value - a.value).map((row, i) => (
+                  <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                    <TD c={
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: PIE_COLORS_STATUS[row.name] ?? GRAY }} />
+                        {row.name}
+                      </span>
+                    } />
+                    <TD c={`${row.value}%`} right cls="font-semibold" />
                   </tr>
-                </thead>
-                <tbody>
-                  {(data?.remittances_by_status ?? []).sort((a, b) => b.value - a.value).map((row, i) => (
-                    <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                      <TD c={
-                        <span className="flex items-center gap-2">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: PIE_COLORS_STATUS[row.name] ?? GRAY }} />
-                          {row.name}
-                        </span>
-                      } />
-                      <TD c={`${row.value}%`} right cls="font-semibold" />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Block>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </Block>
 
     </div>
   );
