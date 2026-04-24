@@ -6,7 +6,7 @@ import {
 import {
   api, DashboardOps, DashboardPieSlice,
 } from "../../api";
-import { Search, X, AlertCircle, Loader2, MessageSquare, Mail, StickyNote, ThumbsUp, ThumbsDown, Minus } from "lucide-react";
+import { Search, X, AlertCircle, Loader2, MessageSquare, Mail, StickyNote } from "lucide-react";
 
 const ORANGE = "#f97316";
 const GREEN  = "#22c55e";
@@ -122,10 +122,6 @@ export const OperacionesTab = () => {
   useEffect(() => { load(dateFrom, dateTo); }, []);
 
   const kpis = data?.kpis;
-  const totalSurvey = kpis?.total_survey || 1;
-  const pctBueno    = kpis ? Math.round(kpis.survey_bueno   / totalSurvey * 100) : 0;
-  const pctRegular  = kpis ? Math.round(kpis.survey_regular / totalSurvey * 100) : 0;
-  const pctMalo     = kpis ? Math.round(kpis.survey_malo    / totalSurvey * 100) : 0;
 
   return (
     <div className="space-y-3 text-gray-800">
@@ -244,39 +240,9 @@ export const OperacionesTab = () => {
       )}
 
       {/* ── Feedback de usuarios ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 pt-1">
-        <div className="w-1 h-5 rounded-full bg-orange-500" />
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Feedback de usuarios</h2>
-        {kpis && <span className="text-xs text-gray-400">({kpis.total_survey} respuestas en el período)</span>}
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard
-          label="Bueno"
-          value={kpis?.survey_bueno ?? "—"}
-          sub={kpis ? `${pctBueno}% del total` : undefined}
-          color="green"
-          icon={<ThumbsUp size={18} />}
-        />
-        <StatCard
-          label="Regular"
-          value={kpis?.survey_regular ?? "—"}
-          sub={kpis ? `${pctRegular}% del total` : undefined}
-          color="yellow"
-          icon={<Minus size={18} />}
-        />
-        <StatCard
-          label="Malo"
-          value={kpis?.survey_malo ?? "—"}
-          sub={kpis ? `${pctMalo}% del total` : undefined}
-          color="red"
-          icon={<ThumbsDown size={18} />}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        <div className="xl:col-span-2">
-          <Block title="Tendencia de feedback por día">
+      <Block title={`Feedback de usuarios${kpis ? ` — ${kpis.total_survey} respuestas` : ""}`}>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2">
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={data?.survey_by_day ?? []} margin={{ top: 4, right: 16, bottom: 0, left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -289,42 +255,35 @@ export const OperacionesTab = () => {
                 <Line type="monotone" dataKey="malo"    stroke={RED}    strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
-          </Block>
-        </div>
-        <Block title="Distribución de feedback">
+          </div>
           <MiniDonut data={data?.survey_distribution ?? []} title="" colorMap={PIE_COLORS_SURVEY} />
-        </Block>
-      </div>
+        </div>
+      </Block>
 
       {/* ── Estado de remesas ────────────────────────────────────────────────── */}
       <Block title="Remesas por estado">
-        <div className="flex flex-wrap gap-6 items-start">
-          <div className="flex-shrink-0">
-            <MiniDonut data={data?.remittances_by_status ?? []} title="" colorMap={PIE_COLORS_STATUS} />
-          </div>
-          <div className="flex-1 min-w-[200px] overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <TH c="Estado" />
-                  <TH c="% del total" right />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <TH c="Estado" />
+                <TH c="% del total" right />
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.remittances_by_status ?? []).sort((a, b) => b.value - a.value).map((row, i) => (
+                <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                  <TD c={
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: PIE_COLORS_STATUS[row.name] ?? GRAY }} />
+                      {row.name}
+                    </span>
+                  } />
+                  <TD c={`${row.value}%`} right cls="font-semibold" />
                 </tr>
-              </thead>
-              <tbody>
-                {(data?.remittances_by_status ?? []).sort((a, b) => b.value - a.value).map((row, i) => (
-                  <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                    <TD c={
-                      <span className="flex items-center gap-2">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: PIE_COLORS_STATUS[row.name] ?? GRAY }} />
-                        {row.name}
-                      </span>
-                    } />
-                    <TD c={`${row.value}%`} right cls="font-semibold" />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Block>
 
