@@ -916,7 +916,25 @@ export const api = {
     const p = new URLSearchParams();
     if (date_from) p.set("date_from", date_from);
     if (date_to)   p.set("date_to",   date_to);
-    return request<{ new_clients: number; escalated: number; approved: number; rejected: number }>(`/vault-log/summary?${p.toString()}`);
+    return request<{ new_clients: number; high_risk_clients: number; escalated: number; pending_compliance: number; approved: number; rejected: number }>(`/vault-log/summary?${p.toString()}`);
+  },
+  getVaultNewClients: (date_from?: string, date_to?: string) => {
+    const p = new URLSearchParams();
+    if (date_from) p.set("date_from", date_from);
+    if (date_to)   p.set("date_to",   date_to);
+    return request<{ id: number; name: string; phone: string; email: string | null; country: string | null; country_name: string | null; active: boolean; created_at: string }[]>(`/vault-log/new-clients?${p.toString()}`);
+  },
+  getVaultEscalated: (date_from?: string, date_to?: string) => {
+    const p = new URLSearchParams();
+    if (date_from) p.set("date_from", date_from);
+    if (date_to)   p.set("date_to",   date_to);
+    return request<{ id: string; escalated_at: string; client_name: string | null; client_phone: string | null; origin_country_id: string | null; origin_country: string | null; destination_country_id: string | null; destination_country: string | null; sent_amount_usd: number | null; sent_amount_local: number | null; sent_currency: string | null; status: string; vault: string }[]>(`/vault-log/escalated?${p.toString()}`);
+  },
+  getVaultChartData: (date_from?: string, date_to?: string) => {
+    const p = new URLSearchParams();
+    if (date_from) p.set("date_from", date_from);
+    if (date_to)   p.set("date_to",   date_to);
+    return request<{ high_risk_by_country: { country_id: string; country_name: string; count: number }[]; canceled_amount_by_country: { country_id: string; country_name: string; amount_usd: number }[] }>(`/vault-log/chart-data?${p.toString()}`);
   },
   getRemittanceVaultLog: (id: string) =>
     request<{ id: string; vault_from: string | null; vault_to: string; escalation_type: string | null; changed_by: string | null; notes: string | null; created_at: string }[]>(`/remittances/${id}/vault-log`),

@@ -98,7 +98,8 @@ export const RemittanceDetailView = () => {
   const fromSoporte = (location.state as any)?.from === "soporte";
   const handleBack = () => fromSoporte ? navigate("/soporte") : window.history.length > 1 ? navigate(-1) : navigate("/remesas");
   const { pagadores, countries } = useAppStore();
-  const canWrite = useAuthStore(s => s.hasPermission("remesas", true));
+  const canWrite  = useAuthStore(s => s.hasPermission("remesas", true));
+  const userRole  = useAuthStore(s => s.user?.role ?? "");
 
   const [record, setRecord]           = useState<RemittanceRecord | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -402,7 +403,8 @@ export const RemittanceDetailView = () => {
       {/* Estado update section */}
       {(() => {
         const locked = record.status === "payed" || record.status === "transmited" || record.status === "canceled";
-        const canCancel = canWrite && record.status === "pending";
+        const canEditOps  = canWrite && (userRole === "operaciones" || userRole === "superusuario");
+        const canCancel   = canWrite && record.status === "pending" && (userRole === "operaciones" || userRole === "cumplimiento" || userRole === "superusuario");
         const SELECTABLE_STATUSES = Object.entries(STATUS_LABELS).filter(([v]) => v !== "canceled");
         return (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -427,7 +429,7 @@ export const RemittanceDetailView = () => {
               </div>
             </div>
             <div className="p-6">
-              {(locked || !canWrite) ? (
+              {(locked || !canEditOps) ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-500">
                   <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : record.status === "canceled" ? "text-gray-400 shrink-0" : "text-blue-500 shrink-0"} />
                   {locked

@@ -149,6 +149,12 @@ function todayNY(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 }
 
+function thirtyDaysAgoNY(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+}
+
 const sel = "rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white";
 const inp = "rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white";
 
@@ -174,13 +180,13 @@ export const RemittancesView = () => {
   const [disableClient,    setDisableClient]    = useState<{ clientDbId: number; clientName: string | null } | null>(null);
   const [disablingClient,  setDisablingClient]  = useState(false);
 
-  const today = todayNY();
   const _qp = new URLSearchParams(locationSearch);
+  const hasClientFilter = !!_qp.get("client");
   const [fClient,   setFClient]   = useState(_qp.get("client") ?? "");
   const [fPayer,    setFPayer]    = useState("");
-  const [fStatus,   setFStatus]   = useState("");
-  const [fDateFrom, setFDateFrom] = useState(_qp.get("client") ? "" : today);
-  const [fDateTo,   setFDateTo]   = useState(_qp.get("client") ? "" : today);
+  const [fStatus,   setFStatus]   = useState(hasClientFilter ? "" : "pending");
+  const [fDateFrom, setFDateFrom] = useState(hasClientFilter ? "" : thirtyDaysAgoNY());
+  const [fDateTo,   setFDateTo]   = useState(hasClientFilter ? "" : todayNY());
 
   const load = useCallback(async (p: number, filters: {
     client_id?: string; payer_id?: string; status?: string; date_from?: string; date_to?: string;
@@ -215,8 +221,10 @@ export const RemittancesView = () => {
   const handleSearch = () => { setPage(1); load(1, getFilters()); };
 
   const handleClear = () => {
-    setFClient(""); setFPayer(""); setFStatus(""); setFDateFrom(todayNY()); setFDateTo(todayNY());
-    setPage(1); load(1, { date_from: nyDateToUtcBounds(todayNY()).from, date_to: nyDateToUtcBounds(todayNY()).to });
+    const from = thirtyDaysAgoNY();
+    const to   = todayNY();
+    setFClient(""); setFPayer(""); setFStatus("pending"); setFDateFrom(from); setFDateTo(to);
+    setPage(1); load(1, { status: "pending", date_from: nyDateToUtcBounds(from).from, date_to: nyDateToUtcBounds(to).to });
   };
 
   const hasFilters = fClient || fPayer || fStatus || fDateFrom || fDateTo;
@@ -361,8 +369,12 @@ export const RemittancesView = () => {
                     {hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}
                   </td>
                 </tr>
-              ) : items.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+              ) : items.map(r => {
+                const isReadOnly =
+                  (userRole === "operaciones" && r.vault === "compliance") ||
+                  (userRole === "cumplimiento" && r.vault === "operations");
+                return (
+                <tr key={r.id} className={isReadOnly ? "bg-gray-50/80" : "hover:bg-gray-50 transition-colors"}>
                   <td className="px-2 py-1.5 font-mono whitespace-nowrap">
                     <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">
                       {r.id}
@@ -408,6 +420,11 @@ export const RemittancesView = () => {
                   </td>
                   {/* Acciones: vault + transmitir */}
                   <td className="px-2 py-1.5">
+                    {isReadOnly ? (
+                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                        {r.vault === "compliance" ? "Validación de cumplimiento" : "Operaciones"}
+                      </span>
+                    ) : (
                     <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       {/* Transmitir */}
                       {r.status === "ureview" ? (
@@ -418,7 +435,7 @@ export const RemittancesView = () => {
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 font-medium animate-pulse">
                           ⏳ Procesando…
                         </span>
-                      ) : r.status === "pending" ? (
+                      ) : r.status === "pending" && !isReadOnly && (userRole === "operaciones" || userRole === "superusuario") ? (
                         <div className="relative group">
                           <button
                             onClick={() => setConfirmId(r.id)}
@@ -452,7 +469,7 @@ export const RemittancesView = () => {
                         );
                       })()}
                       {/* Cancelar */}
-                      {r.status === "pending" && (
+                      {r.status === "pending" && !isReadOnly && (userRole === "operaciones" || userRole === "cumplimiento" || userRole === "superusuario") && (
                         <div className="relative group">
                           <button
                             onClick={() => setConfirmCancelId(r.id)}
@@ -465,9 +482,10 @@ export const RemittancesView = () => {
                         </div>
                       )}
                     </div>
+                    )}
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>

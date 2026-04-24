@@ -6,13 +6,13 @@ export const PageWrapper = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen overflow-hidden bg-gray-50">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <main
-        className="flex flex-col min-h-screen transition-all duration-300"
+        className="h-screen overflow-y-auto transition-all duration-300"
         style={{ marginLeft: collapsed ? 64 : 256 }}
       >
-        <div className="flex-1 p-8">
+        <div className="p-8">
           <Outlet />
         </div>
       </main>

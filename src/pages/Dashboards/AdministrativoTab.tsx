@@ -175,7 +175,7 @@ export const AdministrativoTab = () => {
     <div className="space-y-3 text-gray-800">
 
       {/* ── Filtros ── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap gap-3 items-end">
+      <div className="sticky top-8 z-10 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex flex-wrap gap-3 items-end">
         <div>
           <label className="block text-xs text-gray-400 mb-1">Fecha desde</label>
           <input
