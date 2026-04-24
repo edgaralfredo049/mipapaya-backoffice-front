@@ -6,7 +6,7 @@ import {
 import {
   api, DashboardOps, DashboardPieSlice,
 } from "../../api";
-import { Search, X, AlertCircle, Loader2, MessageSquare, Mail, StickyNote } from "lucide-react";
+import { Search, X, AlertCircle, Loader2 } from "lucide-react";
 
 const ORANGE = "#f97316";
 const GREEN  = "#22c55e";
@@ -161,13 +161,6 @@ export const OperacionesTab = () => {
       )}
 
       {/* ── Interacciones Customer Service ──────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total interacciones" value={kpis?.total_interactions ?? "—"} color="orange" icon={<MessageSquare size={18} />} />
-        <StatCard label="Notas" value={kpis?.notas ?? "—"} color="blue" icon={<StickyNote size={18} />} />
-        <StatCard label="Correos" value={kpis?.emails ?? "—"} color="teal" icon={<Mail size={18} />} />
-        <StatCard label="SMS" value={kpis?.sms ?? "—"} color="green" icon={<MessageSquare size={18} />} />
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <div className="xl:col-span-2">
           <Block title="Interacciones por día">
@@ -195,10 +188,17 @@ export const OperacionesTab = () => {
         <div className="w-1 h-5 rounded-full bg-orange-500" />
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Operaciones de remesas</h2>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Transmitidas automáticas" value={kpis?.transmitidas_auto ?? "—"} color="green"  />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <StatCard label="Transmitidas automáticas" value={kpis?.transmitidas_auto ?? "—"} color="green" />
         <StatCard label="Transmitidas manuales"    value={kpis?.transmitidas_manuales ?? "—"} color="blue" />
         <StatCard label="Elevadas a cumplimiento"  value={kpis?.elevadas_cumplimiento ?? "—"} color="orange" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <StatCard label="Pagadas"          value={kpis?.pagadas ?? "—"}         color="green" />
+        <StatCard label="Canceladas"       value={kpis?.canceladas ?? "—"}      color="red" />
+        <StatCard label="Pendientes"       value={kpis?.pendientes ?? "—"}      color="yellow" />
+        <StatCard label="En cumplimiento"  value={kpis?.en_cumplimiento ?? "—"} color="orange" />
+        <StatCard label="En operaciones"   value={kpis?.en_operaciones ?? "—"}  color="blue" />
       </div>
 
       {/* ── Actividad por agente ─────────────────────────────────────────────── */}

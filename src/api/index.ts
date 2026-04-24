@@ -593,6 +593,11 @@ export interface DashboardOpsKpis {
   transmitidas_auto: number;
   transmitidas_manuales: number;
   elevadas_cumplimiento: number;
+  pagadas: number;
+  canceladas: number;
+  pendientes: number;
+  en_cumplimiento: number;
+  en_operaciones: number;
 }
 export interface DashboardOpsInteractionDay { fecha: string; notas: number; emails: number; sms: number; }
 export interface DashboardOpsSurveyDay      { fecha: string; bueno: number; regular: number; malo: number; }
