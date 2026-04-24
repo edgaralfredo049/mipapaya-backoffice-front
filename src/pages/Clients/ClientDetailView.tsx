@@ -1151,7 +1151,7 @@ export const ClientDetailView = () => {
           <div className="h-[700px] overflow-y-auto p-6">
 
             {dataTab === "interacciones" && (
-              <InteractionsSection bare clientId={Number(id)} clientEmail={form?.email ?? client.personal.email} />
+              <InteractionsSection bare clientId={Number(id)} clientEmail={form?.email ?? client.personal.email} clientPhone={client.phone} />
             )}
 
             {dataTab === "remesas" && (remLoading ? (

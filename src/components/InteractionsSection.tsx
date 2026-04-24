@@ -28,6 +28,7 @@ import {
   Clock,
   User,
   X,
+  MessageSquare,
 } from "lucide-react";
 import { api, ClientInteraction } from "../api";
 
@@ -572,6 +573,120 @@ function EmailTab({
   );
 }
 
+// ─── SMS Tab ─────────────────────────────────────────────────────────────────
+
+function SmsTab({
+  clientId,
+  clientPhone,
+  interactions,
+  onAdded,
+}: {
+  clientId: number;
+  clientPhone: string | null;
+  interactions: ClientInteraction[];
+  onAdded: (item: ClientInteraction) => void;
+}) {
+  const to = clientPhone ?? "";
+  const MAX = 160;
+  const [message, setMessage]     = useState("");
+  const [sending, setSending]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [sent, setSent]           = useState(false);
+  const [smsPage, setSmsPage]     = useState(1);
+  const SMS_PAGE_SIZE = 5;
+
+  const smsList       = interactions.filter((i) => i.type === "sms");
+  const smsTotalPages = Math.ceil(smsList.length / SMS_PAGE_SIZE);
+  const smsSlice      = smsList.slice((smsPage - 1) * SMS_PAGE_SIZE, smsPage * SMS_PAGE_SIZE);
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    if (!to.trim() || !message.trim()) return;
+    setSending(true);
+    setError(null);
+    setSent(false);
+    try {
+      const created = await api.sendClientSms(clientId, to.trim(), message.trim());
+      onAdded(created);
+      setMessage("");
+      setSent(true);
+      setSmsPage(1);
+      setTimeout(() => setSent(false), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error al enviar el SMS.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <form onSubmit={handleSend} className="space-y-2">
+        <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:border-papaya-orange focus-within:ring-2 focus-within:ring-papaya-orange/20 transition-all">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 text-sm bg-gray-50/60">
+            <span className="text-xs text-gray-400 w-12 shrink-0">Para</span>
+            <span className="text-gray-700 truncate">{to || <span className="text-gray-400 text-xs">Sin teléfono registrado</span>}</span>
+          </div>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value.slice(0, MAX))}
+            placeholder="Escribe el mensaje de texto…"
+            rows={4}
+            className="w-full px-4 py-3 text-sm text-gray-800 placeholder-gray-400 resize-none focus:outline-none"
+          />
+          <div className="flex justify-end px-3 py-1.5 border-t border-gray-100 bg-gray-50/40">
+            <span className={`text-[11px] ${message.length >= MAX ? "text-red-500 font-medium" : "text-gray-400"}`}>
+              {message.length}/{MAX}
+            </span>
+          </div>
+        </div>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex items-center justify-end gap-2">
+          {sent && <span className="text-xs text-green-600 font-medium">¡SMS enviado!</span>}
+          <button
+            type="submit"
+            disabled={!to.trim() || !message.trim() || sending}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium bg-papaya-orange text-white shadow-sm hover:bg-papaya-orange/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Send size={14} />
+            {sending ? "Enviando…" : "Enviar SMS"}
+          </button>
+        </div>
+      </form>
+
+      {smsList.length > 0 && (
+        <div className="border-t border-gray-50 pt-3 space-y-2">
+          {smsSlice.map((s) => (
+            <div key={s.id} className="bg-green-50/50 border border-green-100 rounded-lg px-3 py-2.5 space-y-1">
+              <p className="text-sm text-gray-800">{s.content}</p>
+              <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                <span className="flex items-center gap-1"><User size={10} /> {s.created_by}</span>
+                <span className="flex items-center gap-1"><Clock size={10} /> {fmtDate(s.created_at)}</span>
+              </div>
+            </div>
+          ))}
+          {smsTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[11px] text-gray-400">{(smsPage - 1) * SMS_PAGE_SIZE + 1}–{Math.min(smsPage * SMS_PAGE_SIZE, smsList.length)} de {smsList.length}</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setSmsPage(1)} disabled={smsPage === 1} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">«</button>
+                <button onClick={() => setSmsPage((p) => p - 1)} disabled={smsPage === 1} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">‹</button>
+                <span className="px-2 py-0.5 rounded bg-papaya-orange text-white text-[11px] font-semibold min-w-[24px] text-center">{smsPage}</span>
+                <button onClick={() => setSmsPage((p) => p + 1)} disabled={smsPage === smsTotalPages} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">›</button>
+                <button onClick={() => setSmsPage(smsTotalPages)} disabled={smsPage === smsTotalPages} className="p-1 rounded-lg text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">»</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {smsList.length === 0 && (
+        <div className="py-6 text-center text-sm text-gray-400">Sin SMS enviados</div>
+      )}
+    </div>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmtDate(s: string) {
@@ -587,15 +702,17 @@ function fmtDate(s: string) {
 export function InteractionsSection({
   clientId,
   clientEmail,
+  clientPhone,
   bare = false,
 }: {
   clientId: number;
   clientEmail: string | null;
+  clientPhone?: string | null;
   bare?: boolean;
 }) {
-  const [tab, setTab]                         = useState<"notes" | "email">("notes");
-  const [interactions, setInteractions]       = useState<ClientInteraction[]>([]);
-  const [loading, setLoading]                 = useState(true);
+  const [tab, setTab]                   = useState<"notes" | "email" | "sms">("notes");
+  const [interactions, setInteractions] = useState<ClientInteraction[]>([]);
+  const [loading, setLoading]           = useState(true);
 
   useEffect(() => {
     api.getClientInteractions(clientId)
@@ -610,6 +727,7 @@ export function InteractionsSection({
 
   const noteCount  = interactions.filter((i) => i.type === "note").length;
   const emailCount = interactions.filter((i) => i.type === "email").length;
+  const smsCount   = interactions.filter((i) => i.type === "sms").length;
 
   const body = (
     <div className="space-y-5">
@@ -619,9 +737,7 @@ export function InteractionsSection({
           type="button"
           onClick={() => setTab("notes")}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            tab === "notes"
-              ? "bg-papaya-orange text-white shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
+            tab === "notes" ? "bg-papaya-orange text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
           }`}
         >
           <StickyNote size={13} />
@@ -631,13 +747,21 @@ export function InteractionsSection({
           type="button"
           onClick={() => setTab("email")}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            tab === "email"
-              ? "bg-papaya-orange text-white shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
+            tab === "email" ? "bg-papaya-orange text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
           }`}
         >
           <Mail size={13} />
-          Correo electrónico {emailCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{emailCount}</span>}
+          Correo {emailCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{emailCount}</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("sms")}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            tab === "sms" ? "bg-papaya-orange text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <MessageSquare size={13} />
+          SMS {smsCount > 0 && <span className="ml-0.5 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">{smsCount}</span>}
         </button>
       </div>
 
@@ -645,6 +769,8 @@ export function InteractionsSection({
         <div className="py-8 text-center text-sm text-gray-400 animate-pulse">Cargando…</div>
       ) : tab === "notes" ? (
         <NotesTab clientId={clientId} interactions={interactions} onAdded={handleAdded} />
+      ) : tab === "sms" ? (
+        <SmsTab clientId={clientId} clientPhone={clientPhone ?? null} interactions={interactions} onAdded={handleAdded} />
       ) : (
         <EmailTab clientId={clientId} clientEmail={clientEmail} interactions={interactions} onAdded={handleAdded} />
       )}

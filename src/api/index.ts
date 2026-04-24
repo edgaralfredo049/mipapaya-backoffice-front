@@ -465,7 +465,7 @@ export interface HandoffRequest {
 export interface ClientInteraction {
   id: number;
   client_id: number;
-  type: "note" | "email";
+  type: "note" | "email" | "sms";
   subject: string | null;
   content: string;
   created_by: string;
@@ -1012,6 +1012,10 @@ export const api = {
   sendClientEmail: (clientId: number, to: string, subject: string, html: string) =>
     request<ClientInteraction>(`/clients/${clientId}/interactions/email`, {
       method: "POST", body: JSON.stringify({ to, subject, html }),
+    }),
+  sendClientSms: (clientId: number, to: string, body: string) =>
+    request<ClientInteraction>(`/clients/${clientId}/interactions/sms`, {
+      method: "POST", body: JSON.stringify({ to, body }),
     }),
 
   // Documents
