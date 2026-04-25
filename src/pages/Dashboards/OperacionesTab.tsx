@@ -160,7 +160,29 @@ export const OperacionesTab = () => {
         </div>
       )}
 
-      {/* ── Transacciones + distribución interacciones ──────────────────────── */}
+      {/* 1 ── Operaciones de remesas ─────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 pt-1">
+        <div className="w-1 h-5 rounded-full bg-orange-500" />
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Operaciones de remesas</h2>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard label="Total remesas" value={kpis?.total_remesas ?? "—"} color="teal" />
+        <StatCard label="Pagadas"       value={kpis?.pagadas ?? "—"}       color="green" />
+        <StatCard label="Canceladas"    value={kpis?.canceladas ?? "—"}    color="red" />
+        <StatCard
+          label="Pendientes"
+          value={kpis?.pendientes ?? "—"}
+          color="yellow"
+          sub={kpis ? `En operaciones: ${kpis.pendientes_en_operaciones}  ·  En cumplimiento: ${kpis.pendientes_en_cumplimiento}` : undefined}
+        />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <StatCard label="Transmitidas automáticas" value={kpis?.transmitidas_auto ?? "—"}       color="green" />
+        <StatCard label="Transmitidas manuales"    value={kpis?.transmitidas_manuales ?? "—"}   color="blue" />
+        <StatCard label="Elevadas a cumplimiento"  value={kpis?.elevadas_cumplimiento ?? "—"}   color="orange" />
+      </div>
+
+      {/* 2 ── Transacciones por día + Distribución por tipo ─────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <div className="xl:col-span-2">
           <Block title="Transacciones por día">
@@ -170,7 +192,8 @@ export const OperacionesTab = () => {
                 <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Legend iconSize={10} iconType="circle" formatter={(v) => <span className="text-xs text-gray-600">{v === "pagadas" ? "Pagadas" : v === "pendientes" ? "Pendientes" : "Canceladas"}</span>} />
+                <Legend iconSize={10} iconType="circle" formatter={(v) => <span className="text-xs text-gray-600">{{ total: "Total", pagadas: "Pagadas", pendientes: "Pendientes", canceladas: "Canceladas" }[v as string] ?? v}</span>} />
+                <Line type="monotone" dataKey="total"      stroke={GRAY}   strokeWidth={2} dot={false} strokeDasharray="4 2" />
                 <Line type="monotone" dataKey="pagadas"    stroke={GREEN}  strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="pendientes" stroke={YELLOW} strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="canceladas" stroke={RED}    strokeWidth={2} dot={false} />
@@ -183,28 +206,34 @@ export const OperacionesTab = () => {
         </Block>
       </div>
 
-      {/* ── Operaciones de remesas ───────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 pt-1">
-        <div className="w-1 h-5 rounded-full bg-orange-500" />
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Operaciones de remesas</h2>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard label="Transmitidas automáticas" value={kpis?.transmitidas_auto ?? "—"} color="green" />
-        <StatCard label="Transmitidas manuales"    value={kpis?.transmitidas_manuales ?? "—"} color="blue" />
-        <StatCard label="Elevadas a cumplimiento"  value={kpis?.elevadas_cumplimiento ?? "—"} color="orange" />
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard label="Pagadas"    value={kpis?.pagadas ?? "—"}    color="green" />
-        <StatCard label="Canceladas" value={kpis?.canceladas ?? "—"} color="red" />
-        <StatCard
-          label="Pendientes"
-          value={kpis?.pendientes ?? "—"}
-          color="yellow"
-          sub={kpis ? `En operaciones: ${kpis.en_operaciones}  ·  En cumplimiento: ${kpis.en_cumplimiento}` : undefined}
-        />
-      </div>
+      {/* 3 ── Remesas por estado ─────────────────────────────────────────────── */}
+      <Block title="Remesas por estado">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <TH c="Estado" />
+                <TH c="% del total" right />
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.remittances_by_status ?? []).sort((a, b) => b.value - a.value).map((row, i) => (
+                <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                  <TD c={
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: PIE_COLORS_STATUS[row.name] ?? GRAY }} />
+                      {row.name}
+                    </span>
+                  } />
+                  <TD c={`${row.value}%`} right cls="font-semibold" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Block>
 
-      {/* ── Actividad por agente ─────────────────────────────────────────────── */}
+      {/* 4 ── Actividad por agente ───────────────────────────────────────────── */}
       {(data?.interactions_by_agent?.length ?? 0) > 0 && (
         <Block title="Actividad por agente">
           <div className="overflow-x-auto">
@@ -242,7 +271,7 @@ export const OperacionesTab = () => {
         </Block>
       )}
 
-      {/* ── Feedback de usuarios ─────────────────────────────────────────────── */}
+      {/* 5 ── Feedback de usuarios ───────────────────────────────────────────── */}
       <Block title={`Feedback de usuarios${kpis ? ` — ${kpis.total_survey} respuestas` : ""}`}>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           <div className="xl:col-span-2">
@@ -260,33 +289,6 @@ export const OperacionesTab = () => {
             </ResponsiveContainer>
           </div>
           <MiniDonut data={data?.survey_distribution ?? []} title="" colorMap={PIE_COLORS_SURVEY} />
-        </div>
-      </Block>
-
-      {/* ── Estado de remesas ────────────────────────────────────────────────── */}
-      <Block title="Remesas por estado">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <TH c="Estado" />
-                <TH c="% del total" right />
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.remittances_by_status ?? []).sort((a, b) => b.value - a.value).map((row, i) => (
-                <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                  <TD c={
-                    <span className="flex items-center gap-2">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: PIE_COLORS_STATUS[row.name] ?? GRAY }} />
-                      {row.name}
-                    </span>
-                  } />
-                  <TD c={`${row.value}%`} right cls="font-semibold" />
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </Block>
 

@@ -588,9 +588,10 @@ export interface DashboardOpsKpis {
   survey_bueno: number; survey_regular: number; survey_malo: number;
   transmitidas_auto: number; transmitidas_manuales: number; elevadas_cumplimiento: number;
   total_remesas: number; pagadas: number; canceladas: number;
-  pendientes: number; con_error: number; en_cumplimiento: number; en_operaciones: number;
+  pendientes: number; pendientes_en_operaciones: number; pendientes_en_cumplimiento: number;
+  con_error: number; en_cumplimiento: number; en_operaciones: number;
 }
-export interface DashboardOpsTxnDay         { fecha: string; pagadas: number; pendientes: number; canceladas: number; }
+export interface DashboardOpsTxnDay         { fecha: string; total: number; pagadas: number; pendientes: number; canceladas: number; }
 export interface DashboardOpsInteractionDay { fecha: string; notas: number; emails: number; sms: number; }
 export interface DashboardOpsSurveyDay      { fecha: string; bueno: number; regular: number; malo: number; }
 export interface DashboardOpsAgentRow       {
