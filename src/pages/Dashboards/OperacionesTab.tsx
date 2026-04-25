@@ -160,20 +160,20 @@ export const OperacionesTab = () => {
         </div>
       )}
 
-      {/* ── Interacciones Customer Service ──────────────────────────────────── */}
+      {/* ── Transacciones + distribución interacciones ──────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <div className="xl:col-span-2">
-          <Block title="Interacciones por día">
+          <Block title="Transacciones por día">
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={data?.interactions_by_day ?? []} margin={{ top: 4, right: 16, bottom: 0, left: -16 }}>
+              <LineChart data={data?.transactions_by_day ?? []} margin={{ top: 4, right: 16, bottom: 0, left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                 <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Legend iconSize={10} iconType="circle" formatter={(v) => <span className="text-xs text-gray-600">{v === "notas" ? "Notas" : v === "emails" ? "Correos" : "SMS"}</span>} />
-                <Line type="monotone" dataKey="notas"  stroke={ORANGE} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="emails" stroke={BLUE}   strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="sms"    stroke={TEAL}   strokeWidth={2} dot={false} />
+                <Legend iconSize={10} iconType="circle" formatter={(v) => <span className="text-xs text-gray-600">{v === "pagadas" ? "Pagadas" : v === "pendientes" ? "Pendientes" : "Canceladas"}</span>} />
+                <Line type="monotone" dataKey="pagadas"    stroke={GREEN}  strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="pendientes" stroke={YELLOW} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="canceladas" stroke={RED}    strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </Block>
