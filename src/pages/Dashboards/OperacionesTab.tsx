@@ -193,12 +193,15 @@ export const OperacionesTab = () => {
         <StatCard label="Transmitidas manuales"    value={kpis?.transmitidas_manuales ?? "—"} color="blue" />
         <StatCard label="Elevadas a cumplimiento"  value={kpis?.elevadas_cumplimiento ?? "—"} color="orange" />
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <StatCard label="Pagadas"          value={kpis?.pagadas ?? "—"}         color="green" />
-        <StatCard label="Canceladas"       value={kpis?.canceladas ?? "—"}      color="red" />
-        <StatCard label="Pendientes"       value={kpis?.pendientes ?? "—"}      color="yellow" />
-        <StatCard label="En cumplimiento"  value={kpis?.en_cumplimiento ?? "—"} color="orange" />
-        <StatCard label="En operaciones"   value={kpis?.en_operaciones ?? "—"}  color="blue" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <StatCard label="Pagadas"    value={kpis?.pagadas ?? "—"}    color="green" />
+        <StatCard label="Canceladas" value={kpis?.canceladas ?? "—"} color="red" />
+        <StatCard
+          label="Pendientes"
+          value={kpis?.pendientes ?? "—"}
+          color="yellow"
+          sub={kpis ? `En operaciones: ${kpis.en_operaciones}  ·  En cumplimiento: ${kpis.en_cumplimiento}` : undefined}
+        />
       </div>
 
       {/* ── Actividad por agente ─────────────────────────────────────────────── */}

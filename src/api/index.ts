@@ -583,22 +583,14 @@ export interface DashboardAdmin {
 
 export interface DashboardOpsKpis {
   total_interactions: number;
-  notas: number;
-  emails: number;
-  sms: number;
+  notas: number; emails: number; sms: number;
   total_survey: number;
-  survey_bueno: number;
-  survey_regular: number;
-  survey_malo: number;
-  transmitidas_auto: number;
-  transmitidas_manuales: number;
-  elevadas_cumplimiento: number;
-  pagadas: number;
-  canceladas: number;
-  pendientes: number;
-  en_cumplimiento: number;
-  en_operaciones: number;
+  survey_bueno: number; survey_regular: number; survey_malo: number;
+  transmitidas_auto: number; transmitidas_manuales: number; elevadas_cumplimiento: number;
+  total_remesas: number; pagadas: number; canceladas: number;
+  pendientes: number; con_error: number; en_cumplimiento: number; en_operaciones: number;
 }
+export interface DashboardOpsTxnDay         { fecha: string; pagadas: number; pendientes: number; canceladas: number; }
 export interface DashboardOpsInteractionDay { fecha: string; notas: number; emails: number; sms: number; }
 export interface DashboardOpsSurveyDay      { fecha: string; bueno: number; regular: number; malo: number; }
 export interface DashboardOpsAgentRow       {
@@ -609,6 +601,7 @@ export interface DashboardOps {
   date_from: string;
   date_to: string;
   kpis: DashboardOpsKpis;
+  transactions_by_day: DashboardOpsTxnDay[];
   interactions_by_day: DashboardOpsInteractionDay[];
   interactions_by_type: DashboardPieSlice[];
   interactions_by_agent: DashboardOpsAgentRow[];
