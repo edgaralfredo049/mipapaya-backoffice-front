@@ -221,7 +221,7 @@ export const AdministrativoTab = () => {
             {exporting ? "Generando..." : "Exportar Excel"}
           </button>
           <button
-            onClick={() => { setDateFrom(monthStartNY()); setDateTo(todayNY()); setFilterError(null); }}
+            onClick={() => { setDateFrom(monthStartNY()); setDateTo(todayNY()); setFilterError(null); setCanal(null); load(monthStartNY(), todayNY(), null); }}
             className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
           >
             <X size={12} /> Limpiar
