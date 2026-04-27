@@ -571,6 +571,7 @@ export interface DashboardRegDay   { fecha: string; actual: number; promedio: nu
 export interface DashboardAdmin {
   date_from: string;
   date_to: string;
+  canal: string | null;
   kpis: DashboardKpis;
   emisor: DashboardEmisorRow[];
   receptor: DashboardReceptorRow[];
@@ -725,10 +726,11 @@ export const authApi = {
 
 export const api = {
   // Dashboard
-  getDashboardAdmin: (dateFrom?: string, dateTo?: string) => {
+  getDashboardAdmin: (dateFrom?: string, dateTo?: string, canal?: string | null) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo)   params.set("date_to",   dateTo);
+    if (canal)    params.set("canal",     canal);
     const qs = params.toString();
     return request<DashboardAdmin>(`/dashboard/admin${qs ? `?${qs}` : ""}`);
   },

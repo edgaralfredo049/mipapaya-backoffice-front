@@ -103,6 +103,7 @@ export const AdministrativoTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [canal, setCanal]     = useState<string | null>(null);
 
   const validate = (from: string, to: string): string | null => {
     if (!from || !to)        return "Ambas fechas son requeridas";
@@ -111,14 +112,14 @@ export const AdministrativoTab = () => {
     return null;
   };
 
-  const load = useCallback(async (from: string, to: string) => {
+  const load = useCallback(async (from: string, to: string, c: string | null = null) => {
     const err = validate(from, to);
     if (err) { setFilterError(err); return; }
     setFilterError(null);
     setLoading(true);
     setError(null);
     try {
-      const res = await api.getDashboardAdmin(from, to);
+      const res = await api.getDashboardAdmin(from, to, c);
       setData(res);
     } catch (e: any) {
       setError(e.message ?? "Error cargando datos");
@@ -126,6 +127,12 @@ export const AdministrativoTab = () => {
       setLoading(false);
     }
   }, []);
+
+  const handleCanalClick = (key: string) => {
+    const next = canal === key ? null : key;
+    setCanal(next);
+    load(dateFrom, dateTo, next);
+  };
 
   useEffect(() => { load(dateFrom, dateTo); }, []); // solo al montar
 
@@ -237,25 +244,42 @@ export const AdministrativoTab = () => {
       {loading ? <Skeleton /> : !data ? null : (
         <>
           {/* 1 ── Canales (vista más general) */}
-          <Block title={`Canal utilizado — ${rangeLabel}`}>
+          <Block title={`Canal utilizado — ${rangeLabel}${canal ? ` — Filtrado: ${canal === "chatbot" ? "Chatbot Landing" : "WhatsApp"}` : ""}`}>
             <div className="flex gap-4">
               {[
-                { label: "Chatbot Landing", pct: data.canales.chatbot_landing, color: ORANGE,    letter: "C" },
-                { label: "WhatsApp",        pct: data.canales.whatsapp,        color: WA_GREEN,  letter: "W" },
-              ].map(c => (
-                <div key={c.label}
-                  className="flex-1 flex items-center gap-4 bg-gray-50 rounded-xl px-5 py-4 border border-gray-100"
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold flex-shrink-0"
-                    style={{ background: c.color }}>
-                    {c.letter}
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-gray-800">{c.pct.toFixed(2)}%</div>
-                    <div className="text-xs text-gray-500 font-medium mt-0.5">{c.label}</div>
-                  </div>
-                </div>
-              ))}
+                { label: "Chatbot Landing", pct: data.canales.chatbot_landing, color: ORANGE,   letter: "C", key: "chatbot"  },
+                { label: "WhatsApp",        pct: data.canales.whatsapp,        color: WA_GREEN, letter: "W", key: "whatsapp" },
+              ].map(c => {
+                const isActive  = canal === c.key;
+                const isDimmed  = canal !== null && !isActive;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => handleCanalClick(c.key)}
+                    className={`flex-1 flex items-center gap-4 rounded-xl px-5 py-4 border text-left transition-all
+                      ${isActive  ? "border-2 shadow-md"                          : ""}
+                      ${isDimmed  ? "opacity-40"                                   : ""}
+                      ${!isDimmed ? "hover:shadow-sm hover:border-gray-300 cursor-pointer" : "cursor-pointer"}
+                      bg-gray-50 border-gray-100`}
+                    style={isActive ? { borderColor: c.color } : {}}
+                    title={isActive ? "Clic para quitar filtro" : `Filtrar por ${c.label}`}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold flex-shrink-0"
+                      style={{ background: c.color }}>
+                      {c.letter}
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-800">{c.pct.toFixed(2)}%</div>
+                      <div className="text-xs text-gray-500 font-medium mt-0.5">{c.label}</div>
+                    </div>
+                    {isActive && (
+                      <div className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: c.color }}>
+                        Activo
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </Block>
 
