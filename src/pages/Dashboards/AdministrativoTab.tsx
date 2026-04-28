@@ -39,8 +39,8 @@ function varColor(v: number) { return v > 0 ? "text-green-600" : v < 0 ? "text-r
 const inp = "rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none bg-white";
 
 // ── micro-UI ──────────────────────────────────────────────────────────────────
-const TH = ({ c, right }: { c: React.ReactNode; right?: boolean }) => (
-  <th className={`px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap border-b border-gray-200 ${right ? "text-right" : "text-left"}`}>{c}</th>
+const TH = ({ c, right, cls = "" }: { c: React.ReactNode; right?: boolean; cls?: string }) => (
+  <th className={`px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap border-b border-gray-200 ${right ? "text-right" : "text-left"} ${cls}`}>{c}</th>
 );
 const TD = ({ c, right, cls = "" }: { c: React.ReactNode; right?: boolean; cls?: string }) => (
   <td className={`px-3 py-1.5 text-sm whitespace-nowrap ${right ? "text-right" : "text-left"} ${cls}`}>{c}</td>
@@ -368,7 +368,7 @@ export const AdministrativoTab = () => {
                   <TH c={fmtDisplay(kpis!.date_ayer)} right />
                   <TH c="Variación" right />
                   <TH c="Meta" right />
-                  <TH c="Alcance %" right />
+                  <TH c="Alcance %" right cls="!pr-6" />
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
                   {carteraRows.map(r => {
@@ -383,7 +383,7 @@ export const AdministrativoTab = () => {
                         <td className="px-3 py-1.5 text-right">
                           <GoalCell metric={r.metric} value={meta} onSave={handleGoalSave} />
                         </td>
-                        <TD c={alcance(r.hoy, meta)} right cls={alcanceColor(r.hoy, meta)} />
+                        <TD c={alcance(r.hoy, meta)} right cls={alcanceColor(r.hoy, meta) + " !pr-6"} />
                       </tr>
                     );
                   })}
@@ -399,7 +399,7 @@ export const AdministrativoTab = () => {
                   <TH c={fmtDisplay(kpis!.date_ayer)} right />
                   <TH c="Variación" right />
                   <TH c="Meta" right />
-                  <TH c="Alcance %" right />
+                  <TH c="Alcance %" right cls="!pr-6" />
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
                   {operRows.map(r => {
@@ -414,7 +414,7 @@ export const AdministrativoTab = () => {
                         <td className="px-3 py-1.5 text-right">
                           <GoalCell metric={r.metric} value={meta} onSave={handleGoalSave} />
                         </td>
-                        <TD c={alcance(r.hoy, meta)} right cls={alcanceColor(r.hoy, meta)} />
+                        <TD c={alcance(r.hoy, meta)} right cls={alcanceColor(r.hoy, meta) + " !pr-6"} />
                       </tr>
                     );
                   })}
