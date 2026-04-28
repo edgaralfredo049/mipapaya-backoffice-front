@@ -103,18 +103,23 @@ function GoalCell({ metric, value, onSave }: {
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState(String(value));
   const [saving,  setSaving]  = useState(false);
+  const [errored, setErrored] = useState(false);
 
   const commit = async () => {
     const n = parseFloat(draft);
     if (isNaN(n) || n < 0) { setDraft(String(value)); setEditing(false); return; }
     if (n === value)        { setEditing(false); return; }
     setSaving(true);
+    setErrored(false);
     try {
       await api.updateGoal(metric, n);
       onSave(metric, n);
+      setEditing(false);
+    } catch {
+      setErrored(true);
+      setEditing(false);
     } finally {
       setSaving(false);
-      setEditing(false);
     }
   };
 
@@ -134,12 +139,13 @@ function GoalCell({ metric, value, onSave }: {
   }
   return (
     <button
-      onClick={() => { setDraft(String(value)); setEditing(true); }}
+      onClick={() => { setDraft(String(value)); setEditing(true); setErrored(false); }}
       disabled={saving}
-      title="Clic para editar meta"
-      className="text-sm text-gray-600 hover:text-orange-500 hover:underline decoration-dashed underline-offset-2 cursor-pointer transition-colors"
+      title={errored ? "Error al guardar — clic para reintentar" : "Clic para editar meta"}
+      className={`text-sm hover:underline decoration-dashed underline-offset-2 cursor-pointer transition-colors
+        ${errored ? "text-red-500 hover:text-red-600" : "text-gray-600 hover:text-orange-500"}`}
     >
-      {saving ? "…" : value.toLocaleString("en-US")}
+      {saving ? "…" : errored ? `${value.toLocaleString("en-US")} ⚠` : value.toLocaleString("en-US")}
     </button>
   );
 }
