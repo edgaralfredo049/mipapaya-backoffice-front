@@ -568,10 +568,19 @@ export interface DashboardReceptorRow {
 export interface DashboardPieSlice { name: string; value: number; }
 export interface DashboardTxnDay   { fecha: string; value: number; }
 export interface DashboardRegDay   { fecha: string; actual: number; promedio: number; meta: number; }
+export interface DashboardGoals {
+  registros:       number;
+  clientes_nuevos: number;
+  transacciones:   number;
+  monto:           number;
+  ticket:          number;
+}
+
 export interface DashboardAdmin {
   date_from: string;
   date_to: string;
   canal: string | null;
+  goals: DashboardGoals;
   kpis: DashboardKpis;
   emisor: DashboardEmisorRow[];
   receptor: DashboardReceptorRow[];
@@ -726,6 +735,13 @@ export const authApi = {
 
 export const api = {
   // Dashboard
+  updateGoal: (metric: string, value: number, partnershipId = 1) =>
+    request<{ metric: string; value: number }>(`/dashboard/goals/${metric}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value, partnership_id: partnershipId }),
+    }),
+
   getDashboardAdmin: (dateFrom?: string, dateTo?: string, canal?: string | null) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);

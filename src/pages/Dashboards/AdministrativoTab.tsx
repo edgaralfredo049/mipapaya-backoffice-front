@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import { api, DashboardAdmin, DashboardPieSlice } from "../../api";
+import { api, DashboardAdmin, DashboardGoals, DashboardPieSlice } from "../../api";
 import { Search, X, AlertCircle, Download } from "lucide-react";
 
 const ORANGE   = "#f97316";
@@ -94,6 +94,68 @@ function Skeleton() {
   );
 }
 
+// ── GoalCell: celda META editable inline ──────────────────────────────────────
+function GoalCell({ metric, value, onSave }: {
+  metric: string;
+  value: number;
+  onSave: (metric: string, value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(String(value));
+  const [saving,  setSaving]  = useState(false);
+
+  const commit = async () => {
+    const n = parseFloat(draft);
+    if (isNaN(n) || n < 0) { setDraft(String(value)); setEditing(false); return; }
+    if (n === value)        { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await api.updateGoal(metric, n);
+      onSave(metric, n);
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(String(value)); setEditing(false); } }}
+        className="w-20 text-right text-sm border border-orange-400 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-orange-400"
+      />
+    );
+  }
+  return (
+    <button
+      onClick={() => { setDraft(String(value)); setEditing(true); }}
+      disabled={saving}
+      title="Clic para editar meta"
+      className="text-sm text-gray-600 hover:text-orange-500 hover:underline decoration-dashed underline-offset-2 cursor-pointer transition-colors"
+    >
+      {saving ? "…" : value.toLocaleString("en-US")}
+    </button>
+  );
+}
+
+function alcance(actual: number, meta: number): string {
+  if (!meta) return "—";
+  return (actual / meta * 100).toFixed(0) + "%";
+}
+function alcanceColor(actual: number, meta: number): string {
+  if (!meta) return "text-gray-400";
+  const pct = actual / meta;
+  if (pct >= 1)   return "text-green-600 font-semibold";
+  if (pct >= 0.6) return "text-blue-500 font-semibold";
+  return "text-red-500 font-semibold";
+}
+
 // ── componente principal ──────────────────────────────────────────────────────
 export const AdministrativoTab = () => {
   const [dateFrom, setDateFrom] = useState(monthStartNY());
@@ -104,6 +166,12 @@ export const AdministrativoTab = () => {
   const [error, setError]     = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [canal, setCanal]     = useState<string | null>(null);
+  const [goals, setGoals]     = useState<DashboardGoals>({
+    registros: 20, clientes_nuevos: 10, transacciones: 30, monto: 3000, ticket: 150,
+  });
+
+  const handleGoalSave = (metric: string, value: number) =>
+    setGoals(prev => ({ ...prev, [metric]: value }));
 
   const validate = (from: string, to: string): string | null => {
     if (!from || !to)        return "Ambas fechas son requeridas";
@@ -121,6 +189,7 @@ export const AdministrativoTab = () => {
     try {
       const res = await api.getDashboardAdmin(from, to, c);
       setData(res);
+      if (res.goals) setGoals(res.goals);
     } catch (e: any) {
       setError(e.message ?? "Error cargando datos");
     } finally {
@@ -169,13 +238,13 @@ export const AdministrativoTab = () => {
 
   // KPI table rows
   const carteraRows = kpis ? [
-    { label: "Registros",       hoy: kpis.registros_hoy, ayer: kpis.registros_ayer },
-    { label: "Clientes Nuevos", hoy: kpis.nuevos_hoy,    ayer: kpis.nuevos_ayer    },
+    { label: "Registros",       hoy: kpis.registros_hoy, ayer: kpis.registros_ayer, metric: "registros",       fmt: (v: number) => String(Math.round(v)) },
+    { label: "Clientes Nuevos", hoy: kpis.nuevos_hoy,    ayer: kpis.nuevos_ayer,    metric: "clientes_nuevos", fmt: (v: number) => String(Math.round(v)) },
   ] : [];
   const operRows = kpis ? [
-    { label: "Transacciones",   hoy: kpis.txn_hoy,    ayer: kpis.txn_ayer,    fmt: (v: number) => String(Math.round(v)) },
-    { label: "Monto Transado",  hoy: kpis.monto_hoy,  ayer: kpis.monto_ayer,  fmt: money },
-    { label: "Ticket Promedio", hoy: kpis.ticket_hoy, ayer: kpis.ticket_ayer, fmt: (v: number) => "$" + v.toFixed(1) },
+    { label: "Transacciones",   hoy: kpis.txn_hoy,    ayer: kpis.txn_ayer,    metric: "transacciones", fmt: (v: number) => String(Math.round(v)) },
+    { label: "Monto Transado",  hoy: kpis.monto_hoy,  ayer: kpis.monto_ayer,  metric: "monto",         fmt: money },
+    { label: "Ticket Promedio", hoy: kpis.ticket_hoy, ayer: kpis.ticket_ayer, metric: "ticket",        fmt: (v: number) => "$" + v.toFixed(1) },
   ] : [];
 
   return (
@@ -288,18 +357,27 @@ export const AdministrativoTab = () => {
             <Block title="Cartera de Clientes">
               <table className="w-full">
                 <thead><tr>
-                  <TH c="" /><TH c={fmtDisplay(data.date_to)} right /><TH c={fmtDisplay(kpis!.date_ayer)} right />
+                  <TH c="" />
+                  <TH c={fmtDisplay(data.date_to)} right />
+                  <TH c={fmtDisplay(kpis!.date_ayer)} right />
                   <TH c="Variación" right />
+                  <TH c="Meta" right />
+                  <TH c="Alcance %" right />
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
                   {carteraRows.map(r => {
-                    const v = r.hoy - r.ayer;
+                    const v   = r.hoy - r.ayer;
+                    const meta = goals[r.metric as keyof typeof goals] ?? 0;
                     return (
                       <tr key={r.label} className="hover:bg-gray-50">
                         <TD c={r.label} cls="font-medium text-gray-700" />
-                        <TD c={r.hoy} right cls="font-semibold" />
-                        <TD c={r.ayer} right cls="text-gray-400" />
+                        <TD c={r.fmt(r.hoy)} right cls="font-semibold" />
+                        <TD c={r.fmt(r.ayer)} right cls="text-gray-400" />
                         <TD c={`${v > 0 ? "+" : ""}${v}`} right cls={varColor(v) + " font-semibold"} />
+                        <td className="px-3 py-1.5 text-right">
+                          <GoalCell metric={r.metric} value={meta} onSave={handleGoalSave} />
+                        </td>
+                        <TD c={alcance(r.hoy, meta)} right cls={alcanceColor(r.hoy, meta)} />
                       </tr>
                     );
                   })}
@@ -310,18 +388,27 @@ export const AdministrativoTab = () => {
             <Block title="Operación">
               <table className="w-full">
                 <thead><tr>
-                  <TH c="" /><TH c={fmtDisplay(data.date_to)} right /><TH c={fmtDisplay(kpis!.date_ayer)} right />
+                  <TH c="" />
+                  <TH c={fmtDisplay(data.date_to)} right />
+                  <TH c={fmtDisplay(kpis!.date_ayer)} right />
                   <TH c="Variación" right />
+                  <TH c="Meta" right />
+                  <TH c="Alcance %" right />
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
                   {operRows.map(r => {
-                    const v = r.hoy - r.ayer;
+                    const v    = r.hoy - r.ayer;
+                    const meta = goals[r.metric as keyof typeof goals] ?? 0;
                     return (
                       <tr key={r.label} className="hover:bg-gray-50">
                         <TD c={r.label} cls="font-medium text-gray-700" />
                         <TD c={r.fmt(r.hoy)} right cls="font-semibold" />
                         <TD c={r.fmt(r.ayer)} right cls="text-gray-400" />
                         <TD c={`${v > 0 ? "+" : ""}${r.fmt(v)}`} right cls={varColor(v) + " font-semibold"} />
+                        <td className="px-3 py-1.5 text-right">
+                          <GoalCell metric={r.metric} value={meta} onSave={handleGoalSave} />
+                        </td>
+                        <TD c={alcance(r.hoy, meta)} right cls={alcanceColor(r.hoy, meta)} />
                       </tr>
                     );
                   })}
