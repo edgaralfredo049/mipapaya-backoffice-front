@@ -387,7 +387,8 @@ export const RemittanceDetailView = () => {
                 label="Método de entrega"
                 value={DISBURSEMENT_LABELS[record.disbursement_method ?? ""] || record.disbursement_method}
               />
-              <Field label="Pagador" value={record.payer_name || record.payer_id} />
+              <Field label="Recolector" value={record.collector_name || record.collector_id} />
+              <Field label="Pagador"    value={record.payer_name   || record.payer_id} />
               {(record.sender_payment_method === "creditCard" || record.sender_payment_method === "debitCard") && (
                 <Field label="Tarjeta" value={record.card_number_masked ?? "No disponible"} />
               )}
