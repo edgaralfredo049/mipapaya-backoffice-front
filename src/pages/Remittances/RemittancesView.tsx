@@ -184,9 +184,9 @@ export const RemittancesView = () => {
   const hasClientFilter = !!_qp.get("client");
   const [fClient,   setFClient]   = useState(_qp.get("client") ?? "");
   const [fPayer,    setFPayer]    = useState("");
-  const [fStatus,   setFStatus]   = useState(hasClientFilter ? "" : "pending");
-  const [fDateFrom, setFDateFrom] = useState(hasClientFilter ? "" : thirtyDaysAgoNY());
-  const [fDateTo,   setFDateTo]   = useState(hasClientFilter ? "" : todayNY());
+  const [fStatus,   setFStatus]   = useState("");
+  const [fDateFrom, setFDateFrom] = useState("");
+  const [fDateTo,   setFDateTo]   = useState("");
 
   const load = useCallback(async (p: number, filters: {
     client_id?: string; payer_id?: string; status?: string; date_from?: string; date_to?: string;
@@ -351,7 +351,7 @@ export const RemittancesView = () => {
           <table className="w-full text-xs">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha (NY)", "Cliente", "Ruta", "Enviado", "Pagador", "Estado", "Alertas", "Acciones"].map(h => (
+                {["ID Remesa", "Fecha (NY)", "Cliente", "Ruta", "Enviado", "Pagador", "Recolector", "Estado", "Alertas", "Acciones"].map(h => (
                   <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -361,11 +361,11 @@ export const RemittancesView = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">
                     {hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}
                   </td>
                 </tr>
@@ -402,6 +402,7 @@ export const RemittancesView = () => {
                     {(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}
                   </td>
                   <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
+                  <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.collector_name || "—"}</td>
                   <td className="px-2 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
                       {STATUS_LABELS[r.status] ?? r.status}
