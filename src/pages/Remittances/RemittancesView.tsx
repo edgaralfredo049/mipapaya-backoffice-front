@@ -171,7 +171,6 @@ export const RemittancesView = () => {
   const [error, setError]           = useState<string | null>(null);
   const [sendingId, setSendingId]   = useState<string | null>(null);
   const [confirmId, setConfirmId]   = useState<string | null>(null);
-  const [payingId,  setPayingId]    = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<{ id: string; summary: string } | null>(null);
   const [vaultingId,       setVaultingId]       = useState<string | null>(null);
   const [confirmVault,     setConfirmVault]     = useState<{ id: string; toVault: string; label: string } | null>(null);
@@ -235,26 +234,12 @@ export const RemittancesView = () => {
     setSendingId(id);
     setConfirmId(null);
     try {
-      // Step 1: Pendiente → Transmitida
-      const transmited = await api.updateRemittanceStatus(id, "transmited");
-      setItems(prev => prev.map(r => r.id === transmited.id ? transmited : r));
-
-      setPayingId(id);
-      // TODO: replace setTimeout with real integration webhook/callback
-      setTimeout(async () => {
-        try {
-          // Step 2: Transmitida → Pagada (simulated integration response)
-          const payed = await api.updateRemittanceStatus(id, "payed");
-          setItems(prev => prev.map(r => r.id === payed.id ? payed : r));
-        } catch {
-          // silent — transmited state remains visible
-        } finally {
-          setSendingId(null);
-          setPayingId(null);
-        }
-      }, 8000);
-    } catch {
-      setError("Error al actualizar el estado.");
+      const result = await api.updateRemittanceStatus(id, "transmited");
+      setItems(prev => prev.map(r => r.id === result.id ? result : r));
+    } catch (e: any) {
+      const msg = e?.message || "Error al transmitir la remesa.";
+      setError(msg);
+    } finally {
       setSendingId(null);
     }
   };
@@ -431,10 +416,6 @@ export const RemittancesView = () => {
                       {r.status === "ureview" ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
                           <ShieldAlert size={10} /> Validando…
-                        </span>
-                      ) : payingId === r.id ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 font-medium animate-pulse">
-                          ⏳ Procesando…
                         </span>
                       ) : r.status === "pending" && !isReadOnly && (userRole === "operaciones" || userRole === "superusuario") ? (
                         <div className="relative group">

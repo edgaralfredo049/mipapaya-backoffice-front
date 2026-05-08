@@ -82,6 +82,9 @@ export interface Pagador {
   country_fx: Record<string, number>;
   created_at: string;
   rate_status: "complete" | "partial" | "empty";
+  provider?: string | null;
+  has_credentials?: boolean;
+  base_url?: string | null;
 }
 
 export interface PagadorIn {
@@ -89,6 +92,10 @@ export interface PagadorIn {
   status: string;
   countries: string[];
   country_fx: Record<string, number>;
+  provider?: string | null;
+  api_key?: string | null;
+  secret_key?: string | null;
+  base_url?: string | null;
 }
 
 export interface Rate {
