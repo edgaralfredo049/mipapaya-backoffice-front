@@ -239,6 +239,11 @@ export const RemittancesView = () => {
     } catch (e: any) {
       const msg = e?.message || "Error al transmitir la remesa.";
       setError(msg);
+      // Reload the row so the updated status (unpayed) reflects in the list
+      try {
+        const updated = await api.getRemittance(id);
+        if (updated) setItems(prev => prev.map(r => r.id === id ? updated : r));
+      } catch { /* ignore secondary fetch failure */ }
     } finally {
       setSendingId(null);
     }
@@ -417,11 +422,15 @@ export const RemittancesView = () => {
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
                           <ShieldAlert size={10} /> Validando…
                         </span>
+                      ) : sendingId === r.id ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-papaya-orange font-medium animate-pulse">
+                          <Send size={10} /> Transmitiendo…
+                        </span>
                       ) : (r.status === "pending" || r.status === "unpayed") && !isReadOnly && (userRole === "operaciones" || userRole === "superusuario") ? (
                         <div className="relative group">
                           <button
                             onClick={() => setConfirmId(r.id)}
-                            disabled={r.vault !== "operations" || sendingId === r.id}
+                            disabled={r.vault !== "operations"}
                             className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Send size={13} />
