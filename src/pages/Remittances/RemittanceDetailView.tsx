@@ -66,16 +66,22 @@ function parseJson(raw: string | null | undefined): Record<string, string> {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  status_change:      "Cambio de estado",
-  payer_change:       "Cambio de pagador",
-  vault_change:       "Cambio de bóveda",
-  compliance_reject:  "Rechazo Cumplimiento",
+  status_change:       "Cambio de estado",
+  payer_change:        "Cambio de pagador",
+  vault_change:        "Cambio de bóveda",
+  compliance_reject:   "Rechazo Cumplimiento",
+  transmitted:         "Transmitida",
+  transmission_failed: "Fallo de transmisión",
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  status: "Estado",
-  payer:  "Pagador",
-  vault:  "Bóveda",
+  status:              "Estado",
+  payer:               "Pagador",
+  vault:               "Bóveda",
+  amount_ves:          "Monto VES",
+  disbursement_method: "Método de desembolso",
+  crixto_response:     "Respuesta Crixto",
+  error:               "Error",
 };
 
 const DISBURSEMENT_LABELS: Record<string, string> = {
@@ -403,9 +409,9 @@ export const RemittanceDetailView = () => {
 
       {/* Estado update section */}
       {(() => {
-        const locked = record.status === "payed" || record.status === "transmited" || record.status === "canceled";
+        const locked = record.status === "payed" || record.status === "canceled";
         const canEditOps  = canWrite && (userRole === "operaciones" || userRole === "superusuario");
-        const canCancel   = canWrite && record.status === "pending" && (userRole === "operaciones" || userRole === "cumplimiento" || userRole === "superusuario");
+        const canCancel   = canWrite && (record.status === "pending" || record.status === "unpayed") && (userRole === "operaciones" || userRole === "cumplimiento" || userRole === "superusuario");
         const SELECTABLE_STATUSES = Object.entries(STATUS_LABELS).filter(([v]) => v !== "canceled");
         return (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -414,7 +420,7 @@ export const RemittanceDetailView = () => {
               <div className="flex items-center gap-3">
                 {locked && (
                   <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                    <CheckCircle2 size={12} className={record.status === "payed" ? "text-green-500" : record.status === "canceled" ? "text-gray-400" : "text-blue-500"} />
+                    <CheckCircle2 size={12} className={record.status === "payed" ? "text-green-500" : "text-gray-400"} />
                     {STATUS_LABELS[record.status]} — bloqueado
                   </span>
                 )}
@@ -432,7 +438,7 @@ export const RemittanceDetailView = () => {
             <div className="p-6">
               {(locked || !canEditOps) ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-500">
-                  <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : record.status === "canceled" ? "text-gray-400 shrink-0" : "text-blue-500 shrink-0"} />
+                  <CheckCircle2 size={15} className={record.status === "payed" ? "text-green-500 shrink-0" : "text-gray-400 shrink-0"} />
                   {locked
                     ? <>La remesa está en estado <span className="font-semibold mx-1">{STATUS_LABELS[record.status]}</span> y no puede modificarse.</>
                     : "No tienes permisos para modificar remesas."}
@@ -525,14 +531,32 @@ export const RemittanceDetailView = () => {
                     </td>
                     <td className="px-4 py-3">
                       <ul className="space-y-0.5">
-                        {Object.entries(entry.changes).map(([field, { from, to }]) => (
-                          <li key={field} className="text-xs text-gray-700">
-                            <span className="font-medium text-gray-500">{FIELD_LABELS[field] ?? field}:</span>{" "}
-                            <span className="text-gray-400 line-through">{from ?? "—"}</span>
-                            {" → "}
-                            <span className="text-gray-800 font-medium">{to ?? "—"}</span>
-                          </li>
-                        ))}
+                        {Object.entries(entry.changes).map(([field, value]) => {
+                          const label = FIELD_LABELS[field] ?? field;
+                          const isDiff = value !== null && typeof value === "object" && "from" in value && "to" in value;
+                          if (isDiff) {
+                            const { from, to } = value as { from: unknown; to: unknown };
+                            return (
+                              <li key={field} className="text-xs text-gray-700">
+                                <span className="font-medium text-gray-500">{label}:</span>{" "}
+                                <span className="text-gray-400 line-through">{String(from ?? "—")}</span>
+                                {" → "}
+                                <span className="text-gray-800 font-medium">{String(to ?? "—")}</span>
+                              </li>
+                            );
+                          }
+                          const display = value === null || value === undefined
+                            ? "—"
+                            : typeof value === "object"
+                              ? JSON.stringify(value)
+                              : String(value);
+                          return (
+                            <li key={field} className="text-xs text-gray-700">
+                              <span className="font-medium text-gray-500">{label}:</span>{" "}
+                              <span className="text-gray-800 break-all">{display}</span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </td>
                   </tr>

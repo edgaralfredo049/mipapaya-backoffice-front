@@ -417,7 +417,7 @@ export const RemittancesView = () => {
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
                           <ShieldAlert size={10} /> Validando…
                         </span>
-                      ) : r.status === "pending" && !isReadOnly && (userRole === "operaciones" || userRole === "superusuario") ? (
+                      ) : (r.status === "pending" || r.status === "unpayed") && !isReadOnly && (userRole === "operaciones" || userRole === "superusuario") ? (
                         <div className="relative group">
                           <button
                             onClick={() => setConfirmId(r.id)}
