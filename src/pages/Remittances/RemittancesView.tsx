@@ -128,6 +128,7 @@ function fmtDateNY(utcStr: string) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  pending_payment: "Pago Pendiente",
   ureview:    "En revisión",
   pending:    "Pendiente",
   transmited: "Transmitida",
@@ -137,6 +138,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
+  pending_payment: "bg-orange-50 text-orange-600",
   ureview:    "bg-purple-50 text-purple-700",
   pending:    "bg-yellow-50 text-yellow-700",
   transmited: "bg-blue-50 text-blue-700",

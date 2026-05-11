@@ -14,21 +14,19 @@ const PERMISSION_LABELS: Record<string, string> = {
   usuarios:               "Usuarios y roles",
 };
 
-const ROLE_ORDER = ["superusuario", "operaciones", "cumplimiento", "customer_services"];
+const ROLE_ORDER = ["superusuario", "operaciones", "cumplimiento"];
 
 const ROLE_COLORS: Record<string, string> = {
-  superusuario:      "bg-papaya-orange/10 text-papaya-orange",
-  operaciones:       "bg-blue-50 text-blue-600",
-  customer_services: "bg-green-50 text-green-600",
-  cumplimiento:      "bg-purple-50 text-purple-600",
+  superusuario: "bg-papaya-orange/10 text-papaya-orange",
+  operaciones:  "bg-blue-50 text-blue-600",
+  cumplimiento: "bg-purple-50 text-purple-600",
 };
 
 // Escritura fija por rol — la edición real estará controlada por el vault system
 const ROLE_WRITE_PERMS: Record<string, Set<string>> = {
-  superusuario:      new Set(["dashboard_admin", "dashboard_ops", "dashboard_cumplimiento", "configuracion", "tasas", "clientes", "remesas", "soporte", "usuarios"]),
-  operaciones:       new Set(["dashboard_admin", "dashboard_ops", "remesas", "clientes", "usuarios"]),
-  cumplimiento:      new Set(["remesas", "clientes", "usuarios"]),
-  customer_services: new Set(),
+  superusuario: new Set(["dashboard_admin", "dashboard_ops", "dashboard_cumplimiento", "configuracion", "tasas", "clientes", "remesas", "soporte", "usuarios"]),
+  operaciones:  new Set(["dashboard_admin", "dashboard_ops", "remesas", "clientes", "soporte", "usuarios"]),
+  cumplimiento: new Set(["remesas", "clientes", "usuarios"]),
 };
 
 interface RoleState {
