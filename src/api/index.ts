@@ -982,6 +982,10 @@ export const api = {
     request<RemittanceRecord>(`/remittances/${id}/vault`, {
       method: "PATCH", body: JSON.stringify({ vault, notes }),
     }),
+  registerRemittancePayment: (id: string, reference_id?: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/register-payment`, {
+      method: "POST", body: JSON.stringify({ reference_id: reference_id || null }),
+    }),
   complianceApprove: (id: string, notes?: string) =>
     request<RemittanceRecord>(`/remittances/${id}/compliance/approve`, {
       method: "POST", body: JSON.stringify({ notes }),

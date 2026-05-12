@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, X, ArrowLeftRight, Send, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw, ArrowUpRight, Undo2, XCircle } from "lucide-react";
+import {
+  Search, X, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw,
+  CreditCard, Send, ArrowUpRight, Undo2, XCircle, Lock, Loader2, Scale,
+} from "lucide-react";
 
 type AlertDetail = { name: string; triggered: boolean; reason: string };
 
@@ -103,6 +106,90 @@ import { useAppStore } from "../../store/useAppStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Pagination } from "../../components/ui/Pagination";
 
+// ── Step workflow (compact table version) ────────────────────────────────────
+
+type StepState = "active" | "done" | "disabled" | "blocked" | "locked";
+
+interface StepDef { key: string; label: string; icon: React.ReactNode; color: "orange" | "red"; }
+
+const STEPS: StepDef[] = [
+  { key: "register_payment", label: "Registrar Pago",    icon: <CreditCard size={11} />, color: "orange" },
+  { key: "transmit",         label: "Transmitir",        icon: <Send size={11} />,       color: "orange" },
+  { key: "vault",            label: "Escalar/Devolver",  icon: <Scale size={11} />,        color: "orange" },
+  { key: "cancel",           label: "Cancelar",          icon: <XCircle size={11} />,    color: "red"    },
+];
+
+function getStepState(stepKey: string, record: RemittanceRecord, userRole: string, canWrite: boolean): StepState {
+  const s = record.status;
+  if (s === "payed" || s === "canceled") return "locked";
+  const isBlocking = s === "ureview" || s === "transmited";
+
+  if (stepKey === "register_payment") {
+    if (isBlocking) return "blocked";
+    if (s === "pending_payment" && canWrite && (userRole === "operaciones" || userRole === "superusuario")) return "active";
+    if (s !== "pending_payment") return "done";
+    return "disabled";
+  }
+  if (stepKey === "transmit") {
+    if (s === "pending_payment") return "disabled";
+    if (s === "ureview") return "blocked";
+    if (s === "transmited") return "done";
+    if ((s === "pending" || s === "unpayed") && canWrite && (userRole === "operaciones" || userRole === "superusuario") && record.vault === "operations") return "active";
+    return "disabled";
+  }
+  if (stepKey === "vault") {
+    if (s === "pending_payment") return "disabled";
+    if (isBlocking) return "blocked";
+    if (s !== "pending") return "disabled";
+    const canEscalar  = record.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
+    const canRetornar = record.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
+    if ((canEscalar || canRetornar) && canWrite) return "active";
+    return "disabled";
+  }
+  if (stepKey === "cancel") {
+    if (s === "pending_payment") return "disabled";
+    if (isBlocking) return "blocked";
+    if ((s === "pending" || s === "unpayed") && canWrite && (userRole === "operaciones" || userRole === "cumplimiento" || userRole === "superusuario")) return "active";
+    return "disabled";
+  }
+  return "disabled";
+}
+
+function MiniCircle({ icon, state, color, label, onClick }: {
+  icon: React.ReactNode; state: StepState; color: "orange" | "red"; label: string; onClick?: () => void;
+}) {
+  const base = "w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all";
+  const isClickable = state === "active" && !!onClick;
+
+  const colorClass =
+    state === "locked"  ? "bg-gray-100 text-gray-300 ring-1 ring-gray-200" :
+    state === "done"    ? "bg-green-500 text-white" :
+    state === "blocked" ? "bg-gray-100 text-gray-400 ring-1 ring-gray-200" :
+    state === "active"  ? (color === "red" ? "bg-red-500 text-white ring-2 ring-red-200" : "bg-papaya-orange text-white ring-2 ring-papaya-orange/30") :
+                          "bg-gray-50 text-gray-300 ring-1 ring-gray-100";
+
+  return (
+    <div
+      className={`relative group ${isClickable ? "cursor-pointer hover:scale-110" : "cursor-default"} transition-transform`}
+      onClick={isClickable ? onClick : undefined}
+    >
+      <div className={`${base} ${colorClass}`}>
+        {state === "locked"  ? <Lock size={9} />                             :
+         state === "done"    ? <CheckCircle2 size={10} />                    :
+         state === "blocked" ? <Loader2 size={9} className="animate-spin" /> :
+         icon}
+      </div>
+      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function MiniConnector({ active }: { active: boolean }) {
+  return <div className="w-3 h-px shrink-0" style={{ background: active ? "#f97316" : "#e5e7eb" }} />;
+}
+
 const PAGE_SIZE = 10;
 
 function nyDateToUtcBounds(nyDate: string): { from: string; to: string } {
@@ -164,6 +251,7 @@ export const RemittancesView = () => {
   const { pagadores } = useAppStore();
   const { search: locationSearch } = useLocation();
   const userRole = useAuthStore(s => s.user?.role ?? "");
+  const canWrite = useAuthStore(s => s.hasPermission("remesas", true));
 
   const [items, setItems]           = useState<RemittanceRecord[]>([]);
   const [total, setTotal]           = useState(0);
@@ -171,15 +259,23 @@ export const RemittancesView = () => {
   const [page, setPage]             = useState(1);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
-  const [sendingId, setSendingId]   = useState<string | null>(null);
-  const [confirmId, setConfirmId]   = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<{ id: string; summary: string } | null>(null);
-  const [vaultingId,       setVaultingId]       = useState<string | null>(null);
-  const [confirmVault,     setConfirmVault]     = useState<{ id: string; toVault: string; label: string } | null>(null);
-  const [confirmCancelId,  setConfirmCancelId]  = useState<string | null>(null);
-  const [cancelingId,      setCancelingId]      = useState<string | null>(null);
-  const [disableClient,    setDisableClient]    = useState<{ clientDbId: number; clientName: string | null } | null>(null);
-  const [disablingClient,  setDisablingClient]  = useState(false);
+
+  // Action state (shared across rows)
+  const [activeRecord, setActiveRecord]               = useState<RemittanceRecord | null>(null);
+  const [showRegisterPayment, setShowRegisterPayment] = useState(false);
+  const [paymentRef, setPaymentRef]                   = useState("");
+  const [registeringPayment, setRegisteringPayment]   = useState(false);
+  const [registerPaymentError, setRegisterPaymentError] = useState<string | null>(null);
+  const [confirmTransmit, setConfirmTransmit]         = useState(false);
+  const [transmitting, setTransmitting]               = useState(false);
+  const [transmitError, setTransmitError]             = useState<string | null>(null);
+  const [confirmVault, setConfirmVault]               = useState<{ toVault: "operations" | "compliance"; label: string } | null>(null);
+  const [vaulting, setVaulting]                       = useState(false);
+  const [vaultError, setVaultError]                   = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel]             = useState(false);
+  const [canceling, setCanceling]                     = useState(false);
+  const [cancelError, setCancelError]                 = useState<string | null>(null);
 
   const _qp = new URLSearchParams(locationSearch);
   const hasClientFilter = !!_qp.get("client");
@@ -219,6 +315,59 @@ export const RemittancesView = () => {
   useEffect(() => { load(page, getFilters()); }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
+  const updateRow = (updated: RemittanceRecord) =>
+    setItems(prev => prev.map(it => it.id === updated.id ? updated : it));
+
+  const openStep = (record: RemittanceRecord, stepKey: string) => {
+    setActiveRecord(record);
+    setRegisterPaymentError(null); setTransmitError(null); setVaultError(null); setCancelError(null);
+    if (stepKey === "register_payment") { setPaymentRef(""); setShowRegisterPayment(true); }
+    if (stepKey === "transmit") setConfirmTransmit(true);
+    if (stepKey === "vault") setConfirmVault({
+      toVault: record.vault === "operations" ? "compliance" : "operations",
+      label:   record.vault === "operations" ? "Escalar a Cumplimiento" : "Devolver a Operaciones",
+    });
+    if (stepKey === "cancel") setConfirmCancel(true);
+  };
+
+  const handleRegisterPayment = async () => {
+    if (!activeRecord) return;
+    setRegisteringPayment(true); setRegisterPaymentError(null); setShowRegisterPayment(false);
+    try {
+      const updated = await api.registerRemittancePayment(activeRecord.id, paymentRef || undefined);
+      updateRow(updated); setPaymentRef("");
+    } catch (e: any) { setRegisterPaymentError(e?.message || "Error al registrar el pago."); } finally { setRegisteringPayment(false); }
+  };
+
+  const handleTransmit = async () => {
+    if (!activeRecord) return;
+    setTransmitting(true); setTransmitError(null); setConfirmTransmit(false);
+    try {
+      const updated = await api.updateRemittanceStatus(activeRecord.id, "transmited");
+      updateRow(updated);
+    } catch (e: any) { setTransmitError(e?.message || "Error al transmitir."); } finally { setTransmitting(false); }
+  };
+
+  const handleVaultChange = async () => {
+    if (!activeRecord || !confirmVault) return;
+    setVaulting(true); setVaultError(null);
+    const { toVault } = confirmVault;
+    setConfirmVault(null);
+    try {
+      const updated = await api.updateRemittanceVault(activeRecord.id, toVault);
+      updateRow(updated);
+    } catch (e: any) { setVaultError(e?.message || "Error al mover la bóveda."); } finally { setVaulting(false); }
+  };
+
+  const handleCancelRemittance = async () => {
+    if (!activeRecord) return;
+    setCanceling(true); setCancelError(null); setConfirmCancel(false);
+    try {
+      const updated = await api.updateRemittanceStatus(activeRecord.id, "canceled");
+      updateRow(updated);
+    } catch { setCancelError("Error al cancelar la remesa."); } finally { setCanceling(false); }
+  };
+
   const handleSearch = () => { setPage(1); load(1, getFilters()); };
 
   const handleClear = () => {
@@ -229,27 +378,6 @@ export const RemittancesView = () => {
   };
 
   const hasFilters = fClient || fPayer || fStatus || fDateFrom || fDateTo;
-
-  const handleConfirmSend = async () => {
-    if (!confirmId) return;
-    const id = confirmId;
-    setSendingId(id);
-    setConfirmId(null);
-    try {
-      const result = await api.updateRemittanceStatus(id, "transmited");
-      setItems(prev => prev.map(r => r.id === result.id ? result : r));
-    } catch (e: any) {
-      const msg = e?.message || "Error al transmitir la remesa.";
-      setError(msg);
-      // Reload the row so the updated status (unpayed) reflects in the list
-      try {
-        const updated = await api.getRemittance(id);
-        if (updated) setItems(prev => prev.map(r => r.id === id ? updated : r));
-      } catch { /* ignore secondary fetch failure */ }
-    } finally {
-      setSendingId(null);
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -319,14 +447,7 @@ export const RemittancesView = () => {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Table toolbar */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            {items.some(r => r.status === "ureview") && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block" />
-                Validación en curso…
-              </span>
-            )}
-          </div>
+          <div />
           <button
             onClick={() => load(page, getFilters())}
             disabled={loading}
@@ -343,7 +464,7 @@ export const RemittancesView = () => {
           <table className="w-full text-xs">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha (NY)", "Cliente", "Ruta", "Enviado", "Pagador", "Recolector", "Estado", "Alertas", "Acciones"].map(h => (
+                {["ID Remesa", "Fecha (NY)", "Cliente", "Enviado", "Pagador", "Recolector", "Estado", "Alertas", "Flujo"].map(h => (
                   <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -352,42 +473,19 @@ export const RemittancesView = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td>
-                </tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">Cargando…</td></tr>
               ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">
-                    {hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}
-                  </td>
-                </tr>
-              ) : items.map(r => {
-                const isReadOnly =
-                  (userRole === "operaciones" && r.vault === "compliance") ||
-                  (userRole === "cumplimiento" && r.vault === "operations");
-                return (
-                <tr key={r.id} className={isReadOnly ? "bg-gray-50/80" : "hover:bg-gray-50 transition-colors"}>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">{hasFilters ? "Sin resultados para los filtros aplicados." : "No hay remesas registradas."}</td></tr>
+              ) : items.map(r => (
+                <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-2 py-1.5 font-mono whitespace-nowrap">
-                    <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">
-                      {r.id}
-                    </Link>
+                    <Link to={`/remesas/${r.id}`} className="text-papaya-orange hover:underline">{r.id}</Link>
                   </td>
                   <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap">{fmtDateNY(r.created_at)}</td>
                   <td className="px-2 py-1.5 whitespace-nowrap">
                     <span className="inline-flex items-center gap-1">
-                      {r.client_db_id ? (
-                        <Link to={`/clientes/${r.client_db_id}`} className="font-mono text-papaya-orange hover:underline">
-                          #{r.client_db_id}
-                        </Link>
-                      ) : <span className="text-gray-400">—</span>}
+                      {r.client_db_id ? <Link to={`/clientes/${r.client_db_id}`} className="font-mono text-papaya-orange hover:underline">#{r.client_db_id}</Link> : <span className="text-gray-400">—</span>}
                       {r.client_name && <span className="text-gray-600">{r.client_name}</span>}
-                    </span>
-                  </td>
-                  <td className="px-2 py-1.5 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-gray-700">
-                      <span className="font-medium">{r.origin_country_name || r.origin_country_id || "—"}</span>
-                      <ArrowLeftRight size={10} className="text-gray-400" />
-                      <span className="font-medium">{r.destination_country_name || r.destination_country_id || "—"}</span>
                     </span>
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-medium text-gray-800 whitespace-nowrap">
@@ -402,83 +500,46 @@ export const RemittancesView = () => {
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     {(r.alert_count ?? 0) > 0 ? (
-                      <button
-                        onClick={() => setAlertModal({ id: r.id, summary: r.alert_summary ?? "" })}
+                      <button onClick={() => setAlertModal({ id: r.id, summary: r.alert_summary ?? "" })}
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-semibold hover:bg-red-200 transition-colors"
-                        title="Ver alertas de cumplimiento"
-                      >
+                        title="Ver alertas de cumplimiento">
                         <ShieldAlert size={10} /> {r.alert_count}
                       </button>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
-                  {/* Acciones: vault + transmitir */}
                   <td className="px-2 py-1.5">
-                    {isReadOnly ? (
-                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
-                        {r.vault === "compliance" ? "Validación de cumplimiento" : "Operaciones"}
+                    {r.status === "ureview" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px] font-medium animate-pulse whitespace-nowrap">
+                        <Loader2 size={9} className="animate-spin" /> En validación…
+                      </span>
+                    ) : r.status === "transmited" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-medium animate-pulse whitespace-nowrap">
+                        <Loader2 size={9} className="animate-spin" /> Transmitiendo…
                       </span>
                     ) : (
-                    <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                      {/* Transmitir */}
-                      {r.status === "ureview" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 font-medium animate-pulse">
-                          <ShieldAlert size={10} /> Validando…
-                        </span>
-                      ) : sendingId === r.id ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-papaya-orange font-medium animate-pulse">
-                          <Send size={10} /> Transmitiendo…
-                        </span>
-                      ) : (r.status === "pending" || r.status === "unpayed") && !isReadOnly && (userRole === "operaciones" || userRole === "superusuario") ? (
-                        <div className="relative group">
-                          <button
-                            onClick={() => setConfirmId(r.id)}
-                            disabled={r.vault !== "operations"}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Send size={13} />
-                          </button>
-                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Transmitir</span>
-                        </div>
-                      ) : null}
-                      {/* Vault button */}
-                      {r.status === "pending" && (() => {
-                        const canEscalar  = r.vault === "operations" && (userRole === "operaciones" || userRole === "superusuario");
-                        const canRetornar = r.vault === "compliance"  && (userRole === "cumplimiento"  || userRole === "superusuario");
-                        if (!canEscalar && !canRetornar) return null;
-                        const toVault = canEscalar ? "compliance" : "operations";
-                        const tip  = canEscalar ? "Escalar a Cumplimiento" : "Enviar a Operaciones";
-                        const Icon = canEscalar ? ArrowUpRight : Undo2;
-                        return (
-                          <div className="relative group">
-                            <button
-                              onClick={() => setConfirmVault({ id: r.id, toVault, label: tip })}
-                              disabled={vaultingId === r.id}
-                              className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-papaya-orange text-white hover:bg-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              {vaultingId === r.id ? "…" : <Icon size={13} />}
-                            </button>
-                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">{tip}</span>
-                          </div>
-                        );
-                      })()}
-                      {/* Cancelar */}
-                      {r.status === "pending" && !isReadOnly && (userRole === "operaciones" || userRole === "cumplimiento" || userRole === "superusuario") && (
-                        <div className="relative group">
-                          <button
-                            onClick={() => setConfirmCancelId(r.id)}
-                            disabled={cancelingId === r.id}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            {cancelingId === r.id ? "…" : <XCircle size={13} />}
-                          </button>
-                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Cancelar remesa</span>
-                        </div>
-                      )}
-                    </div>
+                      <div className="flex items-center gap-0.5">
+                        {STEPS.map((step, i) => {
+                          const state = getStepState(step.key, r, userRole, canWrite);
+                          const nextState = i < STEPS.length - 1 ? getStepState(STEPS[i + 1].key, r, userRole, canWrite) : null;
+                          const connActive = state === "done" || nextState === "active";
+                          return (
+                            <React.Fragment key={step.key}>
+                              <MiniCircle
+                                icon={step.icon}
+                                state={state}
+                                color={step.color}
+                                label={step.label}
+                                onClick={state === "active" ? () => openStep(r, step.key) : undefined}
+                              />
+                              {i < STEPS.length - 1 && <MiniConnector active={connActive} />}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
                     )}
                   </td>
                 </tr>
-              );})}
+              ))}
             </tbody>
           </table>
         </div>
@@ -490,6 +551,101 @@ export const RemittancesView = () => {
           pageSize={PAGE_SIZE}
         />
       </div>
+
+      {/* ── Action modals ── */}
+
+      {/* Register payment */}
+      {showRegisterPayment && activeRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-96 space-y-4">
+            <div className="flex items-center gap-2">
+              <CreditCard size={18} className="text-papaya-orange" />
+              <h3 className="text-sm font-semibold text-heading-text">Registrar pago manual</h3>
+            </div>
+            <p className="text-sm text-body-text">
+              Ingresa el ID de referencia del pago para la remesa{" "}
+              <span className="font-mono text-papaya-orange">{activeRecord.id}</span>.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs text-gray-500">ID de referencia (opcional)</label>
+              <input
+                type="text"
+                value={paymentRef}
+                onChange={e => setPaymentRef(e.target.value)}
+                placeholder="Ej. TXN-123456"
+                className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none"
+              />
+            </div>
+            {registerPaymentError && <p className="text-xs text-red-500">{registerPaymentError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setShowRegisterPayment(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
+              <button onClick={handleRegisterPayment} disabled={registeringPayment} className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-40">
+                {registeringPayment ? "…" : "Confirmar pago"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transmit confirm */}
+      {confirmTransmit && activeRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
+            <div className="flex items-center gap-2"><Send size={18} className="text-papaya-orange" /><h3 className="text-sm font-semibold text-heading-text">Transmitir remesa</h3></div>
+            <p className="text-sm text-body-text">¿Transmitir la remesa <span className="font-mono text-papaya-orange">{activeRecord.id}</span> al pagador?</p>
+            {transmitError && <p className="text-xs text-red-500">{transmitError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setConfirmTransmit(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
+              <button onClick={handleTransmit} disabled={transmitting} className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-40">
+                {transmitting ? "…" : "Sí, transmitir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vault confirm */}
+      {confirmVault && activeRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
+            <div className="flex items-center gap-2">
+              {confirmVault.toVault === "compliance" ? <ArrowUpRight size={18} className="text-papaya-orange" /> : <Undo2 size={18} className="text-papaya-orange" />}
+              <h3 className="text-sm font-semibold text-heading-text">{confirmVault.label}</h3>
+            </div>
+            <p className="text-sm text-body-text">
+              ¿Mover la remesa <span className="font-mono text-papaya-orange">{activeRecord.id}</span> a{" "}
+              <span className="font-semibold">{confirmVault.toVault === "compliance" ? "Cumplimiento" : "Operaciones"}</span>?
+            </p>
+            {vaultError && <p className="text-xs text-red-500">{vaultError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setConfirmVault(null)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
+              <button onClick={handleVaultChange} disabled={vaulting} className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-40">
+                {vaulting ? "…" : "Sí, mover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel confirm */}
+      {confirmCancel && activeRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-96 space-y-4">
+            <div className="flex items-center gap-2"><XCircle size={18} className="text-red-500" /><h3 className="text-sm font-semibold text-heading-text">Cancelar remesa</h3></div>
+            <p className="text-sm text-body-text">
+              ¿Cancelar la remesa <span className="font-mono text-papaya-orange">{activeRecord.id}</span>?
+              Esta acción no se puede deshacer.
+            </p>
+            {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setConfirmCancel(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">Volver</button>
+              <button onClick={handleCancelRemittance} disabled={canceling} className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-40">
+                {canceling ? "…" : "Sí, cancelar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alert summary modal */}
       {alertModal && (() => {
@@ -555,141 +711,6 @@ export const RemittancesView = () => {
         );
       })()}
 
-      {/* Confirm Vault dialog */}
-      {confirmVault && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
-            <h3 className="text-sm font-semibold text-heading-text">{confirmVault.label}</h3>
-            <p className="text-sm text-gray-600">
-              ¿Desea mover la remesa <span className="font-mono text-papaya-orange">{confirmVault.id}</span> a{" "}
-              <span className="font-semibold">{confirmVault.toVault === "compliance" ? "Cumplimiento" : "Operaciones"}</span>?
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setConfirmVault(null)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={async () => {
-                  const { id, toVault } = confirmVault;
-                  setConfirmVault(null);
-                  setVaultingId(id);
-                  try {
-                    const updated = await api.updateRemittanceVault(id, toVault);
-                    setItems(prev => prev.map(x => x.id === id ? updated : x));
-                  } catch { /* silent */ } finally { setVaultingId(null); }
-                }}
-                className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Cancel dialog */}
-      {confirmCancelId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
-            <h3 className="text-sm font-semibold text-heading-text">Cancelar remesa</h3>
-            <p className="text-sm text-gray-600">
-              ¿Desea cancelar la remesa <span className="font-mono text-papaya-orange">{confirmCancelId}</span>? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setConfirmCancelId(null)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Volver
-              </button>
-              <button
-                onClick={async () => {
-                  const id = confirmCancelId;
-                  const rem = items.find(r => r.id === id);
-                  setConfirmCancelId(null);
-                  setCancelingId(id);
-                  try {
-                    const updated = await api.updateRemittanceStatus(id, "canceled");
-                    setItems(prev => prev.map(r => r.id === updated.id ? updated : r));
-                    if (rem?.client_db_id) {
-                      setDisableClient({ clientDbId: rem.client_db_id, clientName: rem.client_name ?? null });
-                    }
-                  } catch { /* silent */ } finally { setCancelingId(null); }
-                }}
-                className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
-              >
-                Sí, cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Disable client dialog (post-cancel) */}
-      {disableClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
-            <h3 className="text-sm font-semibold text-heading-text">¿Inhabilitar cliente?</h3>
-            <p className="text-sm text-gray-600">
-              ¿Desea también inhabilitar al cliente{" "}
-              <span className="font-semibold">{disableClient.clientName ?? `#${disableClient.clientDbId}`}</span>?
-              Quedará registrado en su historial.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setDisableClient(null)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                No, mantener activo
-              </button>
-              <button
-                disabled={disablingClient}
-                onClick={async () => {
-                  setDisablingClient(true);
-                  try {
-                    await api.setClientActive(disableClient.clientDbId, false);
-                  } catch { /* silent */ } finally {
-                    setDisablingClient(false);
-                    setDisableClient(null);
-                  }
-                }}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-40"
-              >
-                {disablingClient ? "Inhabilitando…" : "Sí, inhabilitar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Send dialog */}
-      {confirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-80 space-y-4">
-            <h3 className="text-sm font-semibold text-heading-text">Confirmar envío</h3>
-            <p className="text-sm text-gray-600">
-              ¿Desea transmitir la remesa <span className="font-mono text-papaya-orange">{confirmId}</span>?
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setConfirmId(null)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmSend}
-                className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors"
-              >
-                Sí, enviar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
