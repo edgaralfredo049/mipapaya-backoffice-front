@@ -713,6 +713,8 @@ export const ClientDetailView = () => {
   const [remittances, setRemittances] = useState<RemittanceRecord[]>([]);
   const [remTotal, setRemTotal] = useState(0);
   const [remPage, setRemPage] = useState(1);
+  const [kycRefreshing, setKycRefreshing] = useState(false);
+  const [kycRefreshMsg, setKycRefreshMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [remLoading, setRemLoading] = useState(false);
   const [handoffs, setHandoffs]         = useState<HandoffRequest[]>([]);
   const [handoffLoading, setHandoffLoading] = useState(false);
@@ -854,6 +856,23 @@ export const ClientDetailView = () => {
       const log = await api.getClientAuditLog(Number(id));
       setAuditLog(log);
     } catch { /* silent */ }
+  }
+
+  async function handleKycRefresh() {
+    if (!id || !client) return;
+    setKycRefreshing(true);
+    setKycRefreshMsg(null);
+    try {
+      const res = await api.refreshClientKyc(Number(id));
+      const updated = await api.getClientDetail(Number(id));
+      setClient(updated);
+      setKycRefreshMsg({ ok: true, text: `KYC actualizado: ${res.kyc_status.toUpperCase()}` });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error consultando Aiprise';
+      setKycRefreshMsg({ ok: false, text: msg });
+    } finally {
+      setKycRefreshing(false);
+    }
   }
 
   function startBEdit(b: Beneficiary) {
@@ -1005,18 +1024,100 @@ export const ClientDetailView = () => {
               {/* ── KYC ── */}
               {leftTab === "kyc" && (
                 <>
-                  <div className="flex items-center gap-6 mb-3">
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1.5">Resultado</p>
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kycResultColor}`}>
-                        {client.kyc.verification_result || "—"}
-                      </span>
+                  {/* Status row + refresh button */}
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-6 flex-wrap">
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1.5">Estado KYC</p>
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          client.kyc_status === 'approved'
+                            ? 'bg-green-light text-green-icon'
+                            : client.kyc_status === 'declined'
+                            ? 'bg-red-light text-red-icon'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {client.kyc_status === 'approved' ? 'APROBADO' : client.kyc_status === 'declined' ? 'RECHAZADO' : 'PENDIENTE'}
+                        </span>
+                      </div>
+                      {client.kyc.verification_result && (
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1.5">Resultado Aiprise</p>
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kycResultColor}`}>
+                            {client.kyc.verification_result}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1.5">Fecha verificación</p>
+                        <p className="text-sm font-medium text-gray-800">{fmtDate(client.kyc.kyc_created_at)}</p>
+                      </div>
+                      {client.iprice_session_id && !client.iprice_session_id.startsWith('dev-bypass-') && (
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1.5">Session ID Aiprise</p>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(client.iprice_session_id!); }}
+                            title="Copiar Session ID"
+                            className="flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-orange-500 transition-colors group"
+                          >
+                            <span className="truncate max-w-[160px]">{client.iprice_session_id}</span>
+                            <svg className="w-3.5 h-3.5 shrink-0 opacity-50 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1.5">Fecha verificación</p>
-                      <p className="text-sm font-medium text-gray-800">{fmtDate(client.kyc.kyc_created_at)}</p>
-                    </div>
+                    {client.iprice_session_id && (
+                      <button
+                        onClick={() => handleKycRefresh()}
+                        disabled={kycRefreshing}
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {kycRefreshing ? (
+                          <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        )}
+                        Actualizar KYC
+                      </button>
+                    )}
                   </div>
+
+                  {/* Refresh result message */}
+                  {kycRefreshMsg && (
+                    <div className={`mb-3 px-3 py-2 rounded-lg text-xs font-medium ${kycRefreshMsg.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                      {kycRefreshMsg.text}
+                    </div>
+                  )}
+
+
+                  {/* Submitted form data (shown while pending and no KYC images yet) */}
+                  {client.kyc_status === 'pending' && !client.kyc.document_front && client.kyc.submitted_user_data && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-xs font-semibold text-yellow-700 mb-2">Datos enviados a Aiprise (verificación pendiente)</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                        {[
+                          ['Nombre', `${client.kyc.submitted_user_data.first_name || ''} ${client.kyc.submitted_user_data.last_name || ''}`.trim()],
+                          ['Email', client.kyc.submitted_user_data.email],
+                          ['Documento', client.kyc.submitted_user_data.id_number],
+                          ['Tipo Doc.', client.kyc.submitted_user_data.id_type],
+                          ['Dirección', client.kyc.submitted_user_data.address],
+                          ['Ciudad', client.kyc.submitted_user_data.city],
+                          ['Estado', client.kyc.submitted_user_data.state],
+                          ['País', client.kyc.submitted_user_data.country],
+                          ['Código Postal', client.kyc.submitted_user_data.postal_code],
+                        ].map(([label, val]) => val ? (
+                          <div key={label as string}><span className="text-gray-400">{label}: </span><span className="font-medium text-gray-700">{val}</span></div>
+                        ) : null)}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-3 gap-3">
                     <DocImage label="Frente"  url={client.kyc.document_front} />
                     <DocImage label="Reverso" url={client.kyc.document_back} />
@@ -1339,6 +1440,8 @@ export const ClientDetailView = () => {
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium"><User size={10} /> Cliente</span>
                               ) : entry.entity_type === "document" ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-500 font-medium"><FileText size={10} /> Documento</span>
+                              ) : entry.entity_type === "remittance" ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium"><ArrowLeftRight size={10} /> Remesa</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium"><Users size={10} /> {entry.entity_label || "Beneficiario"}</span>
                               )}
@@ -1355,6 +1458,21 @@ export const ClientDetailView = () => {
                                     {c.name}
                                     {c.mime_type && <span className="text-gray-400 ml-1">({c.mime_type})</span>}
                                   </p>
+                                );
+                              })() : entry.entity_type === "remittance" ? (() => {
+                                const c = entry.changes as Record<string, string>;
+                                return (
+                                  <div className="space-y-0.5">
+                                    {c.remittance_id && (
+                                      <p className="text-xs text-gray-500 font-mono">{c.remittance_id}</p>
+                                    )}
+                                    {c.error && (
+                                      <p className="text-xs text-red-600 break-all">{c.error}</p>
+                                    )}
+                                    {entry.entity_label && (
+                                      <p className="text-xs text-gray-400">{entry.entity_label}</p>
+                                    )}
+                                  </div>
                                 );
                               })() : (
                                 <ul className="space-y-0.5">

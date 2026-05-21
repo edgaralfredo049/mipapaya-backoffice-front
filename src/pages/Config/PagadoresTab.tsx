@@ -15,6 +15,10 @@ type PagadorForm = {
   status: string;
   countries: string[];
   country_fx: Record<string, number>;
+  provider: string;
+  api_key: string;
+  secret_key: string;
+  base_url: string;
 };
 
 const EMPTY_FORM: PagadorForm = {
@@ -22,6 +26,10 @@ const EMPTY_FORM: PagadorForm = {
   status: "active",
   countries: [],
   country_fx: {},
+  provider: "",
+  api_key: "",
+  secret_key: "",
+  base_url: "",
 };
 
 export const PagadoresTab = () => {
@@ -73,6 +81,10 @@ export const PagadoresTab = () => {
       status: p.status,
       countries: p.countries || [],
       country_fx: p.country_fx || {},
+      provider: p.provider || "",
+      api_key: "",
+      secret_key: "",
+      base_url: p.base_url || "",
     });
     setErrorMsg(null);
     setIsModalOpen(true);
@@ -95,6 +107,10 @@ export const PagadoresTab = () => {
         status: form.status,
         countries: form.countries,
         country_fx: form.country_fx,
+        provider: form.provider || null,
+        api_key: form.api_key || null,
+        secret_key: form.secret_key || null,
+        base_url: form.base_url || null,
       };
       if (editing) {
         await api.updatePagador(editing.id, payload);
@@ -291,6 +307,51 @@ export const PagadoresTab = () => {
                 );
               })}
             </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider border-b pb-2">
+              Integración de Transmisión
+            </h3>
+            <p className="text-xs text-gray-500">
+              Configura el proveedor para transmitir remesas automáticamente al presionar "Transmitir".
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Proveedor"
+                value={form.provider}
+                onChange={(e) => setForm({ ...form, provider: e.target.value })}
+                options={[
+                  { value: "", label: "Sin integración" },
+                  { value: "crixto", label: "Crixto" },
+                ]}
+              />
+              <Input
+                label="Base URL"
+                value={form.base_url}
+                onChange={(e) => setForm({ ...form, base_url: e.target.value })}
+                placeholder="https://api.crixto.com"
+              />
+            </div>
+            {form.provider === "crixto" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label={editing?.has_credentials ? "API Key (dejar vacío para no cambiar)" : "API Key"}
+                  value={form.api_key}
+                  onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+                  placeholder={editing?.has_credentials ? "••••••••" : ""}
+                />
+                <Input
+                  label={editing?.has_credentials ? "Secret Key (dejar vacío para no cambiar)" : "Secret Key"}
+                  value={form.secret_key}
+                  onChange={(e) => setForm({ ...form, secret_key: e.target.value })}
+                  placeholder={editing?.has_credentials ? "••••••••" : ""}
+                />
+              </div>
+            )}
+            {editing?.has_credentials && form.provider === "crixto" && (
+              <p className="text-xs text-emerald-600">Credenciales configuradas. Deja los campos vacíos para mantenerlas.</p>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3 pt-2">

@@ -4,17 +4,15 @@ import { UserPlus, UserCheck, UserX, Settings2, RefreshCw, KeyRound } from "luci
 import { api, BackofficeUser, BackofficeRole } from "../../api";
 
 const ROLE_LABELS: Record<string, string> = {
-  superusuario:      "Superusuario",
-  operaciones:       "Operaciones",
-  customer_services: "Customer Services",
-  cumplimiento:      "Cumplimiento",
+  superusuario: "Superusuario",
+  operaciones:  "Operaciones",
+  cumplimiento: "Cumplimiento",
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  superusuario:      "bg-papaya-orange/10 text-papaya-orange",
-  operaciones:       "bg-blue-50 text-blue-700",
-  customer_services: "bg-green-50 text-green-700",
-  cumplimiento:      "bg-purple-50 text-purple-700",
+  superusuario: "bg-papaya-orange/10 text-papaya-orange",
+  operaciones:  "bg-blue-50 text-blue-700",
+  cumplimiento: "bg-purple-50 text-purple-700",
 };
 
 export const UsersView = () => {

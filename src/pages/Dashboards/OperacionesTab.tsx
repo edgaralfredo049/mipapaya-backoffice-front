@@ -18,8 +18,9 @@ const TEAL   = "#14b8a6";
 
 const PIE_COLORS_TYPE: Record<string, string>   = { "Notas": ORANGE, "Correos": BLUE, "SMS": TEAL };
 const PIE_COLORS_SURVEY: Record<string, string> = { "Bueno": GREEN, "Regular": YELLOW, "Malo": RED };
+const PURPLE = "#a855f7";
 const PIE_COLORS_STATUS: Record<string, string> = {
-  "Pagada": GREEN, "Pendiente": YELLOW, "Transmitida": BLUE,
+  "Pago Pendiente": PURPLE, "Pagada": GREEN, "Pendiente": YELLOW, "Transmitida": BLUE,
   "No Pagada": ORANGE, "Cancelada": RED,
 };
 

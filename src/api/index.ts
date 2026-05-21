@@ -82,6 +82,9 @@ export interface Pagador {
   country_fx: Record<string, number>;
   created_at: string;
   rate_status: "complete" | "partial" | "empty";
+  provider?: string | null;
+  has_credentials?: boolean;
+  base_url?: string | null;
 }
 
 export interface PagadorIn {
@@ -89,6 +92,10 @@ export interface PagadorIn {
   status: string;
   countries: string[];
   country_fx: Record<string, number>;
+  provider?: string | null;
+  api_key?: string | null;
+  secret_key?: string | null;
+  base_url?: string | null;
 }
 
 export interface Rate {
@@ -356,6 +363,7 @@ export interface RemittanceRecord {
   alert_count: number;
   alert_summary: string | null;
   vault: "operations" | "compliance";
+  has_transmission_failure: boolean;
 }
 
 export interface Client {
@@ -396,6 +404,8 @@ export interface ClientDetail {
   id: number;
   phone: string;
   kyc_valid: boolean;
+  kyc_status: 'pending' | 'approved' | 'declined';
+  iprice_session_id: string | null;
   active: boolean;
   created_at: string;
   personal: {
@@ -419,6 +429,18 @@ export interface ClientDetail {
     document_front: string | null;
     document_back: string | null;
     selfie: string | null;
+    submitted_user_data: {
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+      address: string | null;
+      city: string | null;
+      state: string | null;
+      country: string | null;
+      postal_code: string | null;
+      id_number: string | null;
+      id_type: string | null;
+    } | null;
   };
 }
 
@@ -512,7 +534,7 @@ export interface AuditLogEntry {
   id: number;
   client_id: number;
   user: string;
-  entity_type: "client" | "beneficiary" | "document";
+  entity_type: "client" | "beneficiary" | "document" | "remittance";
   entity_id: string;
   entity_label: string | null;
   changes: Record<string, { from: string | null; to: string | null } | string>;
@@ -931,6 +953,11 @@ export const api = {
     request<Beneficiary>(`/beneficiaries/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   getClientAuditLog: (id: number) =>
     request<AuditLogEntry[]>(`/clients/${id}/audit-log`),
+  refreshClientKyc: (id: number) =>
+    request<{ kyc_status: string; verification_result: string | null; name: string | null; doc_id: string | null }>(
+      `/clients/${id}/kyc-refresh`,
+      { method: 'POST' }
+    ),
   getClientTxStats: (id: number) =>
     request<{ items: ClientTxStatRow[] }>(`/clients/${id}/tx-stats`),
   getRiskAnalysis: (id: number) =>
@@ -974,6 +1001,10 @@ export const api = {
   updateRemittanceVault: (id: string, vault: "operations" | "compliance", notes?: string) =>
     request<RemittanceRecord>(`/remittances/${id}/vault`, {
       method: "PATCH", body: JSON.stringify({ vault, notes }),
+    }),
+  registerRemittancePayment: (id: string, reference_id?: string) =>
+    request<RemittanceRecord>(`/remittances/${id}/register-payment`, {
+      method: "POST", body: JSON.stringify({ reference_id: reference_id || null }),
     }),
   complianceApprove: (id: string, notes?: string) =>
     request<RemittanceRecord>(`/remittances/${id}/compliance/approve`, {
