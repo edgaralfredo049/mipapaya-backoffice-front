@@ -403,6 +403,8 @@ export interface ClientDetail {
   id: number;
   phone: string;
   kyc_valid: boolean;
+  kyc_status: 'pending' | 'approved' | 'declined';
+  iprice_session_id: string | null;
   active: boolean;
   created_at: string;
   personal: {
@@ -426,6 +428,18 @@ export interface ClientDetail {
     document_front: string | null;
     document_back: string | null;
     selfie: string | null;
+    submitted_user_data: {
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+      address: string | null;
+      city: string | null;
+      state: string | null;
+      country: string | null;
+      postal_code: string | null;
+      id_number: string | null;
+      id_type: string | null;
+    } | null;
   };
 }
 
@@ -938,6 +952,11 @@ export const api = {
     request<Beneficiary>(`/beneficiaries/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   getClientAuditLog: (id: number) =>
     request<AuditLogEntry[]>(`/clients/${id}/audit-log`),
+  refreshClientKyc: (id: number) =>
+    request<{ kyc_status: string; verification_result: string | null; name: string | null; doc_id: string | null }>(
+      `/clients/${id}/kyc-refresh`,
+      { method: 'POST' }
+    ),
   getClientTxStats: (id: number) =>
     request<{ items: ClientTxStatRow[] }>(`/clients/${id}/tx-stats`),
   getRiskAnalysis: (id: number) =>

@@ -345,7 +345,14 @@ export const RemittancesView = () => {
     try {
       const updated = await api.updateRemittanceStatus(activeRecord.id, "transmited");
       updateRow(updated);
-    } catch (e: any) { setTransmitError(e?.message || "Error al transmitir."); } finally { setTransmitting(false); }
+    } catch (e: any) {
+      const detail: string = e?.message || "Error al transmitir.";
+      if (detail.includes("KYC_DECLINED")) {
+        setTransmitError("⚠️ KYC rechazado — Este cliente tiene verificación de identidad rechazada. Actualiza el estado del cliente antes de transmitir.");
+      } else {
+        setTransmitError(detail);
+      }
+    } finally { setTransmitting(false); }
   };
 
   const handleVaultChange = async () => {
