@@ -1051,6 +1051,21 @@ export const ClientDetailView = () => {
                         <p className="text-xs text-gray-400 mb-1.5">Fecha verificación</p>
                         <p className="text-sm font-medium text-gray-800">{fmtDate(client.kyc.kyc_created_at)}</p>
                       </div>
+                      {client.iprice_session_id && !client.iprice_session_id.startsWith('dev-bypass-') && (
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1.5">Session ID Aiprise</p>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(client.iprice_session_id!); }}
+                            title="Copiar Session ID"
+                            className="flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-orange-500 transition-colors group"
+                          >
+                            <span className="truncate max-w-[160px]">{client.iprice_session_id}</span>
+                            <svg className="w-3.5 h-3.5 shrink-0 opacity-50 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {client.iprice_session_id && (
                       <button
@@ -1425,6 +1440,8 @@ export const ClientDetailView = () => {
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium"><User size={10} /> Cliente</span>
                               ) : entry.entity_type === "document" ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-500 font-medium"><FileText size={10} /> Documento</span>
+                              ) : entry.entity_type === "remittance" ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium"><ArrowLeftRight size={10} /> Remesa</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium"><Users size={10} /> {entry.entity_label || "Beneficiario"}</span>
                               )}
@@ -1441,6 +1458,21 @@ export const ClientDetailView = () => {
                                     {c.name}
                                     {c.mime_type && <span className="text-gray-400 ml-1">({c.mime_type})</span>}
                                   </p>
+                                );
+                              })() : entry.entity_type === "remittance" ? (() => {
+                                const c = entry.changes as Record<string, string>;
+                                return (
+                                  <div className="space-y-0.5">
+                                    {c.remittance_id && (
+                                      <p className="text-xs text-gray-500 font-mono">{c.remittance_id}</p>
+                                    )}
+                                    {c.error && (
+                                      <p className="text-xs text-red-600 break-all">{c.error}</p>
+                                    )}
+                                    {entry.entity_label && (
+                                      <p className="text-xs text-gray-400">{entry.entity_label}</p>
+                                    )}
+                                  </div>
                                 );
                               })() : (
                                 <ul className="space-y-0.5">

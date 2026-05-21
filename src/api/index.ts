@@ -363,6 +363,7 @@ export interface RemittanceRecord {
   alert_count: number;
   alert_summary: string | null;
   vault: "operations" | "compliance";
+  has_transmission_failure: boolean;
 }
 
 export interface Client {
@@ -533,7 +534,7 @@ export interface AuditLogEntry {
   id: number;
   client_id: number;
   user: string;
-  entity_type: "client" | "beneficiary" | "document";
+  entity_type: "client" | "beneficiary" | "document" | "remittance";
   entity_id: string;
   entity_label: string | null;
   changes: Record<string, { from: string | null; to: string | null } | string>;
