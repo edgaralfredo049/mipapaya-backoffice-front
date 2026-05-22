@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Search, X, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw,
-  CreditCard, Send, ArrowUpRight, Undo2, XCircle, Lock, Loader2, Scale,
+  Send, ArrowUpRight, Undo2, XCircle, Lock, Loader2, Scale,
 } from "lucide-react";
 
 type AlertDetail = { name: string; triggered: boolean; reason: string };
@@ -113,9 +113,8 @@ type StepState = "active" | "done" | "disabled" | "blocked" | "locked";
 interface StepDef { key: string; label: string; icon: React.ReactNode; color: "orange" | "red"; }
 
 const STEPS: StepDef[] = [
-  { key: "register_payment", label: "Registrar Pago",    icon: <CreditCard size={11} />, color: "orange" },
   { key: "transmit",         label: "Transmitir",        icon: <Send size={11} />,       color: "orange" },
-  { key: "vault",            label: "Escalar/Devolver",  icon: <Scale size={11} />,        color: "orange" },
+  { key: "vault",            label: "Escalar/Devolver",  icon: <Scale size={11} />,      color: "orange" },
   { key: "cancel",           label: "Cancelar",          icon: <XCircle size={11} />,    color: "red"    },
 ];
 
@@ -124,12 +123,6 @@ function getStepState(stepKey: string, record: RemittanceRecord, userRole: strin
   if (s === "payed" || s === "canceled") return "locked";
   const isBlocking = s === "ureview" || s === "transmited";
 
-  if (stepKey === "register_payment") {
-    if (isBlocking) return "blocked";
-    if (s === "pending_payment" && canWrite && (userRole === "operaciones" || userRole === "superusuario")) return "active";
-    if (s !== "pending_payment") return "done";
-    return "disabled";
-  }
   if (stepKey === "transmit") {
     if (s === "pending_payment") return "disabled";
     if (s === "ureview") return "blocked";
@@ -263,10 +256,6 @@ export const RemittancesView = () => {
 
   // Action state (shared across rows)
   const [activeRecord, setActiveRecord]               = useState<RemittanceRecord | null>(null);
-  const [showRegisterPayment, setShowRegisterPayment] = useState(false);
-  const [paymentRef, setPaymentRef]                   = useState("");
-  const [registeringPayment, setRegisteringPayment]   = useState(false);
-  const [registerPaymentError, setRegisterPaymentError] = useState<string | null>(null);
   const [confirmTransmit, setConfirmTransmit]         = useState(false);
   const [transmitting, setTransmitting]               = useState(false);
   const [transmitError, setTransmitError]             = useState<string | null>(null);
@@ -320,23 +309,13 @@ export const RemittancesView = () => {
 
   const openStep = (record: RemittanceRecord, stepKey: string) => {
     setActiveRecord(record);
-    setRegisterPaymentError(null); setTransmitError(null); setVaultError(null); setCancelError(null);
-    if (stepKey === "register_payment") { setPaymentRef(""); setShowRegisterPayment(true); }
+    setTransmitError(null); setVaultError(null); setCancelError(null);
     if (stepKey === "transmit") setConfirmTransmit(true);
     if (stepKey === "vault") setConfirmVault({
       toVault: record.vault === "operations" ? "compliance" : "operations",
       label:   record.vault === "operations" ? "Escalar a Cumplimiento" : "Devolver a Operaciones",
     });
     if (stepKey === "cancel") setConfirmCancel(true);
-  };
-
-  const handleRegisterPayment = async () => {
-    if (!activeRecord) return;
-    setRegisteringPayment(true); setRegisterPaymentError(null); setShowRegisterPayment(false);
-    try {
-      const updated = await api.registerRemittancePayment(activeRecord.id, paymentRef || undefined);
-      updateRow(updated); setPaymentRef("");
-    } catch (e: any) { setRegisterPaymentError(e?.message || "Error al registrar el pago."); } finally { setRegisteringPayment(false); }
   };
 
   const handleTransmit = async () => {
@@ -586,39 +565,6 @@ export const RemittancesView = () => {
       </div>
 
       {/* ── Action modals ── */}
-
-      {/* Register payment */}
-      {showRegisterPayment && activeRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-96 space-y-4">
-            <div className="flex items-center gap-2">
-              <CreditCard size={18} className="text-papaya-orange" />
-              <h3 className="text-sm font-semibold text-heading-text">Registrar pago manual</h3>
-            </div>
-            <p className="text-sm text-body-text">
-              Ingresa el ID de referencia del pago para la remesa{" "}
-              <span className="font-mono text-papaya-orange">{activeRecord.id}</span>.
-            </p>
-            <div className="space-y-1.5">
-              <label className="text-xs text-gray-500">ID de referencia (opcional)</label>
-              <input
-                type="text"
-                value={paymentRef}
-                onChange={e => setPaymentRef(e.target.value)}
-                placeholder="Ej. TXN-123456"
-                className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:border-papaya-orange focus:outline-none"
-              />
-            </div>
-            {registerPaymentError && <p className="text-xs text-red-500">{registerPaymentError}</p>}
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowRegisterPayment(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
-              <button onClick={handleRegisterPayment} disabled={registeringPayment} className="px-4 py-2 rounded-lg bg-papaya-orange text-white text-xs font-medium hover:bg-orange-500 transition-colors disabled:opacity-40">
-                {registeringPayment ? "…" : "Confirmar pago"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Transmit confirm */}
       {confirmTransmit && activeRecord && (
