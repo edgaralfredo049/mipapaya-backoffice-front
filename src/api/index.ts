@@ -349,6 +349,7 @@ export interface RemittanceRecord {
   origin_country_name: string | null;
   destination_country_name: string | null;
   collector_name: string | null;
+  collector_payment_gateway: string | null;
   payer_name: string | null;
   partnership_name: string | null;
   client_name: string | null;

@@ -492,7 +492,16 @@ export const RemittancesView = () => {
                     {(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}
                   </td>
                   <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
-                  <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.collector_name || "—"}</td>
+                  <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">
+                    <span className="flex items-center gap-1 flex-wrap">
+                      {r.collector_name || "—"}
+                      {r.collector_payment_gateway && (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${r.collector_payment_gateway === "magicpay" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
+                          {r.collector_payment_gateway === "magicpay" ? "MagicPay" : "NMI"}
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-2 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
                       {STATUS_LABELS[r.status] ?? r.status}
