@@ -464,7 +464,7 @@ export const RemittancesView = () => {
           <table className="w-full text-xs">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["ID Remesa", "Fecha (NY)", "Cliente", "Enviado", "Pagador", "Recolector", "Estado", "Alertas", "Flujo"].map(h => (
+                {["ID Remesa", "Fecha (NY)", "Cliente", "Enviado", "Recolector", "Pagador", "Estado", "Alertas", "Flujo"].map(h => (
                   <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -491,7 +491,6 @@ export const RemittancesView = () => {
                   <td className="px-2 py-1.5 text-right tabular-nums font-medium text-gray-800 whitespace-nowrap">
                     {(r.sent_amount_local ?? (r.sent_amount_usd ?? 0) * r.collector_rate).toLocaleString("es", {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.sent_currency}
                   </td>
-                  <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
                   <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">
                     <span className="flex items-center gap-1 flex-wrap">
                       {r.collector_name || "—"}
@@ -502,6 +501,7 @@ export const RemittancesView = () => {
                       )}
                     </span>
                   </td>
+                  <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">{r.payer_name || r.payer_id || "—"}</td>
                   <td className="px-2 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-500"}`}>
                       {STATUS_LABELS[r.status] ?? r.status}
